@@ -1,0 +1,21 @@
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "0270bb8c297f4148969fa7cf2b4ed23b.4DxvQ7z79erm5TiU",
+    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+    "API_TIMEOUT_MS": "3000000",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.5-air",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.7",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.7"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(echo:*)",
+      "Bash(pg_isready:*)",
+      "Bash(DATABASE_URL=postgresql://docplatform:docplatform@localhost:5432/docplatform python:*)",
+      "Bash(netstat:*)",
+      "Bash(curl:*)",
+      "Bash(tasklist:*)",
+      "Bash(wsl:*)"
+    ]
+  }
+}

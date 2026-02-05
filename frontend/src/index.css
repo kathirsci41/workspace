@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-gray-50 text-gray-900;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-400;
+}
+
+/* PDF preview container */
+.pdf-container {
+  @apply bg-gray-200 flex items-center justify-center min-h-[500px];
+}
+
+/* Document checklist icons */
+.checklist-complete {
+  @apply text-green-500;
+}
+
+.checklist-incomplete {
+  @apply text-gray-300;
+}
