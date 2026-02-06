@@ -36,7 +36,15 @@ class StorageService:
         unique_filename = f"{file_uuid}_{safe_filename}"
         
         if document_type == "CUSTOMER_PO":
-            folder_path = os.path.join(self.base_path, case_id, "CUSTOMER_PO")
+            if not sales_order_number or not so_month:
+                raise ValueError("Sales order number and month are required for Customer PO")
+            folder_path = os.path.join(
+                self.base_path, 
+                case_id, 
+                so_month, 
+                f"SO-{sales_order_number}", 
+                "CUSTOMER_PO"
+            )
         else:
             if not sales_order_number or not so_month:
                 raise ValueError("Sales order number and month are required for non-Customer PO documents")

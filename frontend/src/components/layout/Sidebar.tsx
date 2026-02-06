@@ -1,37 +1,31 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  FileText, 
-  FolderOpen, 
-  Plus, 
-  Search 
-} from 'lucide-react';
-import type { Document, SalesOrderWithDocuments } from '../../types';
+import { useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  FolderOpen,
+  Plus,
+  Search,
+} from "lucide-react";
+import type { SalesOrderWithDocuments } from "../../types";
 
 interface SidebarProps {
-  customerPo: Document | null;
   salesOrders: SalesOrderWithDocuments[];
   onAddSO: () => void;
   onSelectSO: (soId: number) => void;
-  onViewCustomerPO: () => void;
   selectedSOId?: number;
 }
 
 export default function Sidebar({
-  customerPo,
   salesOrders,
   onAddSO,
   onSelectSO,
-  onViewCustomerPO,
   selectedSOId,
 }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredSOs = salesOrders.filter((so) =>
-    so.soNumber.toLowerCase().includes(searchQuery.toLowerCase())
+    so.soNumber.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   if (isCollapsed) {
@@ -50,24 +44,6 @@ export default function Sidebar({
 
   return (
     <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col">
-      {/* Customer PO Section */}
-      <div className="p-4 border-b border-gray-200">
-        <h3 className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-2">
-          <FileText className="h-4 w-4" />
-          Customer PO
-        </h3>
-        {customerPo ? (
-          <button
-            onClick={onViewCustomerPO}
-            className="w-full text-left px-3 py-2 bg-white rounded-md border border-gray-200 hover:border-primary-300 hover:bg-primary-50 text-sm truncate"
-          >
-            {customerPo.originalFilename}
-          </button>
-        ) : (
-          <p className="text-sm text-gray-400 italic">No Customer PO uploaded</p>
-        )}
-      </div>
-
       {/* SO Search */}
       <div className="p-4 border-b border-gray-200">
         <div className="relative">
@@ -95,15 +71,19 @@ export default function Sidebar({
                 onClick={() => onSelectSO(so.id)}
                 className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
                   selectedSOId === so.id
-                    ? 'bg-primary-100 border-primary-300 text-primary-700'
-                    : 'bg-white border-gray-200 hover:border-primary-300 hover:bg-primary-50'
+                    ? "bg-primary-100 border-primary-300 text-primary-700"
+                    : "bg-white border-gray-200 hover:border-primary-300 hover:bg-primary-50"
                 } border`}
               >
                 <div className="flex items-center gap-2">
                   <FolderOpen className="h-4 w-4 flex-shrink-0" />
                   <div className="truncate">
-                    <div className="font-medium truncate">SO-{so.soNumber.slice(-6)}</div>
-                    <div className="text-xs text-gray-500">{formatMonth(so.soMonth)}</div>
+                    <div className="font-medium truncate">
+                      SO-{so.soNumber.slice(-6)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {formatMonth(so.soMonth)}
+                    </div>
                   </div>
                 </div>
               </button>
@@ -138,7 +118,7 @@ export default function Sidebar({
 }
 
 function formatMonth(monthStr: string): string {
-  const [year, month] = monthStr.split('-');
+  const [year, month] = monthStr.split("-");
   const date = new Date(parseInt(year), parseInt(month) - 1);
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }

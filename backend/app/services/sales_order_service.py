@@ -87,6 +87,7 @@ class SalesOrderService:
             # Build checklist
             doc_types = {doc.document_type for doc in documents}
             checklist = {
+                "CUSTOMER_PO": "CUSTOMER_PO" in doc_types,
                 "VENDOR_INVOICE": "VENDOR_INVOICE" in doc_types,
                 "VENDOR_DC": "VENDOR_DC" in doc_types,
                 "COMPANY_INVOICE": "COMPANY_INVOICE" in doc_types,

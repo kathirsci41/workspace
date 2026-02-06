@@ -1,11 +1,15 @@
-import { useState, useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, AlertCircle, Plus } from 'lucide-react';
-import Modal from '../common/Modal';
-import Button from '../common/Button';
-import { useUploadDocument } from '../../hooks/useDocuments';
-import { DOCUMENT_TYPE_LABELS, DocumentType, SO_DOCUMENT_TYPES } from '../../types';
-import type { SalesOrderWithDocuments } from '../../types';
+import { useState, useCallback } from "react";
+import { useDropzone } from "react-dropzone";
+import { Upload, FileText, AlertCircle, Plus } from "lucide-react";
+import Modal from "../common/Modal";
+import Button from "../common/Button";
+import { useUploadDocument } from "../../hooks/useDocuments";
+import {
+  DOCUMENT_TYPE_LABELS,
+  DocumentType,
+  SO_DOCUMENT_TYPES,
+} from "../../types";
+import type { SalesOrderWithDocuments } from "../../types";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -24,9 +28,9 @@ export default function UploadModal({
   onSuccess,
   onCreateSO,
 }: UploadModalProps) {
-  const [documentType, setDocumentType] = useState<DocumentType>('CUSTOMER_PO');
+  const [documentType, setDocumentType] = useState<DocumentType>("CUSTOMER_PO");
   const [salesOrderId, setSalesOrderId] = useState<number | undefined>();
-  const [referenceNumber, setReferenceNumber] = useState('');
+  const [referenceNumber, setReferenceNumber] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,8 +39,8 @@ export default function UploadModal({
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const selectedFile = acceptedFiles[0];
-      if (!selectedFile.name.toLowerCase().endsWith('.pdf')) {
-        setError('Only PDF files are allowed');
+      if (!selectedFile.name.toLowerCase().endsWith(".pdf")) {
+        setError("Only PDF files are allowed");
         return;
       }
       setFile(selectedFile);
@@ -46,18 +50,18 @@ export default function UploadModal({
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'application/pdf': ['.pdf'] },
+    accept: { "application/pdf": [".pdf"] },
     multiple: false,
   });
 
   const handleSubmit = () => {
     if (!file) {
-      setError('Please select a file');
+      setError("Please select a file");
       return;
     }
 
-    if (documentType !== 'CUSTOMER_PO' && !salesOrderId) {
-      setError('Please select a Sales Order');
+    if (!salesOrderId) {
+      setError("Please select a Sales Order");
       return;
     }
 
@@ -65,7 +69,7 @@ export default function UploadModal({
       {
         documentType,
         file,
-        salesOrderId: documentType === 'CUSTOMER_PO' ? undefined : salesOrderId,
+        salesOrderId,
         referenceNumber: referenceNumber || undefined,
       },
       {
@@ -76,14 +80,14 @@ export default function UploadModal({
         onError: (err) => {
           setError(err.message);
         },
-      }
+      },
     );
   };
 
   const resetForm = () => {
-    setDocumentType('CUSTOMER_PO');
+    setDocumentType("CUSTOMER_PO");
     setSalesOrderId(undefined);
-    setReferenceNumber('');
+    setReferenceNumber("");
     setFile(null);
     setError(null);
   };
@@ -96,23 +100,24 @@ export default function UploadModal({
   // Get storage path preview
   const getStoragePathPreview = () => {
     if (!file) return null;
-    
-    if (documentType === 'CUSTOMER_PO') {
-      return `/nas/cases/${caseId}/CUSTOMER_PO/`;
-    }
-    
+
     const selectedSO = salesOrders.find((so) => so.id === salesOrderId);
     if (selectedSO) {
       return `/nas/cases/${caseId}/${selectedSO.soMonth}/SO-${selectedSO.soNumber}/${documentType}/`;
     }
-    
+
     return null;
   };
 
-  const isSORequired = documentType !== 'CUSTOMER_PO';
+  const isSORequired = true;
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Upload Document" size="lg">
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Upload Document"
+      size="lg"
+    >
       <div className="space-y-4">
         {/* Error message */}
         {error && (
@@ -131,13 +136,9 @@ export default function UploadModal({
             value={documentType}
             onChange={(e) => {
               setDocumentType(e.target.value as DocumentType);
-              if (e.target.value === 'CUSTOMER_PO') {
-                setSalesOrderId(undefined);
-              }
             }}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
-            <option value="CUSTOMER_PO">{DOCUMENT_TYPE_LABELS.CUSTOMER_PO}</option>
             {SO_DOCUMENT_TYPES.map((type) => (
               <option key={type} value={type}>
                 {DOCUMENT_TYPE_LABELS[type]}
@@ -162,8 +163,10 @@ export default function UploadModal({
               </div>
             ) : (
               <select
-                value={salesOrderId || ''}
-                onChange={(e) => setSalesOrderId(Number(e.target.value) || undefined)}
+                value={salesOrderId || ""}
+                onChange={(e) =>
+                  setSalesOrderId(Number(e.target.value) || undefined)
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="">Select a Sales Order...</option>
@@ -200,10 +203,10 @@ export default function UploadModal({
             {...getRootProps()}
             className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
               isDragActive
-                ? 'border-primary-500 bg-primary-50'
+                ? "border-primary-500 bg-primary-50"
                 : file
-                ? 'border-green-500 bg-green-50'
-                : 'border-gray-300 hover:border-gray-400'
+                  ? "border-green-500 bg-green-50"
+                  : "border-gray-300 hover:border-gray-400"
             }`}
           >
             <input {...getInputProps()} />
@@ -223,7 +226,9 @@ export default function UploadModal({
                 <p className="text-gray-600">
                   Drag & drop a PDF file here, or click to select
                 </p>
-                <p className="text-sm text-gray-400 mt-1">Only PDF files are allowed</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Only PDF files are allowed
+                </p>
               </>
             )}
           </div>
@@ -233,7 +238,9 @@ export default function UploadModal({
         {getStoragePathPreview() && (
           <div className="p-3 bg-gray-50 rounded-md">
             <p className="text-xs text-gray-500 mb-1">Storage Path:</p>
-            <code className="text-sm text-gray-700">{getStoragePathPreview()}</code>
+            <code className="text-sm text-gray-700">
+              {getStoragePathPreview()}
+            </code>
           </div>
         )}
 
@@ -252,7 +259,7 @@ export default function UploadModal({
 }
 
 function formatMonth(monthStr: string): string {
-  const [year, month] = monthStr.split('-');
+  const [year, month] = monthStr.split("-");
   const date = new Date(parseInt(year), parseInt(month) - 1);
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }

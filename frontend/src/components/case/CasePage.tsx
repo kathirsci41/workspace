@@ -1,32 +1,26 @@
-import { useState, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import {
-  Upload,
-  ChevronLeft,
-  Loader2,
-  AlertCircle,
-} from 'lucide-react';
-import { useCase } from '../../hooks/useCases';
-import Sidebar from '../layout/Sidebar';
-import CustomerPOSection from './CustomerPOSection';
-import SalesOrderCard from './SalesOrderCard';
-import Filters from './Filters';
-import UploadModal from '../documents/UploadModal';
-import CreateSOModal from '../sales-orders/CreateSOModal';
-import PDFPreview from '../documents/PDFPreview';
-import Button from '../common/Button';
-import type { Document as DocType, SalesOrderWithDocuments } from '../../types';
+import { useState, useRef } from "react";
+import { useParams, Link } from "react-router-dom";
+import { Upload, ChevronLeft, Loader2, AlertCircle } from "lucide-react";
+import { useCase } from "../../hooks/useCases";
+import Sidebar from "../layout/Sidebar";
+import SalesOrderCard from "./SalesOrderCard";
+import Filters from "./Filters";
+import UploadModal from "../documents/UploadModal";
+import CreateSOModal from "../sales-orders/CreateSOModal";
+import PDFPreview from "../documents/PDFPreview";
+import Button from "../common/Button";
+import type { Document as DocType } from "../../types";
 
 export default function CasePage() {
   const { caseId } = useParams<{ caseId: string }>();
-  const { data: caseData, isLoading, error, refetch } = useCase(caseId || '');
+  const { data: caseData, isLoading, error, refetch } = useCase(caseId || "");
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isCreateSOModalOpen, setIsCreateSOModalOpen] = useState(false);
   const [selectedSOId, setSelectedSOId] = useState<number | undefined>();
   const [previewDocument, setPreviewDocument] = useState<DocType | null>(null);
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [monthFilter, setMonthFilter] = useState<string>('');
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [monthFilter, setMonthFilter] = useState<string>("");
 
   const soCardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
@@ -65,14 +59,16 @@ export default function CasePage() {
     : caseData.salesOrders;
 
   // Get unique months for filter
-  const availableMonths = [...new Set(caseData.salesOrders.map((so) => so.soMonth))].sort();
+  const availableMonths = [
+    ...new Set(caseData.salesOrders.map((so) => so.soMonth)),
+  ].sort();
 
   const handleSelectSO = (soId: number) => {
     setSelectedSOId(soId);
     // Scroll to the SO card
     const cardRef = soCardRefs.current.get(soId);
     if (cardRef) {
-      cardRef.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      cardRef.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
@@ -94,11 +90,9 @@ export default function CasePage() {
     <div className="flex h-[calc(100vh-73px)]">
       {/* Sidebar */}
       <Sidebar
-        customerPo={caseData.customerPo}
         salesOrders={caseData.salesOrders}
         onAddSO={() => setIsCreateSOModalOpen(true)}
         onSelectSO={handleSelectSO}
-        onViewCustomerPO={() => caseData.customerPo && handleViewDocument(caseData.customerPo)}
         selectedSOId={selectedSOId}
       />
 
@@ -119,14 +113,14 @@ export default function CasePage() {
                   {caseData.opportunityId} - {caseData.customerName}
                 </h1>
                 <p className="text-sm text-gray-500">
-                  {caseData.caseId} • {caseData.caseType} •{' '}
+                  {caseData.caseId} • {caseData.caseType} •{" "}
                   <span
                     className={`${
-                      caseData.status === 'OPEN'
-                        ? 'text-green-600'
-                        : caseData.status === 'IN_PROGRESS'
-                        ? 'text-yellow-600'
-                        : 'text-gray-600'
+                      caseData.status === "OPEN"
+                        ? "text-green-600"
+                        : caseData.status === "IN_PROGRESS"
+                          ? "text-yellow-600"
+                          : "text-gray-600"
                     }`}
                   >
                     {caseData.status}
@@ -148,27 +142,23 @@ export default function CasePage() {
           onTypeChange={setTypeFilter}
           onMonthChange={setMonthFilter}
           onClear={() => {
-            setTypeFilter('');
-            setMonthFilter('');
+            setTypeFilter("");
+            setMonthFilter("");
           }}
           availableMonths={availableMonths}
         />
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Customer PO Section */}
-          <CustomerPOSection
-            customerPo={caseData.customerPo}
-            onView={handleViewDocument}
-            onUpload={() => setIsUploadModalOpen(true)}
-          />
-
           {/* Sales Orders */}
           <div className="mt-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Sales Orders</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Sales Orders
+              </h2>
               <span className="text-sm text-gray-500">
-                {filteredSalesOrders.length} of {caseData.salesOrders.length} orders
+                {filteredSalesOrders.length} of {caseData.salesOrders.length}{" "}
+                orders
               </span>
             </div>
 
@@ -193,7 +183,9 @@ export default function CasePage() {
                     salesOrder={so}
                     isExpanded={selectedSOId === so.id}
                     onToggle={() =>
-                      setSelectedSOId(selectedSOId === so.id ? undefined : so.id)
+                      setSelectedSOId(
+                        selectedSOId === so.id ? undefined : so.id,
+                      )
                     }
                     onViewDocument={handleViewDocument}
                     typeFilter={typeFilter}

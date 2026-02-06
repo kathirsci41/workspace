@@ -1,14 +1,14 @@
-import { forwardRef } from 'react';
+import { forwardRef } from "react";
 import {
   ChevronDown,
   ChevronRight,
   FolderOpen,
   CheckCircle2,
   Circle,
-} from 'lucide-react';
-import DocumentTable from './DocumentTable';
-import type { SalesOrderWithDocuments, Document } from '../../types';
-import { SO_DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS } from '../../types';
+} from "lucide-react";
+import DocumentTable from "./DocumentTable";
+import type { SalesOrderWithDocuments, Document } from "../../types";
+import { SO_DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS } from "../../types";
 
 interface SalesOrderCardProps {
   salesOrder: SalesOrderWithDocuments;
@@ -20,7 +20,9 @@ interface SalesOrderCardProps {
 
 const SalesOrderCard = forwardRef<HTMLDivElement, SalesOrderCardProps>(
   ({ salesOrder, isExpanded, onToggle, onViewDocument, typeFilter }, ref) => {
-    const completedCount = Object.values(salesOrder.checklist).filter(Boolean).length;
+    const completedCount = Object.values(salesOrder.checklist).filter(
+      Boolean,
+    ).length;
     const totalCount = Object.keys(salesOrder.checklist).length;
     const isComplete = completedCount === totalCount;
 
@@ -33,7 +35,9 @@ const SalesOrderCard = forwardRef<HTMLDivElement, SalesOrderCardProps>(
       <div
         ref={ref}
         className={`bg-white rounded-lg border ${
-          isExpanded ? 'border-primary-300 ring-1 ring-primary-100' : 'border-gray-200'
+          isExpanded
+            ? "border-primary-300 ring-1 ring-primary-100"
+            : "border-gray-200"
         }`}
       >
         {/* Header */}
@@ -62,7 +66,7 @@ const SalesOrderCard = forwardRef<HTMLDivElement, SalesOrderCardProps>(
             {/* Completion status */}
             <div
               className={`flex items-center gap-1 text-sm ${
-                isComplete ? 'text-green-600' : 'text-amber-600'
+                isComplete ? "text-green-600" : "text-amber-600"
               }`}
             >
               {isComplete ? (
@@ -86,12 +90,16 @@ const SalesOrderCard = forwardRef<HTMLDivElement, SalesOrderCardProps>(
                 <div
                   key={type}
                   className={`flex items-center gap-1 text-sm ${
-                    salesOrder.checklist[type as keyof typeof salesOrder.checklist]
-                      ? 'text-green-600'
-                      : 'text-gray-400'
+                    salesOrder.checklist[
+                      type as keyof typeof salesOrder.checklist
+                    ]
+                      ? "text-green-600"
+                      : "text-gray-400"
                   }`}
                 >
-                  {salesOrder.checklist[type as keyof typeof salesOrder.checklist] ? (
+                  {salesOrder.checklist[
+                    type as keyof typeof salesOrder.checklist
+                  ] ? (
                     <CheckCircle2 className="h-4 w-4" />
                   ) : (
                     <Circle className="h-4 w-4" />
@@ -109,33 +117,37 @@ const SalesOrderCard = forwardRef<HTMLDivElement, SalesOrderCardProps>(
               />
             ) : (
               <p className="text-center text-gray-400 py-4">
-                No documents {typeFilter ? `of type "${DOCUMENT_TYPE_LABELS[typeFilter as keyof typeof DOCUMENT_TYPE_LABELS]}"` : ''}
+                No documents{" "}
+                {typeFilter
+                  ? `of type "${DOCUMENT_TYPE_LABELS[typeFilter as keyof typeof DOCUMENT_TYPE_LABELS]}"`
+                  : ""}
               </p>
             )}
           </div>
         )}
       </div>
     );
-  }
+  },
 );
 
-SalesOrderCard.displayName = 'SalesOrderCard';
+SalesOrderCard.displayName = "SalesOrderCard";
 
 export default SalesOrderCard;
 
 function formatMonth(monthStr: string): string {
-  const [year, month] = monthStr.split('-');
+  const [year, month] = monthStr.split("-");
   const date = new Date(parseInt(year), parseInt(month) - 1);
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
 }
 
 function getShortLabel(type: string): string {
   const shortLabels: Record<string, string> = {
-    VENDOR_INVOICE: 'VI',
-    VENDOR_DC: 'VD',
-    COMPANY_INVOICE: 'CI',
-    COMPANY_DC: 'CD',
-    POD: 'POD',
+    CUSTOMER_PO: "PO",
+    VENDOR_INVOICE: "VI",
+    VENDOR_DC: "VD",
+    COMPANY_INVOICE: "CI",
+    COMPANY_DC: "CD",
+    POD: "POD",
   };
   return shortLabels[type] || type;
 }

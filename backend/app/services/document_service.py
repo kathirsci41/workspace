@@ -34,26 +34,20 @@ class DocumentService:
             raise ValueError(f"Case with ID {case_id} not found")
         
         # Validate document type and SO requirement
-        if document_type == "CUSTOMER_PO":
-            if sales_order_id is not None:
-                raise ValueError("Customer PO cannot be linked to a Sales Order")
-            so_number = None
-            so_month = None
-        else:
-            if sales_order_id is None:
-                raise ValueError(f"{document_type} requires a Sales Order")
-            
-            # Get sales order info
-            sales_order = self.db.query(SalesOrder).filter(
-                SalesOrder.id == sales_order_id
-            ).first()
-            if not sales_order:
-                raise ValueError(f"Sales Order with ID {sales_order_id} not found")
-            if sales_order.case_id != case_id:
-                raise ValueError("Sales Order does not belong to this case")
-            
-            so_number = sales_order.so_number
-            so_month = sales_order.so_month
+        if sales_order_id is None:
+            raise ValueError(f"{document_type} requires a Sales Order")
+        
+        # Get sales order info
+        sales_order = self.db.query(SalesOrder).filter(
+            SalesOrder.id == sales_order_id
+        ).first()
+        if not sales_order:
+            raise ValueError(f"Sales Order with ID {sales_order_id} not found")
+        if sales_order.case_id != case_id:
+            raise ValueError("Sales Order does not belong to this case")
+        
+        so_number = sales_order.so_number
+        so_month = sales_order.so_month
         
         # Read file content
         file_content = await file.read()
