@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { Case, CaseWithDetails, CreateCaseForm, SearchResponse } from '../types';
+import type { Case, CaseWithDetails, CreateCaseForm, DocumentType, SearchResponse } from '../types';
 
 // Transform snake_case to camelCase for case responses
 function transformCase(data: Record<string, unknown>): Case {
@@ -68,7 +68,7 @@ function transformDocument(data: Record<string, unknown>) {
     id: data.id as number,
     caseId: data.case_id as number,
     salesOrderId: data.sales_order_id as number | null,
-    documentType: data.document_type as string,
+    documentType: data.document_type as DocumentType,
     filename: data.filename as string,
     originalFilename: data.original_filename as string,
     referenceNumber: data.reference_number as string | null,

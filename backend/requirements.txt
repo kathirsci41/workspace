@@ -9,3 +9,8 @@ pydantic-settings==2.1.0
 python-dotenv==1.0.0
 aiofiles==23.2.1
 PyPDF2==3.0.1
+
+# Phase 2 — Extraction
+httpx>=0.25.0
+pymupdf>=1.23.0
+Pillow>=10.0.0

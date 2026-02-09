@@ -1,0 +1,51 @@
+# Production override — uses vLLM instead of Ollama for OCR.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+version: '3.8'
+
+services:
+  # Override OCR service for production (vLLM)
+  ocr-service:
+    image: vllm/vllm-openai:latest
+    ports:
+      - "8080:8080"
+    command:
+      - "--model"
+      - "zai-org/GLM-OCR"
+      - "--allowed-local-media-path"
+      - "/"
+      - "--port"
+      - "8080"
+      - "--gpu-memory-utilization"
+      - "0.85"
+      - "--max-model-len"
+      - "8192"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
+    # Clear dev entrypoint/command overrides
+    entrypoint: []
+
+  # Override backend env vars for vLLM
+  backend:
+    environment:
+      DATABASE_URL: postgresql://docplatform:docplatform@db:5432/docplatform
+      NAS_BASE_PATH: /nas/cases
+      OCR_BACKEND: vllm
+      OCR_BASE_URL: http://ocr-service:8080
+      OCR_MODEL_NAME: zai-org/GLM-OCR
+      OCR_TIMEOUT: ${OCR_TIMEOUT:-120}
+      OCR_MAX_RETRIES: ${OCR_MAX_RETRIES:-3}
+      OCR_PDF_DPI: ${OCR_PDF_DPI:-200}
+      OCR_MAX_PAGES: ${OCR_MAX_PAGES:-3}
+
+volumes:
+  huggingface_cache:

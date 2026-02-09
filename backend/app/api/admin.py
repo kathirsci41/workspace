@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.database import get_db
 from app.models.case import Case
@@ -18,7 +18,7 @@ def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "version": "1.1.0"
     }
 
@@ -47,7 +47,7 @@ def get_stats(db: Session = Depends(get_db)):
     total_size = db.query(func.sum(Document.file_size)).scalar() or 0
     
     # Recent activity (last 7 days)
-    week_ago = datetime.utcnow() - timedelta(days=7)
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
     recent_uploads = db.query(func.count(Document.id)).filter(
         Document.uploaded_at >= week_ago
     ).scalar()

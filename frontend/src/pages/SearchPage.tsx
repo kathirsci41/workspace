@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, FileText, Package, Plus, Loader2 } from "lucide-react";
+import { Search, FileText, Package, Plus, Loader2, Hash } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useSearchCases } from "../hooks/useCases";
 import { useSearchSalesOrders } from "../hooks/useSalesOrders";
+import { searchByDocRef } from "../api/extraction";
+import { DOCUMENT_TYPE_LABELS } from "../types";
+import { FIELD_LABELS } from "../config/fieldLabels";
 import Button from "../components/common/Button";
 import Modal from "../components/common/Modal";
 import { useCreateCase } from "../hooks/useCases";
@@ -10,7 +14,7 @@ import type { CaseType } from "../types";
 
 export default function SearchPage() {
   const navigate = useNavigate();
-  const [searchType, setSearchType] = useState<"opportunity" | "sales_order">(
+  const [searchType, setSearchType] = useState<"opportunity" | "sales_order" | "doc_ref">(
     "opportunity",
   );
   const [query, setQuery] = useState("");
@@ -22,8 +26,18 @@ export default function SearchPage() {
   const { data: soResults, isLoading: isSOLoading } = useSearchSalesOrders(
     searchType === "sales_order" ? query : "",
   );
+  const { data: docRefResults, isLoading: isDocRefLoading } = useQuery({
+    queryKey: ["docRefSearch", query],
+    queryFn: () => searchByDocRef(query),
+    enabled: searchType === "doc_ref" && query.length >= 2,
+  });
 
-  const isLoading = searchType === "opportunity" ? isCaseLoading : isSOLoading;
+  const isLoading =
+    searchType === "opportunity"
+      ? isCaseLoading
+      : searchType === "sales_order"
+        ? isSOLoading
+        : isDocRefLoading;
   const hasQuery = query.length >= 2;
 
   const handleCaseClick = (caseId: string) => {
@@ -42,7 +56,7 @@ export default function SearchPage() {
           Document Platform
         </h1>
         <p className="text-gray-500">
-          Search for cases by Opportunity ID or Sales Order number
+          Search by Opportunity ID, Sales Order number, or Document Reference
         </p>
       </div>
 
@@ -77,6 +91,20 @@ export default function SearchPage() {
             <Package className="h-4 w-4 inline mr-2" />
             Sales Order
           </button>
+          <button
+            onClick={() => {
+              setSearchType("doc_ref");
+              setQuery("");
+            }}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              searchType === "doc_ref"
+                ? "bg-primary-600 text-white"
+                : "text-gray-600 hover:text-gray-900"
+            }`}
+          >
+            <Hash className="h-4 w-4 inline mr-2" />
+            Doc Reference
+          </button>
         </div>
       </div>
 
@@ -90,7 +118,9 @@ export default function SearchPage() {
           placeholder={
             searchType === "opportunity"
               ? "Search by Opportunity ID (e.g., SKY-443)"
-              : "Search by Sales Order number (e.g., 10TM2526001365)"
+              : searchType === "sales_order"
+                ? "Search by Sales Order number (e.g., 10TM2526001365)"
+                : "Search by Invoice No, PO No, DC No, POD No..."
           }
           className="w-full pl-12 pr-4 py-4 text-lg border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent shadow-sm"
         />
@@ -210,13 +240,116 @@ export default function SearchPage() {
           </>
         )}
 
+        {/* Doc Reference Results */}
+        {searchType === "doc_ref" && hasQuery && docRefResults && (
+          <>
+            {docRefResults.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">
+                  No documents found matching "{query}"
+                </p>
+              </div>
+            ) : (
+              docRefResults.map((item) => (
+                <button
+                  key={item.metadata_id}
+                  onClick={() => {
+                    if (item.case_id) {
+                      navigate(`/cases/${item.case_id}`);
+                    } else if (item.so_number) {
+                      navigate(`/search/so/${item.so_number}`);
+                    }
+                  }}
+                  className="w-full text-left p-4 bg-white rounded-lg border border-gray-200 hover:border-primary-300 hover:shadow-md transition-all"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-block px-2 py-0.5 text-xs font-medium rounded bg-blue-100 text-blue-700">
+                          {DOCUMENT_TYPE_LABELS[item.doc_type as keyof typeof DOCUMENT_TYPE_LABELS] || item.doc_type}
+                        </span>
+                        {item.primary_ref_no && (
+                          <span className="font-semibold text-gray-900">
+                            {item.primary_ref_no}
+                          </span>
+                        )}
+                        {item.doc_date && (
+                          <span className="text-sm text-gray-400">
+                            ({item.doc_date})
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1 truncate">
+                        {item.filename}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1 text-sm text-gray-400">
+                        {item.customer_name && <span>{item.customer_name}</span>}
+                        {item.opportunity_id && <span>• {item.opportunity_id}</span>}
+                        {item.so_number && <span>• SO-{item.so_number}</span>}
+                        {item.so_month && <span>• {formatMonth(item.so_month)}</span>}
+                      </div>
+                      {/* Show matched fields */}
+                      {item.matched_fields.length > 0 && (
+                        <div className="flex gap-1 mt-2 flex-wrap">
+                          {item.matched_fields.map((field) => {
+                            const label =
+                              FIELD_LABELS[item.doc_type]?.[field] || field;
+                            const value =
+                              field === "primary_ref_no"
+                                ? item.primary_ref_no
+                                : String(item.extracted_data[field] || "");
+                            return (
+                              <span
+                                key={field}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200"
+                                title={`Matched: ${label}`}
+                              >
+                                <span className="font-medium">{label}:</span>
+                                <span>{value}</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right ml-4 flex-shrink-0">
+                      <span
+                        className={`inline-block px-2 py-1 text-xs rounded-full ${
+                          item.status === "VERIFIED"
+                            ? "bg-green-100 text-green-700"
+                            : item.status === "EXTRACTED"
+                              ? "bg-blue-100 text-blue-700"
+                              : item.status === "FAILED"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {item.status}
+                      </span>
+                      {item.confidence_score !== null && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          {Math.round(item.confidence_score * 100)}% conf
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
+          </>
+        )}
+
         {/* Initial state */}
         {!hasQuery && (
           <div className="text-center py-12">
             <Search className="h-16 w-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 mb-6">
               Start typing to search for{" "}
-              {searchType === "opportunity" ? "cases" : "sales orders"}
+              {searchType === "opportunity"
+                ? "cases"
+                : searchType === "sales_order"
+                  ? "sales orders"
+                  : "documents by reference number"}
             </p>
             {searchType === "opportunity" && (
               <Button

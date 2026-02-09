@@ -22,6 +22,13 @@ services:
     environment:
       DATABASE_URL: postgresql://docplatform:docplatform@db:5432/docplatform
       NAS_BASE_PATH: /nas/cases
+      OCR_BACKEND: ${OCR_BACKEND:-ollama}
+      OCR_BASE_URL: ${OCR_BASE_URL:-http://ocr-service:11434}
+      OCR_MODEL_NAME: ${OCR_MODEL_NAME:-glm-ocr}
+      OCR_TIMEOUT: ${OCR_TIMEOUT:-120}
+      OCR_MAX_RETRIES: ${OCR_MAX_RETRIES:-3}
+      OCR_PDF_DPI: ${OCR_PDF_DPI:-200}
+      OCR_MAX_PAGES: ${OCR_MAX_PAGES:-3}
     volumes:
       - nas_storage:/nas/cases
     ports:
@@ -29,6 +36,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      ocr-service:
+        condition: service_started
 
   frontend:
     build: ./frontend
@@ -39,6 +48,30 @@ services:
     depends_on:
       - backend
 
+  # --- Phase 2: OCR Service (Ollama with GLM-OCR) ---
+  ocr-service:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # Auto-pull the model on startup
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        ollama serve &
+        sleep 5
+        ollama pull glm-ocr
+        wait
+
 volumes:
   postgres_data:
   nas_storage:
+  ollama_models:

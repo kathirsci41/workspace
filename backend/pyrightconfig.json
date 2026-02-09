@@ -1,0 +1,7 @@
+{
+  "include": ["app"],
+  "venvPath": "../.venv",
+  "reportGeneralTypeIssues": "warning",
+  "reportAttributeAccessIssue": "warning",
+  "reportArgumentType": "warning"
+}

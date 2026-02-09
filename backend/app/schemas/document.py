@@ -11,6 +11,18 @@ class DocumentType(str, Enum):
     COMPANY_INVOICE = "COMPANY_INVOICE"
     COMPANY_DC = "COMPANY_DC"
     POD = "POD"
+    PURCHASE_BILL = "PURCHASE_BILL"
+
+
+# Document types that require a Sales Order
+SO_REQUIRED_TYPES = {
+    DocumentType.VENDOR_INVOICE,
+    DocumentType.VENDOR_DC,
+    DocumentType.COMPANY_INVOICE,
+    DocumentType.COMPANY_DC,
+    DocumentType.POD,
+    DocumentType.PURCHASE_BILL,
+}
 
 
 class DocumentCreate(BaseModel):

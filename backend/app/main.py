@@ -1,10 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 
 from app.config import get_settings
-from app.database import engine, Base
+from app.database import engine, Base, get_db
 from app.api import cases, sales_orders, documents, admin
+from app.routers.extraction import router as extraction_router
 
 settings = get_settings()
 
@@ -39,6 +41,7 @@ app.include_router(cases.router, prefix="/api/cases", tags=["Cases"])
 app.include_router(sales_orders.router, prefix="/api", tags=["Sales Orders"])
 app.include_router(documents.router, prefix="/api", tags=["Documents"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
+app.include_router(extraction_router, prefix="/api", tags=["Extraction"])
 
 
 @app.get("/")
@@ -47,26 +50,20 @@ async def root():
 
 
 @app.get("/api/search")
-async def global_search(q: str, type: str = "opportunity"):
+async def global_search(q: str, type: str = "opportunity", db: Session = Depends(get_db)):
     """Global search endpoint for opportunities or sales orders."""
-    from sqlalchemy.orm import Session
-    from app.database import SessionLocal
     from app.models.case import Case
     from app.models.sales_order import SalesOrder
     
-    db = SessionLocal()
-    try:
-        if type == "opportunity":
-            cases = db.query(Case).filter(
-                Case.opportunity_id.ilike(f"%{q}%")
-            ).limit(20).all()
-            return {"results": cases, "type": "opportunity"}
-        elif type == "sales_order":
-            sos = db.query(SalesOrder).filter(
-                SalesOrder.so_number.ilike(f"%{q}%")
-            ).limit(20).all()
-            return {"results": sos, "type": "sales_order"}
-        else:
-            return {"results": [], "type": type}
-    finally:
-        db.close()
+    if type == "opportunity":
+        cases = db.query(Case).filter(
+            Case.opportunity_id.ilike(f"%{q}%")
+        ).limit(20).all()
+        return {"results": cases, "type": "opportunity"}
+    elif type == "sales_order":
+        sos = db.query(SalesOrder).filter(
+            SalesOrder.so_number.ilike(f"%{q}%")
+        ).limit(20).all()
+        return {"results": sos, "type": "sales_order"}
+    else:
+        return {"results": [], "type": type}

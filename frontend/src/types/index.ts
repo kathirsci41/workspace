@@ -1,33 +1,34 @@
 // Document types
 export type DocumentType =
-  | "CUSTOMER_PO"
-  | "VENDOR_INVOICE"
-  | "VENDOR_DC"
-  | "COMPANY_INVOICE"
-  | "COMPANY_DC"
-  | "POD";
+  | 'CUSTOMER_PO'
+  | 'VENDOR_INVOICE'
+  | 'VENDOR_DC'
+  | 'COMPANY_INVOICE'
+  | 'COMPANY_DC'
+  | 'POD'
+  | 'PURCHASE_BILL';
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  CUSTOMER_PO: "Customer PO",
-  VENDOR_INVOICE: "Vendor Invoice",
-  VENDOR_DC: "Vendor DC",
-  COMPANY_INVOICE: "Company Invoice",
-  COMPANY_DC: "Company DC",
-  POD: "Proof of Delivery",
+  CUSTOMER_PO: 'Customer PO',
+  VENDOR_INVOICE: 'Vendor Invoice',
+  VENDOR_DC: 'Vendor DC',
+  COMPANY_INVOICE: 'Company Invoice',
+  COMPANY_DC: 'Company DC',
+  POD: 'Proof of Delivery',
+  PURCHASE_BILL: 'Purchase Bill',
 };
 
 export const SO_DOCUMENT_TYPES: DocumentType[] = [
-  "CUSTOMER_PO",
-  "VENDOR_INVOICE",
-  "VENDOR_DC",
-  "COMPANY_INVOICE",
-  "COMPANY_DC",
-  "POD",
+  'VENDOR_INVOICE',
+  'VENDOR_DC',
+  'COMPANY_INVOICE',
+  'COMPANY_DC',
+  'POD',
 ];
 
 // Case types
-export type CaseType = "HARDWARE" | "SERVICES";
-export type CaseStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
+export type CaseType = 'HARDWARE' | 'SERVICES';
+export type CaseStatus = 'OPEN' | 'IN_PROGRESS' | 'CLOSED';
 
 export interface Case {
   id: number;
@@ -43,7 +44,6 @@ export interface Case {
 
 // Sales Order types
 export interface SalesOrderChecklist {
-  CUSTOMER_PO: boolean;
   VENDOR_INVOICE: boolean;
   VENDOR_DC: boolean;
   COMPANY_INVOICE: boolean;

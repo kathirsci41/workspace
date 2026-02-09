@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, RotateCw, Download, Trash2, Loader2 } from 'lucide-react';
 import { getDocumentPreviewUrl, getDocumentDownloadUrl } from '../../api/documents';
+import { getMetadata } from '../../api/extraction';
 import { useRotateDocument, useDeleteDocument } from '../../hooks/useDocuments';
 import { DOCUMENT_TYPE_LABELS } from '../../types';
 import type { Document } from '../../types';
+import type { ExtractionResponse, ExtractionStatus } from '../../api/extraction';
 import Button from '../common/Button';
+import ExtractButton from '../extraction/ExtractButton';
+import StatusBadge from '../extraction/StatusBadge';
+import ReviewModal from '../extraction/ReviewModal';
 
 interface PDFPreviewProps {
   document: Document;
@@ -16,8 +21,47 @@ export default function PDFPreview({ document, onClose, caseId }: PDFPreviewProp
   const [rotation, setRotation] = useState(document.rotation || 0);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Phase 2: Extraction state
+  const [extractionStatus, setExtractionStatus] = useState<ExtractionStatus | null>(null);
+  const [extractionResult, setExtractionResult] = useState<ExtractionResponse | null>(null);
+  const [isReviewOpen, setIsReviewOpen] = useState(false);
+
   const { mutate: rotateDocument, isPending: isRotating } = useRotateDocument(caseId);
   const { mutate: deleteDocument, isPending: isDeletePending } = useDeleteDocument(caseId);
+
+  // Fetch existing metadata status when document changes
+  useEffect(() => {
+    let cancelled = false;
+    setExtractionStatus(null);
+    setExtractionResult(null);
+
+    getMetadata(document.id)
+      .then((meta) => {
+        if (!cancelled) {
+          setExtractionStatus(meta.status);
+        }
+      })
+      .catch(() => {
+        // No metadata yet — that's fine
+        if (!cancelled) setExtractionStatus(null);
+      });
+
+    return () => { cancelled = true; };
+  }, [document.id]);
+
+  const handleExtractionComplete = (result: ExtractionResponse) => {
+    setExtractionStatus(result.status);
+    setExtractionResult(result);
+    // Auto-open review modal if extraction succeeded
+    if (result.status === 'EXTRACTED') {
+      setIsReviewOpen(true);
+    }
+  };
+
+  const handleVerified = () => {
+    setExtractionStatus('VERIFIED');
+    setExtractionResult(null);
+  };
 
   const handleRotate = () => {
     const newRotation = (rotation + 90) % 360;
@@ -55,10 +99,13 @@ export default function PDFPreview({ document, onClose, caseId }: PDFPreviewProp
           <h3 className="font-medium text-gray-900 truncate">
             {document.originalFilename}
           </h3>
-          <p className="text-sm text-gray-500">
-            {DOCUMENT_TYPE_LABELS[document.documentType as keyof typeof DOCUMENT_TYPE_LABELS]}
-            {document.referenceNumber && ` • ${document.referenceNumber}`}
-          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-sm text-gray-500">
+              {DOCUMENT_TYPE_LABELS[document.documentType as keyof typeof DOCUMENT_TYPE_LABELS]}
+              {document.referenceNumber && ` • ${document.referenceNumber}`}
+            </p>
+            <StatusBadge status={extractionStatus} />
+          </div>
         </div>
         <button
           onClick={onClose}
@@ -89,6 +136,11 @@ export default function PDFPreview({ document, onClose, caseId }: PDFPreviewProp
       {/* Actions */}
       <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
         <div className="flex items-center gap-2">
+          <ExtractButton
+            documentId={document.id}
+            currentStatus={extractionStatus}
+            onExtractionComplete={handleExtractionComplete}
+          />
           <Button
             variant="ghost"
             size="sm"
@@ -117,6 +169,25 @@ export default function PDFPreview({ document, onClose, caseId }: PDFPreviewProp
           Delete
         </Button>
       </div>
+
+      {/* Phase 2: Review Modal */}
+      {extractionResult && (
+        <ReviewModal
+          isOpen={isReviewOpen}
+          onClose={() => {
+            setIsReviewOpen(false);
+            // Re-fetch metadata to update status after verify/reject
+            getMetadata(document.id)
+              .then((meta) => setExtractionStatus(meta.status))
+              .catch(() => setExtractionStatus(null));
+            setExtractionResult(null);
+          }}
+          extraction={extractionResult}
+          docType={document.documentType}
+          documentId={document.id}
+          onVerified={handleVerified}
+        />
+      )}
     </div>
   );
 }

@@ -9,13 +9,12 @@
   },
   "permissions": {
     "allow": [
-      "Bash(echo:*)",
-      "Bash(pg_isready:*)",
-      "Bash(DATABASE_URL=postgresql://docplatform:docplatform@localhost:5432/docplatform python:*)",
-      "Bash(netstat:*)",
-      "Bash(curl:*)",
-      "Bash(tasklist:*)",
-      "Bash(wsl:*)"
+      "Bash(dir:*)",
+      "Bash(curl -s -X GET \"http://localhost:8000/openapi.json\")",
+      "Bash(docker:*)",
+      "Bash(python:*)",
+      "Bash(curl -s -X DELETE \"http://localhost:8000/api/documents/2\")",
+      "Bash(curl:*)"
     ]
   }
 }

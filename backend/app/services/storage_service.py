@@ -36,18 +36,15 @@ class StorageService:
         unique_filename = f"{file_uuid}_{safe_filename}"
         
         if document_type == "CUSTOMER_PO":
-            if not sales_order_number or not so_month:
-                raise ValueError("Sales order number and month are required for Customer PO")
+            # Customer PO is case-level — stored directly under the case folder
             folder_path = os.path.join(
                 self.base_path, 
                 case_id, 
-                so_month, 
-                f"SO-{sales_order_number}", 
                 "CUSTOMER_PO"
             )
         else:
             if not sales_order_number or not so_month:
-                raise ValueError("Sales order number and month are required for non-Customer PO documents")
+                raise ValueError("Sales order number and month are required for SO-level documents")
             folder_path = os.path.join(
                 self.base_path, 
                 case_id, 
@@ -60,7 +57,10 @@ class StorageService:
         os.makedirs(folder_path, exist_ok=True)
         
         full_path = os.path.join(folder_path, unique_filename)
-        
+        # Normalize path separators to forward slashes for cross-platform compatibility
+        # Windows backslashes don't work in Linux containers
+        full_path = full_path.replace('\\', '/')
+
         return full_path, unique_filename
     
     def save_file(self, file_content: bytes, storage_path: str) -> None:

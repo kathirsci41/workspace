@@ -36,7 +36,6 @@ class SalesOrderResponse(BaseModel):
     updated_at: datetime
     document_count: int = 0
     checklist: dict = {
-        "CUSTOMER_PO": False,
         "VENDOR_INVOICE": False,
         "VENDOR_DC": False,
         "COMPANY_INVOICE": False,

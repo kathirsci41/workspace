@@ -20,10 +20,10 @@ A comprehensive document management platform designed to track and organize busi
 
 ### 3. Document Management
 
-The system enforces a strict hierarchy and checklist for documents:
+The system enforces a strict hierarchy and checklist for documents. All documents are attached at the **Sales Order (SO) level**:
 
-- **Case Level**: `CUSTOMER_PO` (Customer Purchase Order) - Attached directly to the case.
 - **SO Level documents**:
+  - `CUSTOMER_PO` (Customer Purchase Order)
   - `VENDOR_INVOICE`
   - `VENDOR_DC` (Delivery Challan)
   - `COMPANY_INVOICE`
@@ -46,7 +46,7 @@ The application supports the complete lifecycle of a sales transaction:
 
 1.  **Inquiry**: Customer initiates interest.
 2.  **Opportunity**: Created in CRM (Synced/Input as `SKY-XXX`).
-3.  **PO**: Customer sends Purchase Order → Uploaded as `CUSTOMER_PO`.
+3.  **PO**: Customer sends Purchase Order → Uploaded as `CUSTOMER_PO` to the relevant SO.
 4.  **Vendor Invoice**: Procurement pays vendor → Uploaded to SO.
 5.  **Vendor DC**: Goods delivered from vendor → Uploaded to SO.
 6.  **Company Invoice**: Bill raised to customer → Uploaded to SO.

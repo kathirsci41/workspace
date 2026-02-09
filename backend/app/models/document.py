@@ -1,18 +1,11 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import enum
 
 from app.database import Base
 
-
-class DocumentType(str, enum.Enum):
-    CUSTOMER_PO = "CUSTOMER_PO"
-    VENDOR_INVOICE = "VENDOR_INVOICE"
-    VENDOR_DC = "VENDOR_DC"
-    COMPANY_INVOICE = "COMPANY_INVOICE"
-    COMPANY_DC = "COMPANY_DC"
-    POD = "POD"
+# Single source of truth for DocumentType enum
+from app.models.document_metadata import DocumentType  # noqa: F401
 
 
 class Document(Base):
@@ -36,6 +29,12 @@ class Document(Base):
     case = relationship("Case", back_populates="documents")
     sales_order = relationship("SalesOrder", back_populates="documents")
     audit_logs = relationship("AuditLog", back_populates="document")
+    extraction_metadata = relationship(
+        "DocumentMetadata",
+        back_populates="document",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
 
     def __repr__(self):
         return f"<Document {self.original_filename} ({self.document_type})>"
