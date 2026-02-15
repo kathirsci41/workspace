@@ -1,0 +1,103 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: docplatform
+      POSTGRES_PASSWORD: docplatform
+      POSTGRES_DB: docplatform
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docplatform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://docplatform:docplatform@postgres:5432/docplatform
+      SYNC_DATABASE_URL: postgresql://docplatform:docplatform@postgres:5432/docplatform
+      REDIS_URL: redis://redis:6379/0
+      NAS_BASE_PATH: /nas/documents
+      OCR_BASE_URL: http://host.docker.internal:11434
+      OCR_MODEL_NAME: glm-ocr
+      OCR_TIMEOUT: "120"
+      OCR_MAX_PAGES: "10"
+      OCR_PDF_DPI: "200"
+      CORS_ORIGINS: '["http://localhost:5173"]'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./backend:/app
+      - ./storage/documents:/nas/documents
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A celery_app worker --loglevel=info --concurrency=2
+    environment:
+      DATABASE_URL: postgresql+asyncpg://docplatform:docplatform@postgres:5432/docplatform
+      SYNC_DATABASE_URL: postgresql://docplatform:docplatform@postgres:5432/docplatform
+      REDIS_URL: redis://redis:6379/0
+      NAS_BASE_PATH: /nas/documents
+      OCR_BASE_URL: http://host.docker.internal:11434
+      OCR_MODEL_NAME: glm-ocr
+      OCR_TIMEOUT: "120"
+      OCR_MAX_PAGES: "10"
+      OCR_PDF_DPI: "200"
+      CORS_ORIGINS: '["http://localhost:5173"]'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./backend:/app
+      - ./storage/documents:/nas/documents
+    depends_on:
+      - backend
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      API_TARGET: http://backend:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:

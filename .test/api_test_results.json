@@ -1,0 +1,326 @@
+{
+  "timestamp": "2026-02-15T00:40:35.089946",
+  "summary": {
+    "total": 45,
+    "passed": 45,
+    "failed": 0,
+    "warnings": 0
+  },
+  "results": [
+    {
+      "num": 1,
+      "name": "Backend health check",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2483
+    },
+    {
+      "num": 2,
+      "name": "Frontend serving HTML",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 315
+    },
+    {
+      "num": 3,
+      "name": "Frontend proxy to backend",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 334
+    },
+    {
+      "num": 4,
+      "name": "DB connectivity via API",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2332
+    },
+    {
+      "num": 5,
+      "name": "Redis connectivity (implicit)",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 0
+    },
+    {
+      "num": 6,
+      "name": "Ollama + glm-ocr model available",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2346
+    },
+    {
+      "num": 7,
+      "name": "Create customer",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2435
+    },
+    {
+      "num": 8,
+      "name": "Reject duplicate customer_id",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2391
+    },
+    {
+      "num": 9,
+      "name": "Reject customer with missing fields",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2338
+    },
+    {
+      "num": 10,
+      "name": "Get customer by ID",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2329
+    },
+    {
+      "num": 11,
+      "name": "Search customers",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2333
+    },
+    {
+      "num": 12,
+      "name": "Update customer",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2481
+    },
+    {
+      "num": 13,
+      "name": "404 on nonexistent customer",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2324
+    },
+    {
+      "num": 14,
+      "name": "Create purchase order",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2437
+    },
+    {
+      "num": 15,
+      "name": "Reject PO with missing fields",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2296
+    },
+    {
+      "num": 16,
+      "name": "Reject PO with invalid customer",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2385
+    },
+    {
+      "num": 17,
+      "name": "Get PO by ID",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2354
+    },
+    {
+      "num": 18,
+      "name": "List POs filtered by customer",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2450
+    },
+    {
+      "num": 19,
+      "name": "Chain status \u2014 all empty slots",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2453
+    },
+    {
+      "num": 20,
+      "name": "Reject upload with no file",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2354
+    },
+    {
+      "num": 21,
+      "name": "Reject upload with invalid doc type",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2426
+    },
+    {
+      "num": 22,
+      "name": "Upload a real PDF as CUSTOMER_PO",
+      "status": "PASS",
+      "detail": "doc_id=98ad92ec-178a-44d4-a16c-3b1f3f7f3b05",
+      "time_ms": 2884
+    },
+    {
+      "num": 23,
+      "name": "Reject upload to nonexistent PO",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2313
+    },
+    {
+      "num": 24,
+      "name": "Chain status updated after upload",
+      "status": "PASS",
+      "detail": "status=EXTRACTING",
+      "time_ms": 2347
+    },
+    {
+      "num": 25,
+      "name": "List PO documents",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2331
+    },
+    {
+      "num": 26,
+      "name": "Wait for extraction to complete",
+      "status": "PASS",
+      "detail": "Extracted in 45s, status=PENDING_REVIEW",
+      "time_ms": 68758
+    },
+    {
+      "num": 27,
+      "name": "Metadata exists with extracted_data",
+      "status": "PASS",
+      "detail": "confidence=90.0%, fields=11/12",
+      "time_ms": 2395
+    },
+    {
+      "num": 28,
+      "name": "Extraction quality check",
+      "status": "PASS",
+      "detail": "confidence=90.0%, all critical fields present",
+      "time_ms": 2343
+    },
+    {
+      "num": 29,
+      "name": "Document preview endpoint",
+      "status": "PASS",
+      "detail": "size=70087 bytes",
+      "time_ms": 2457
+    },
+    {
+      "num": 30,
+      "name": "Verify metadata with edits",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 4821
+    },
+    {
+      "num": 31,
+      "name": "Document status is VERIFIED after verify",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2416
+    },
+    {
+      "num": 32,
+      "name": "Re-extract document",
+      "status": "PASS",
+      "detail": "status=EXTRACTING",
+      "time_ms": 4715
+    },
+    {
+      "num": 33,
+      "name": "Wait for re-extraction",
+      "status": "PASS",
+      "detail": "Re-extracted in 40s, status=PENDING_REVIEW",
+      "time_ms": 61071
+    },
+    {
+      "num": 34,
+      "name": "Reject metadata",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2476
+    },
+    {
+      "num": 35,
+      "name": "Search by PO number",
+      "status": "PASS",
+      "detail": "results=1",
+      "time_ms": 2384
+    },
+    {
+      "num": 36,
+      "name": "Search by customer name",
+      "status": "PASS",
+      "detail": "results=1",
+      "time_ms": 2390
+    },
+    {
+      "num": 37,
+      "name": "Search returns 0 for nonsense",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2352
+    },
+    {
+      "num": 38,
+      "name": "Invalid UUID returns 422",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2348
+    },
+    {
+      "num": 39,
+      "name": "Pagination rejects page=0",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2338
+    },
+    {
+      "num": 40,
+      "name": "Large payload handling",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2411
+    },
+    {
+      "num": 41,
+      "name": "Upload second document type",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2377
+    },
+    {
+      "num": 42,
+      "name": "Reject duplicate upload to same slot",
+      "status": "PASS",
+      "detail": "",
+      "time_ms": 2294
+    },
+    {
+      "num": 43,
+      "name": "Chain completeness calculation",
+      "status": "PASS",
+      "detail": "chain=33.3%",
+      "time_ms": 2299
+    },
+    {
+      "num": 44,
+      "name": "Document count correct",
+      "status": "PASS",
+      "detail": "docs=2",
+      "time_ms": 2346
+    },
+    {
+      "num": 45,
+      "name": "Customer PO count updated",
+      "status": "PASS",
+      "detail": "po_count=1",
+      "time_ms": 2345
+    }
+  ]
+}
