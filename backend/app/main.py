@@ -5,9 +5,9 @@ from app.config import settings
 from app.api.router import api_router
 
 app = FastAPI(
-    title="Document Platform V2.0",
+    title="Document Platform V3.0",
     description="Centric Document Management",
-    version="2.0.0",
+    version="3.0.0",
     debug=settings.debug,
 )
 

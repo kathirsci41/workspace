@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Check, Ban, Loader2 } from 'lucide-react';
-import { useMetadata, useVerifyMetadata, useRejectMetadata } from '@/hooks/useExtraction';
+import { X, Check, Ban, Loader2, PenLine } from 'lucide-react';
+import { useMetadata, useVerifyMetadata, useRejectMetadata, useFieldTemplate } from '@/hooks/useExtraction';
 import { getPreviewUrl } from '@/api/documents';
 import clsx from 'clsx';
 
@@ -15,17 +15,34 @@ export default function ReviewModal({ documentId, onClose, onVerified }: Props) 
   const verifyMutation = useVerifyMetadata();
   const rejectMutation = useRejectMetadata();
 
+  // Check if extracted data is empty/missing
+  const isDataEmpty = !metadata?.extracted_data || Object.keys(metadata.extracted_data).length === 0;
+  const { data: template } = useFieldTemplate(documentId, isDataEmpty && !isLoading);
+
   const [formData, setFormData] = useState<Record<string, string>>({});
+  const [isManualMode, setIsManualMode] = useState(false);
 
   useEffect(() => {
-    if (metadata?.extracted_data) {
+    if (metadata?.extracted_data && Object.keys(metadata.extracted_data).length > 0) {
       const initial: Record<string, string> = {};
       for (const [key, value] of Object.entries(metadata.extracted_data)) {
         initial[key] = value != null ? String(value) : '';
       }
       setFormData(initial);
+      setIsManualMode(
+        metadata.model_version === 'manual' ||
+        Object.values(metadata.extracted_data).every((v) => v === null || v === '')
+      );
+    } else if (template?.fields) {
+      // Populate from template with empty values for manual entry
+      const initial: Record<string, string> = {};
+      for (const key of Object.keys(template.fields)) {
+        initial[key] = '';
+      }
+      setFormData(initial);
+      setIsManualMode(true);
     }
-  }, [metadata]);
+  }, [metadata, template]);
 
   const handleVerify = () => {
     // Convert form values back to appropriate types
@@ -71,7 +88,9 @@ export default function ReviewModal({ documentId, onClose, onVerified }: Props) 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div>
-            <h3 className="text-lg font-semibold">Review Extracted Data</h3>
+            <h3 className="text-lg font-semibold">
+              {isManualMode ? 'Manual Data Entry' : 'Review Extracted Data'}
+            </h3>
             {metadata && (
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-xs text-gray-500 uppercase">
@@ -116,10 +135,21 @@ export default function ReviewModal({ documentId, onClose, onVerified }: Props) 
           {/* Right: Form fields */}
           <div className="w-1/2 flex flex-col">
             <div className="flex-1 overflow-y-auto p-6 space-y-3">
+              {isManualMode && Object.keys(formData).length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-3 flex items-center gap-2 mb-2">
+                  <PenLine size={16} />
+                  Manual entry mode — fill in the fields from the document on the left, then click Verify.
+                </div>
+              )}
               {Object.entries(formData).map(([key, value]) => (
                 <div key={key}>
                   <label className="block text-xs font-medium text-gray-500 mb-1">
                     {formatLabel(key)}
+                    {template?.field_descriptions?.[key] && (
+                      <span className="ml-1 text-gray-400 font-normal">
+                        — {template.field_descriptions[key]}
+                      </span>
+                    )}
                   </label>
                   {key === 'signature_present' ? (
                     <select
@@ -155,9 +185,9 @@ export default function ReviewModal({ documentId, onClose, onVerified }: Props) 
                   )}
                 </div>
               ))}
-              {Object.keys(formData).length === 0 && (
+              {Object.keys(formData).length === 0 && !isLoading && (
                 <p className="text-sm text-gray-400 py-8 text-center">
-                  No extraction data available.
+                  No extraction data or template available. Try re-extracting the document.
                 </p>
               )}
             </div>

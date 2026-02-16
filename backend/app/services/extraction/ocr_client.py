@@ -62,8 +62,8 @@ class OCRClient:
             ],
             "stream": False,
             "options": {
-                "temperature": 0.01,
-                "num_predict": 2048,
+                "temperature": 0.0,
+                "num_predict": 4096,
             },
         }
 

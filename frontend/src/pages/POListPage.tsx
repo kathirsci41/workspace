@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
 import { usePurchaseOrders, useCreatePO } from '@/hooks/usePurchaseOrders';
 import { useCustomers } from '@/hooks/useCustomers';
+import CustomerCombobox from '@/components/CustomerCombobox';
 import clsx from 'clsx';
 
 export default function POListPage() {
@@ -61,21 +62,16 @@ export default function POListPage() {
             className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <select
+        <CustomerCombobox
+          customers={customers?.items ?? []}
           value={customerFilter}
-          onChange={(e) => {
-            setCustomerFilter(e.target.value);
+          onChange={(id) => {
+            setCustomerFilter(id);
             setPage(1);
           }}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">All Customers</option>
-          {customers?.items?.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.customer_id} — {c.name}
-            </option>
-          ))}
-        </select>
+          placeholder="All Customers"
+          className="w-56"
+        />
         <select
           value={statusFilter}
           onChange={(e) => {
@@ -303,21 +299,15 @@ function CreatePOModal({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Customer *
             </label>
-            <select
-              required
+            <CustomerCombobox
+              customers={customers}
               value={form.customer_id}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, customer_id: e.target.value }))
+              onChange={(id) =>
+                setForm((f) => ({ ...f, customer_id: id }))
               }
-              className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            >
-              <option value="">Select customer</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.customer_id} — {c.name}
-                </option>
-              ))}
-            </select>
+              placeholder="Type to search customers..."
+              className="w-full"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

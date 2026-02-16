@@ -103,9 +103,24 @@ class ResponseParser:
 
     @staticmethod
     def _clean_json(text: str) -> str:
-        """Clean common JSON issues."""
+        """Clean common JSON issues from OCR model output."""
         # Remove trailing commas before } or ]
         cleaned = re.sub(r",\s*([}\]])", r"\1", text)
         # Remove any control characters
         cleaned = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", cleaned)
+        # Fix comma-formatted numbers (e.g. 86,678.5 → 86678.5)
+        # Match digits followed by comma+3digits that are NOT inside quotes
+        # We handle this by finding number patterns with commas
+        cleaned = re.sub(
+            r'(?<=[:\s,\[])\s*(\d{1,3}(?:,\d{3})+(?:\.\d+)?)(?=\s*[,}\]])',
+            lambda m: m.group(1).replace(',', ''),
+            cleaned,
+        )
+        # Also fix numbers with commas that appear as JSON values directly
+        # e.g. "subtotal": 86,678.5 → "subtotal": 86678.5
+        cleaned = re.sub(
+            r'("\s*:\s*)(\d{1,3}(?:,\d{3})+(?:\.\d+)?)',
+            lambda m: m.group(1) + m.group(2).replace(',', ''),
+            cleaned,
+        )
         return cleaned

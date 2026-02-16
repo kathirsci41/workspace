@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePurchaseOrder, useChainStatus } from '@/hooks/usePurchaseOrders';
-import { useReExtract } from '@/hooks/useExtraction';
+import { useReExtract, useCreateManualEntry } from '@/hooks/useExtraction';
+import { useDeleteDocument } from '@/hooks/useDocuments';
 import ChainStatusBar from '@/components/ChainStatusBar';
 import DocumentCard from '@/components/DocumentCard';
 import PDFPreviewPanel from '@/components/PDFPreviewPanel';
@@ -21,6 +22,8 @@ export default function PODetailPage() {
   const { data: po, isLoading: poLoading } = usePurchaseOrder(id!);
   const { data: chainData, isLoading: chainLoading } = useChainStatus(id!);
   const reExtractMutation = useReExtract();
+  const deleteMutation = useDeleteDocument();
+  const manualEntryMutation = useCreateManualEntry();
 
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [uploadType, setUploadType] = useState<DocumentType | null>(null);
@@ -28,17 +31,21 @@ export default function PODetailPage() {
 
   // Find selected slot for preview metadata
   const selectedEntry = chainData
-    ? Object.entries(chainData.chain).find(
-        ([, slot]) => slot?.document_id === selectedDocId
-      )
+    ? (() => {
+        for (const [docType, slots] of Object.entries(chainData.chain)) {
+          const found = slots.find((s) => s.document_id === selectedDocId);
+          if (found) return [docType, found] as const;
+        }
+        return undefined;
+      })()
     : undefined;
   const selectedSlot = selectedEntry ? selectedEntry[1] : null;
   const selectedDocType = selectedEntry ? (selectedEntry[0] as DocumentType) : null;
 
   // Auto-refetch chain status when extracting
   const hasExtracting = chainData
-    ? Object.values(chainData.chain).some(
-        (s) => s?.status === 'EXTRACTING' || s?.status === 'UPLOADED'
+    ? Object.values(chainData.chain).some((slots) =>
+        slots.some((s) => s.status === 'EXTRACTING' || s.status === 'UPLOADED')
       )
     : false;
 
@@ -74,14 +81,33 @@ export default function PODetailPage() {
     });
   };
 
-  // Extract re-extract error message
-  const reExtractError = reExtractMutation.isError
+  const handleDelete = (docId: string) => {
+    if (!window.confirm('Delete this document? You can re-upload after.')) return;
+    deleteMutation.mutate(docId, {
+      onSuccess: () => {
+        if (selectedDocId === docId) setSelectedDocId(null);
+        queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
+      },
+    });
+  };
+
+  const handleManualEntry = (docId: string) => {
+    manualEntryMutation.mutate(docId, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
+        setReviewDocId(docId);
+      },
+    });
+  };
+
+  // Extract error messages
+  const actionError = reExtractMutation.isError || deleteMutation.isError || manualEntryMutation.isError
     ? (() => {
-        const err = reExtractMutation.error as any;
+        const err = (reExtractMutation.error || deleteMutation.error || manualEntryMutation.error) as any;
         const detail = err?.response?.data?.detail;
         if (typeof detail === 'string') return detail;
         if (Array.isArray(detail) && detail[0]?.msg) return detail[0].msg;
-        return err?.message || 'Re-extraction failed. Please try again.';
+        return err?.message || 'Operation failed. Please try again.';
       })()
     : '';
 
@@ -130,12 +156,16 @@ export default function PODetailPage() {
       {/* Chain Status Bar */}
       {chainData && <ChainStatusBar chain={chainData.chain} />}
 
-      {/* Re-extract error banner */}
-      {reExtractError && (
+      {/* Action error banner */}
+      {actionError && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex items-center justify-between">
-          <span>{typeof reExtractError === 'string' ? reExtractError : JSON.stringify(reExtractError)}</span>
+          <span>{typeof actionError === 'string' ? actionError : JSON.stringify(actionError)}</span>
           <button
-            onClick={() => reExtractMutation.reset()}
+            onClick={() => {
+              reExtractMutation.reset();
+              deleteMutation.reset();
+              manualEntryMutation.reset();
+            }}
             className="text-red-500 hover:text-red-700 text-xs font-medium ml-4"
           >
             Dismiss
@@ -148,21 +178,53 @@ export default function PODetailPage() {
         {/* Left: Document Cards */}
         <div className="w-[55%] space-y-3 overflow-y-auto pr-1">
           {CHAIN_ORDER.map((docType) => {
-            const slot = chainData?.chain?.[docType] ?? null;
+            const slots = chainData?.chain?.[docType] ?? [];
             return (
-              <DocumentCard
-                key={docType}
-                documentType={docType}
-                slot={slot}
-                isSelected={
-                  selectedDocId != null &&
-                  slot?.document_id === selectedDocId
-                }
-                onSelect={(docId) => setSelectedDocId(docId)}
-                onUpload={() => setUploadType(docType)}
-                onReview={(docId) => setReviewDocId(docId)}
-                onReExtract={handleReExtract}
-              />
+              <div key={docType} className="space-y-2">
+                {slots.length === 0 ? (
+                  /* No documents yet – show empty card */
+                  <DocumentCard
+                    documentType={docType}
+                    slot={null}
+                    isSelected={false}
+                    onSelect={(docId) => setSelectedDocId(docId)}
+                    onUpload={() => setUploadType(docType)}
+                    onReview={(docId) => setReviewDocId(docId)}
+                    onReExtract={handleReExtract}
+                    onDelete={handleDelete}
+                    onManualEntry={handleManualEntry}
+                  />
+                ) : (
+                  <>
+                    {slots.map((slot, idx) => (
+                      <DocumentCard
+                        key={slot.document_id ?? `${docType}-${idx}`}
+                        documentType={docType}
+                        slot={slot}
+                        isSelected={
+                          selectedDocId != null &&
+                          slot.document_id === selectedDocId
+                        }
+                        onSelect={(docId) => setSelectedDocId(docId)}
+                        onUpload={() => setUploadType(docType)}
+                        onReview={(docId) => setReviewDocId(docId)}
+                        onReExtract={handleReExtract}
+                        onDelete={handleDelete}
+                        onManualEntry={handleManualEntry}
+                        showLabel={idx === 0}
+                        docIndex={slots.length > 1 ? idx + 1 : undefined}
+                      />
+                    ))}
+                    {/* Always show "Add another" button when docs exist */}
+                    <button
+                      onClick={() => setUploadType(docType)}
+                      className="w-full border-2 border-dashed border-gray-300 hover:border-blue-400 rounded-lg py-2 text-xs text-gray-400 hover:text-blue-600 transition-colors"
+                    >
+                      + Add another
+                    </button>
+                  </>
+                )}
+              </div>
             );
           })}
         </div>

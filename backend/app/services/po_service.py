@@ -114,11 +114,11 @@ async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse
     """Get the 6-document chain status for a PO."""
     po = await get_po(db, po_id)
 
-    chain: dict[str, ChainSlot | None] = {}
+    chain: dict[str, list[ChainSlot]] = {}
     slots_filled = 0
 
     for doc_type in CHAIN_DOC_TYPES:
-        # Find document of this type for this PO
+        # Find ALL documents of this type for this PO
         result = await db.execute(
             select(Document)
             .options(selectinload(Document.doc_metadata))
@@ -127,22 +127,23 @@ async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse
                 Document.document_type == doc_type,
             )
             .order_by(Document.created_at.desc())
-            .limit(1)
         )
-        doc = result.scalar_one_or_none()
+        docs = list(result.scalars().all())
 
-        if doc:
+        if docs:
             slots_filled += 1
-            meta = doc.doc_metadata
-            chain[doc_type.value] = ChainSlot(
-                status=doc.status.value,
-                document_id=doc.id,
-                ref_no=meta.primary_ref_no if meta else None,
-                uploaded_at=doc.created_at,
-                confidence=meta.confidence_score if meta else None,
-            )
+            chain[doc_type.value] = [
+                ChainSlot(
+                    status=doc.status.value,
+                    document_id=doc.id,
+                    ref_no=doc.doc_metadata.primary_ref_no if doc.doc_metadata else None,
+                    uploaded_at=doc.created_at,
+                    confidence=doc.doc_metadata.confidence_score if doc.doc_metadata else None,
+                )
+                for doc in docs
+            ]
         else:
-            chain[doc_type.value] = None
+            chain[doc_type.value] = []
 
     completeness = round((slots_filled / 6) * 100, 1)
 

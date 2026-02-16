@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getMetadata, verifyMetadata, rejectMetadata, reExtract } from '@/api/extraction';
+import { getMetadata, verifyMetadata, rejectMetadata, reExtract, getFieldTemplate, createManualEntry } from '@/api/extraction';
 
 export function useMetadata(docId: string) {
   return useQuery({
@@ -43,6 +43,26 @@ export function useReExtract() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (documentId: string) => reExtract(documentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metadata'] });
+      queryClient.invalidateQueries({ queryKey: ['chainStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+}
+
+export function useFieldTemplate(docId: string, enabled = false) {
+  return useQuery({
+    queryKey: ['fieldTemplate', docId],
+    queryFn: () => getFieldTemplate(docId),
+    enabled: !!docId && enabled,
+  });
+}
+
+export function useCreateManualEntry() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (documentId: string) => createManualEntry(documentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['metadata'] });
       queryClient.invalidateQueries({ queryKey: ['chainStatus'] });

@@ -43,7 +43,8 @@ services:
       NAS_BASE_PATH: /nas/documents
       OCR_BASE_URL: http://host.docker.internal:11434
       OCR_MODEL_NAME: glm-ocr
-      OCR_TIMEOUT: "120"
+      OCR_TIMEOUT: "12000"
+      OCR_MAX_RETRIES: "3"
       OCR_MAX_PAGES: "10"
       OCR_PDF_DPI: "200"
       CORS_ORIGINS: '["http://localhost:5173"]'
@@ -63,7 +64,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A celery_app worker --loglevel=info --concurrency=2
+    command: celery -A celery_app worker --loglevel=info --pool=solo
     environment:
       DATABASE_URL: postgresql+asyncpg://docplatform:docplatform@postgres:5432/docplatform
       SYNC_DATABASE_URL: postgresql://docplatform:docplatform@postgres:5432/docplatform
@@ -72,6 +73,7 @@ services:
       OCR_BASE_URL: http://host.docker.internal:11434
       OCR_MODEL_NAME: glm-ocr
       OCR_TIMEOUT: "120"
+      OCR_MAX_RETRIES: "3"
       OCR_MAX_PAGES: "10"
       OCR_PDF_DPI: "200"
       CORS_ORIGINS: '["http://localhost:5173"]'

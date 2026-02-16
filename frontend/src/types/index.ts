@@ -108,7 +108,7 @@ export interface ChainStatus {
   po_id: string;
   po_number: string;
   completeness_pct: number;
-  chain: Record<string, ChainSlot | null>;
+  chain: Record<string, ChainSlot[]>;
 }
 
 export interface SearchResult {

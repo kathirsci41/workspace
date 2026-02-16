@@ -12,10 +12,89 @@ from app.models import (
 from app.schemas.extraction import ExtractionResponse, VerifyRequest
 from app.services.extraction.prompts import (
     get_primary_field, get_date_field, get_searchable_fields,
+    EXTRACTION_PROMPTS,
 )
 from app.services.extraction.response_parser import ResponseParser
 
 router = APIRouter()
+
+
+@router.get("/documents/{document_id}/metadata/template")
+async def get_field_template(
+    document_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the expected extraction field schema for a document's type."""
+    result = await db.execute(
+        select(Document).where(Document.id == document_id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    doc_type = doc.document_type.value if hasattr(doc.document_type, "value") else str(doc.document_type)
+    config = EXTRACTION_PROMPTS.get(doc_type)
+    if not config:
+        raise HTTPException(status_code=400, detail=f"Unknown document type: {doc_type}")
+
+    # Return field names with empty values as template
+    template = {field: None for field in config["schema"]}
+    return {
+        "document_type": doc_type,
+        "fields": template,
+        "field_descriptions": config["schema"],
+    }
+
+
+@router.post("/documents/{document_id}/metadata/manual", response_model=ExtractionResponse)
+async def create_manual_entry(
+    document_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Create an empty metadata stub for manual data entry."""
+    # Fetch document
+    result = await db.execute(
+        select(Document).where(Document.id == document_id)
+    )
+    doc = result.scalar_one_or_none()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # Check if metadata already exists
+    meta_result = await db.execute(
+        select(DocumentMetadata).where(DocumentMetadata.document_id == document_id)
+    )
+    existing = meta_result.scalar_one_or_none()
+
+    doc_type = doc.document_type.value if hasattr(doc.document_type, "value") else str(doc.document_type)
+    config = EXTRACTION_PROMPTS.get(doc_type)
+    template = {field: None for field in config["schema"]} if config else {}
+
+    if existing:
+        # If metadata exists but is empty or failed, reset it for manual entry
+        if not existing.extracted_data or existing.extracted_data == {}:
+            existing.extracted_data = template
+        existing.status = MetadataStatus.EXTRACTED
+        doc.status = DocumentStatus.PENDING_REVIEW
+        await db.commit()
+        await db.refresh(existing)
+        return existing
+
+    # Create new metadata stub
+    meta = DocumentMetadata(
+        document_id=document_id,
+        document_type=doc.document_type,
+        extracted_data=template,
+        confidence_score=0,
+        status=MetadataStatus.EXTRACTED,
+        extraction_attempts=0,
+        model_version="manual",
+    )
+    db.add(meta)
+    doc.status = DocumentStatus.PENDING_REVIEW
+    await db.commit()
+    await db.refresh(meta)
+    return meta
 
 
 @router.post("/documents/{document_id}/re-extract")

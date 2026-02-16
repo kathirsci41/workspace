@@ -91,6 +91,33 @@ def extract_document(self, document_id: str):
             doc_date = parser.parse_date(extracted_data.get(date_field))
             total_amt = extracted_data.get("total_amount")
 
+            # Clean comma-formatted amounts before float conversion
+            def clean_amount(val):
+                if val is None:
+                    return None
+                if isinstance(val, (int, float)):
+                    return float(val)
+                s = str(val).replace(",", "").strip()
+                try:
+                    return float(s)
+                except (ValueError, TypeError):
+                    return None
+
+            # Also sanitize amount fields in extracted_data itself
+            for amt_field in ("total_amount", "subtotal", "tax_amount", "est_amount",
+                              "grand_total", "unit_rate"):
+                if amt_field in extracted_data and extracted_data[amt_field] is not None:
+                    cleaned = clean_amount(extracted_data[amt_field])
+                    if cleaned is not None:
+                        extracted_data[amt_field] = cleaned
+
+            # If items_description is a list, join to string
+            items_desc = extracted_data.get("items_description")
+            if isinstance(items_desc, list):
+                extracted_data["items_description"] = "; ".join(
+                    str(item) for item in items_desc if item
+                )
+
             # 10. Create/update metadata
             existing_meta = db.query(DocumentMetadata).filter(
                 DocumentMetadata.document_id == doc.id
@@ -112,7 +139,7 @@ def extract_document(self, document_id: str):
             meta.primary_ref_no = str(primary_ref) if primary_ref else None
             meta.po_ref_no = str(po_ref) if po_ref else None
             meta.doc_date = doc_date
-            meta.total_amount = float(total_amt) if total_amt is not None else None
+            meta.total_amount = clean_amount(total_amt)
             meta.confidence_score = confidence
             meta.status = MetadataStatus.EXTRACTED
             meta.last_error = None
@@ -155,7 +182,7 @@ def extract_document(self, document_id: str):
             logger.error(f"Extraction failed for {document_id}: {e}")
             doc.status = DocumentStatus.EXTRACTION_FAILED
 
-            # Update metadata with error
+            # Update metadata with error — preserve any partial results
             meta = db.query(DocumentMetadata).filter(
                 DocumentMetadata.document_id == doc.id
             ).first()
@@ -163,6 +190,17 @@ def extract_document(self, document_id: str):
                 meta.last_error = str(e)
                 meta.extraction_attempts += 1
                 meta.status = MetadataStatus.FAILED
+                # Save partial extracted_data + confidence if we got that far
+                try:
+                    if extracted_data:
+                        meta.extracted_data = extracted_data
+                        schema_fields = list(EXTRACTION_PROMPTS[doc_type]["schema"].keys())
+                        meta.confidence_score = parser.calculate_confidence(
+                            extracted_data, schema_fields
+                        )
+                        meta.model_version = settings.ocr_model_name
+                except Exception:
+                    pass  # Don't let partial-save crash the error handler
             else:
                 meta = DocumentMetadata(
                     document_id=doc.id,

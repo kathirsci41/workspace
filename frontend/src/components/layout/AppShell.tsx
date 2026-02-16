@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -9,6 +9,7 @@ import {
   X,
 } from 'lucide-react';
 import clsx from 'clsx';
+import InlineSearch from './InlineSearch';
 
 const navLinks = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -19,16 +20,6 @@ const navLinks = [
 
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const navigate = useNavigate();
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
-    }
-  };
 
   return (
     <div className="min-h-screen flex">
@@ -92,21 +83,7 @@ export default function AppShell() {
           >
             <Menu size={20} />
           </button>
-          <form onSubmit={handleSearch} className="flex-1 max-w-lg">
-            <div className="relative">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                type="text"
-                placeholder="Search by reference number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </form>
+          <InlineSearch />
         </header>
 
         {/* Page content */}

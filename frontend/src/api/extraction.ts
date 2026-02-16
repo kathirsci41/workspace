@@ -33,3 +33,21 @@ export async function rejectMetadata(
 export async function reExtract(documentId: string): Promise<void> {
   await client.post(`/api/v1/documents/${documentId}/re-extract`);
 }
+
+export async function getFieldTemplate(
+  documentId: string
+): Promise<{ document_type: string; fields: Record<string, null>; field_descriptions: Record<string, string> }> {
+  const { data } = await client.get(
+    `/api/v1/documents/${documentId}/metadata/template`
+  );
+  return data;
+}
+
+export async function createManualEntry(
+  documentId: string
+): Promise<DocumentMetadata> {
+  const { data } = await client.post(
+    `/api/v1/documents/${documentId}/metadata/manual`
+  );
+  return data;
+}

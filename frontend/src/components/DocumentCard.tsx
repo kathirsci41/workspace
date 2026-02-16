@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { FileText, Upload, RotateCcw, Eye, ClipboardCheck } from 'lucide-react';
+import { FileText, Upload, RotateCcw, Eye, ClipboardCheck, Trash2, PenLine } from 'lucide-react';
 import type { ChainSlot, DocumentType } from '@/types';
 import { DOC_TYPE_LABELS } from '@/types';
 
@@ -11,6 +11,12 @@ interface Props {
   onUpload: () => void;
   onReview: (documentId: string) => void;
   onReExtract: (documentId: string) => void;
+  onDelete: (documentId: string) => void;
+  onManualEntry: (documentId: string) => void;
+  /** When false, hides the doc-type label (used for 2nd+ card in a multi-doc group) */
+  showLabel?: boolean;
+  /** If set, shows "#n" next to the label to distinguish docs */
+  docIndex?: number;
 }
 
 export default function DocumentCard({
@@ -21,6 +27,10 @@ export default function DocumentCard({
   onUpload,
   onReview,
   onReExtract,
+  onDelete,
+  onManualEntry,
+  showLabel = true,
+  docIndex,
 }: Props) {
   const status = slot?.status ?? 'empty';
 
@@ -62,9 +72,21 @@ export default function DocumentCard({
                       : 'text-gray-400'
             )}
           />
-          <span className="text-sm font-semibold">
-            {DOC_TYPE_LABELS[documentType]}
-          </span>
+          {showLabel && (
+            <span className="text-sm font-semibold">
+              {DOC_TYPE_LABELS[documentType]}
+              {docIndex != null && (
+                <span className="text-xs text-gray-400 font-normal ml-1">
+                  #{docIndex}
+                </span>
+              )}
+            </span>
+          )}
+          {!showLabel && docIndex != null && (
+            <span className="text-xs text-gray-400 font-medium">
+              #{docIndex}
+            </span>
+          )}
         </div>
         {/* Status icon */}
         {status === 'VERIFIED' && (
@@ -123,7 +145,7 @@ export default function DocumentCard({
         slot && (
           <div>
             <p className="text-sm font-mono text-gray-700 truncate">
-              {slot.ref_number ?? slot.filename ?? '—'}
+              {slot.ref_no ?? '—'}
             </p>
             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
               {slot.confidence != null && (
@@ -176,6 +198,16 @@ export default function DocumentCard({
                   Re-extract
                 </button>
               )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (slot.document_id) onDelete(slot.document_id);
+                }}
+                className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-red-600"
+                title="Delete & Re-upload"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           </div>
         )}
@@ -186,7 +218,7 @@ export default function DocumentCard({
           <p className="text-sm text-red-600 truncate">
             {status === 'REJECTED' ? 'Rejected by reviewer' : 'Extraction failed'}
           </p>
-          <div className="mt-3">
+          <div className="flex items-center gap-2 mt-3">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -196,6 +228,26 @@ export default function DocumentCard({
             >
               <RotateCcw size={14} />
               Re-extract
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (slot.document_id) onManualEntry(slot.document_id);
+              }}
+              className="inline-flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 font-medium"
+            >
+              <PenLine size={14} />
+              Manual Entry
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (slot.document_id) onDelete(slot.document_id);
+              }}
+              className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-red-600"
+              title="Delete & Re-upload"
+            >
+              <Trash2 size={14} />
             </button>
           </div>
         </div>
