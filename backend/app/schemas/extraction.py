@@ -36,6 +36,7 @@ class SearchResult(BaseModel):
     display_name: str
     document_type: Optional[str] = None
     po_number: Optional[str] = None
+    po_id: Optional[str] = None
     customer_name: Optional[str] = None
     confidence: Optional[float] = None
 
