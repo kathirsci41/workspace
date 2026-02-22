@@ -2,11 +2,11 @@
 
 export type DocumentType =
   | 'CUSTOMER_PO'
+  | 'COMPANY_PO'
   | 'VENDOR_DC'
   | 'VENDOR_INVOICE'
   | 'COMPANY_DC'
-  | 'COMPANY_INVOICE'
-  | 'POD';
+  | 'COMPANY_INVOICE';
 
 export type DocumentStatus =
   | 'UPLOADED'
@@ -140,27 +140,27 @@ export interface PaginatedResponse<T> {
 
 export const CHAIN_ORDER: DocumentType[] = [
   'CUSTOMER_PO',
+  'COMPANY_PO',
   'VENDOR_DC',
   'VENDOR_INVOICE',
   'COMPANY_DC',
   'COMPANY_INVOICE',
-  'POD',
 ];
 
 export const DOC_TYPE_LABELS: Record<DocumentType, string> = {
   CUSTOMER_PO: 'Customer PO',
+  COMPANY_PO: 'Company PO',
   VENDOR_DC: 'Vendor DC',
   VENDOR_INVOICE: 'Vendor Invoice',
   COMPANY_DC: 'Company DC',
   COMPANY_INVOICE: 'Company Invoice',
-  POD: 'POD',
 };
 
 export const DOC_TYPE_SHORT: Record<DocumentType, string> = {
-  CUSTOMER_PO: 'PO',
+  CUSTOMER_PO: 'C.PO',
+  COMPANY_PO: 'PO',
   VENDOR_DC: 'V.DC',
   VENDOR_INVOICE: 'V.Inv',
   COMPANY_DC: 'C.DC',
   COMPANY_INVOICE: 'C.Inv',
-  POD: 'POD',
 };

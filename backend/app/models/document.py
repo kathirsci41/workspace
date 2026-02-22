@@ -14,11 +14,11 @@ if TYPE_CHECKING:
 
 class DocumentType(str, enum.Enum):
     CUSTOMER_PO = "CUSTOMER_PO"
+    COMPANY_PO = "COMPANY_PO"
     VENDOR_DC = "VENDOR_DC"
     VENDOR_INVOICE = "VENDOR_INVOICE"
     COMPANY_DC = "COMPANY_DC"
     COMPANY_INVOICE = "COMPANY_INVOICE"
-    POD = "POD"
 
 
 class DocumentStatus(str, enum.Enum):

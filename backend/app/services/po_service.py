@@ -1,6 +1,6 @@
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, distinct
+from sqlalchemy import select, func, or_, distinct, delete as sa_delete
 from sqlalchemy.orm import selectinload, joinedload
 from fastapi import HTTPException
 
@@ -8,16 +8,21 @@ from app.models.customer import Customer
 from app.models.purchase_order import PurchaseOrder, POStatus
 from app.models.document import Document, DocumentType, DocumentStatus
 from app.models.document_metadata import DocumentMetadata
+from app.models.reference_index import ReferenceIndex
 from app.schemas.purchase_order import POCreate, POUpdate, ChainSlot, ChainStatusResponse
+from app.services.storage_service import StorageService
+from app.config import settings
+
+storage_service = StorageService(settings.nas_base_path)
 
 
 CHAIN_DOC_TYPES = [
     DocumentType.CUSTOMER_PO,
+    DocumentType.COMPANY_PO,
     DocumentType.VENDOR_DC,
     DocumentType.VENDOR_INVOICE,
     DocumentType.COMPANY_DC,
     DocumentType.COMPANY_INVOICE,
-    DocumentType.POD,
 ]
 
 
@@ -153,6 +158,27 @@ async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse
         completeness_pct=completeness,
         chain=chain,
     )
+
+
+async def delete_po(db: AsyncSession, po_id: UUID) -> None:
+    """Delete a PO and all its documents, files, metadata, and reference entries."""
+    po = await get_po(db, po_id)
+    doc_ids = [doc.id for doc in po.documents]
+
+    # Delete NAS files
+    for doc in po.documents:
+        try:
+            await storage_service.delete_file(doc.file_path)
+        except Exception:
+            pass
+
+    if doc_ids:
+        await db.execute(sa_delete(ReferenceIndex).where(ReferenceIndex.document_id.in_(doc_ids)))
+        await db.execute(sa_delete(DocumentMetadata).where(DocumentMetadata.document_id.in_(doc_ids)))
+        await db.execute(sa_delete(Document).where(Document.po_id == po_id))
+
+    await db.delete(po)
+    await db.commit()
 
 
 async def update_chain_completeness(db: AsyncSession, po_id: UUID) -> float:

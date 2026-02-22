@@ -20,12 +20,15 @@ from app.services.extraction.prompts import (
     build_prompt, get_primary_field, get_date_field,
     get_searchable_fields, EXTRACTION_PROMPTS,
 )
+from app.services.extraction.field_validator import validate_extracted_fields
+from app.services.extraction.two_layer_client import TwoLayerClient
+from app.services.extraction.glm_ocr_prompts import EXTRACTION_SCHEMAS
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-@celery_app.task(bind=True, max_retries=3, default_retry_delay=30)
+@celery_app.task(bind=True, max_retries=1, default_retry_delay=10)
 def extract_document(self, document_id: str):
     """Run OCR extraction on an uploaded document."""
 
@@ -40,6 +43,7 @@ def extract_document(self, document_id: str):
         doc.status = DocumentStatus.EXTRACTING
         db.commit()
 
+        extracted_data = {}  # ensure always defined for error handler
         try:
             # 3. Get full file path
             storage_path = os.path.join(settings.nas_base_path, doc.file_path)
@@ -54,33 +58,172 @@ def extract_document(self, document_id: str):
 
             # 5. Build prompt
             doc_type = doc.document_type.value
-            prompt = build_prompt(doc_type)
 
-            # 6. OCR each page
-            ocr = OCRClient(
-                base_url=settings.ocr_base_url,
-                model=settings.ocr_model_name,
-                timeout=settings.ocr_timeout,
-                max_retries=settings.ocr_max_retries,
-            )
-
+            # 6. OCR each page — choose single-layer or two-layer pipeline
+            use_two_layer = settings.ocr_two_layer_enabled
             raw_texts = []
             total_time_ms = 0
-            for i, img in enumerate(images):
-                logger.info(f"OCR page {i + 1}/{len(images)} for doc {document_id}")
-                # Allow Ollama to release GPU memory between pages
-                if i > 0:
-                    time.sleep(5)
-                result = asyncio.run(ocr.extract_from_image(img, prompt))
-                raw_texts.append(result["text"])
-                total_time_ms += result["processing_time_ms"]
 
-            # 7. Parse + merge
-            parser = ResponseParser()
-            extracted_data = parser.parse_and_merge(raw_texts, doc_type)
+            if use_two_layer:
+                # ── Two-layer pipeline ────────────────────────────────────
+                logger.info(
+                    f"Using TWO-LAYER pipeline for doc {document_id} "
+                    f"({settings.ocr_custom_model} + {settings.ocr_extractor_model})"
+                )
+                two_layer = TwoLayerClient(
+                    base_url=settings.ocr_base_url,
+                    ocr_model=settings.ocr_custom_model,
+                    extractor_model=settings.ocr_extractor_model,
+                    timeout=settings.ocr_timeout,
+                    max_retries=settings.ocr_max_retries,
+                    extractor_num_ctx=settings.ocr_extractor_num_ctx,
+                    save_debug_markdown=settings.ocr_save_debug_markdown,
+                    extractor_base_url=settings.ocr_extractor_base_url,
+                    extractor_api_key=settings.ocr_extractor_api_key,
+                )
+
+                markdown_pages = []  # (markdown, ocr_ms, page_label)
+
+                # ── Phase 1: OCR all pages (GLM-OCR stays loaded) ────────
+                for i, img in enumerate(images):
+                    page_label = f"doc{document_id}_p{i + 1}"
+                    logger.info(
+                        f"Two-layer OCR {i + 1}/{len(images)} for doc {document_id}"
+                    )
+                    try:
+                        markdown, ocr_ms = asyncio.run(
+                            two_layer._run_ocr_layer(img, doc_type)
+                        )
+                        if two_layer.save_debug_markdown and page_label:
+                            two_layer._save_markdown(markdown, page_label, doc_type)
+                        raw_texts.append(markdown)
+                        markdown_pages.append((markdown, ocr_ms, page_label))
+                    except Exception as page_err:
+                        logger.warning(
+                            f"Two-layer OCR page {i + 1} failed: {page_err}"
+                        )
+                        raw_texts.append("")
+                        markdown_pages.append(("", 0, page_label))
+
+                # Release OCR model once (all pages done), then load extractor
+                asyncio.run(two_layer.release_model(two_layer.ocr_model))
+                # Only wait for local Ollama if Layer 2 is also local
+                if not settings.ocr_extractor_base_url:
+                    time.sleep(5)
+                    asyncio.run(two_layer.wait_until_ready())
+
+                # ── Phase 2: Extract from all pages (Qwen2.5 loads once) ─
+                page_fields = []
+                for markdown, ocr_ms, page_label in markdown_pages:
+                    if not markdown or len(markdown.strip()) < 20:
+                        logger.warning(
+                            f"[TwoLayer] Empty/short text for {page_label}, skipping"
+                        )
+                        page_fields.append({})
+                        continue
+                    try:
+                        fields, extract_ms = asyncio.run(
+                            two_layer._run_extraction_layer(markdown, doc_type)
+                        )
+                        validated = validate_extracted_fields(fields, doc_type)
+                        page_fields.append(validated)
+                        total_time_ms += ocr_ms + extract_ms
+                        filled = len([
+                            v for k, v in validated.items()
+                            if v is not None and not str(k).startswith("_")
+                        ])
+                        logger.info(
+                            f"[TwoLayer] {doc_type} {page_label} | "
+                            f"OCR: {ocr_ms}ms | Extract: {extract_ms}ms | "
+                            f"Fields: {filled}"
+                        )
+                    except Exception as page_err:
+                        logger.warning(
+                            f"Two-layer extraction {page_label} failed: {page_err}"
+                        )
+                        page_fields.append({})
+
+                # Merge page fields (first non-null wins, same as ResponseParser)
+                extracted_data = {}
+                for pf in page_fields:
+                    for key, value in pf.items():
+                        if key.startswith("_"):
+                            # Preserve validation metadata from last page
+                            extracted_data[key] = value
+                        elif key not in extracted_data or extracted_data[key] is None:
+                            extracted_data[key] = value
+
+                # Guard: raise if no real fields extracted from any page
+                real_fields = {
+                    k: v for k, v in extracted_data.items()
+                    if not k.startswith("_")
+                }
+                if not real_fields:
+                    raise RuntimeError(
+                        "Two-layer OCR produced no extractable fields — "
+                        "all pages failed or returned empty"
+                    )
+
+                # Use two-layer schema for confidence calculation
+                schema_fields = list(
+                    EXTRACTION_SCHEMAS.get(doc_type, {}).keys()
+                )
+                model_version = (
+                    f"{settings.ocr_custom_model}+{settings.ocr_extractor_model}"
+                )
+            else:
+                # ── Single-layer pipeline (existing behavior) ─────────────
+                prompt = build_prompt(doc_type)
+
+                ocr = OCRClient(
+                    base_url=settings.ocr_base_url,
+                    model=settings.ocr_model_name,
+                    timeout=settings.ocr_timeout,
+                    max_retries=settings.ocr_max_retries,
+                )
+
+                for i, img in enumerate(images):
+                    logger.info(
+                        f"OCR page {i + 1}/{len(images)} for doc {document_id}"
+                    )
+
+                    if i > 0:
+                        asyncio.run(ocr.release_model())
+                        time.sleep(10)
+                        asyncio.run(ocr.wait_until_ready())
+
+                    try:
+                        result = asyncio.run(ocr.extract_from_image(img, prompt))
+                        raw_texts.append(result["text"])
+                        total_time_ms += result["processing_time_ms"]
+                    except Exception as page_err:
+                        logger.warning(
+                            f"Single-layer page {i + 1} failed, skipping: {page_err}"
+                        )
+                        raw_texts.append("")
+
+                # 7. Parse + merge
+                parser = ResponseParser()
+                extracted_data = parser.parse_and_merge(raw_texts, doc_type)
+
+                # Apply field validation to single-layer results too
+                extracted_data = validate_extracted_fields(
+                    extracted_data, doc_type
+                )
+
+                if not extracted_data:
+                    raise RuntimeError(
+                        "OCR produced no extractable data — "
+                        "all pages returned non-JSON or empty output"
+                    )
+
+                schema_fields = list(
+                    EXTRACTION_PROMPTS[doc_type]["schema"].keys()
+                )
+                model_version = settings.ocr_model_name
 
             # 8. Confidence
-            schema_fields = list(EXTRACTION_PROMPTS[doc_type]["schema"].keys())
+            parser = ResponseParser()
             confidence = parser.calculate_confidence(extracted_data, schema_fields)
 
             # 9. Extract key fields
@@ -144,7 +287,7 @@ def extract_document(self, document_id: str):
             meta.status = MetadataStatus.EXTRACTED
             meta.last_error = None
             meta.extracted_at = datetime.utcnow()
-            meta.model_version = settings.ocr_model_name
+            meta.model_version = model_version
             meta.processing_time_ms = total_time_ms
 
             # 11. Populate ReferenceIndex
@@ -194,7 +337,10 @@ def extract_document(self, document_id: str):
                 try:
                     if extracted_data:
                         meta.extracted_data = extracted_data
-                        schema_fields = list(EXTRACTION_PROMPTS[doc_type]["schema"].keys())
+                        if use_two_layer:
+                            schema_fields = list(EXTRACTION_SCHEMAS.get(doc_type, {}).keys())
+                        else:
+                            schema_fields = list(EXTRACTION_PROMPTS[doc_type]["schema"].keys())
                         meta.confidence_score = parser.calculate_confidence(
                             extracted_data, schema_fields
                         )

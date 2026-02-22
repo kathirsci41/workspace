@@ -25,7 +25,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     # Redis
     try:
         import redis as redis_lib
-        r = redis_lib.from_url(settings.redis_url, socket_timeout=3)
+        r: redis_lib.Redis = redis_lib.Redis.from_url(settings.redis_url, socket_timeout=3)  # type: ignore[assignment]
         r.ping()
         result["redis"] = "ok"
     except Exception as e:

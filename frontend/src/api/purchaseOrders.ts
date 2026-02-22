@@ -43,6 +43,10 @@ export async function getChainStatus(poId: string): Promise<ChainStatus> {
   return data;
 }
 
+export async function deletePO(id: string): Promise<void> {
+  await client.delete(`/api/v1/purchase-orders/${id}`);
+}
+
 export async function getDocumentsForPO(poId: string): Promise<Document[]> {
   const { data } = await client.get(
     `/api/v1/purchase-orders/${poId}/documents`

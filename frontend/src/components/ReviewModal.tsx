@@ -26,6 +26,7 @@ export default function ReviewModal({ documentId, onClose, onVerified }: Props) 
     if (metadata?.extracted_data && Object.keys(metadata.extracted_data).length > 0) {
       const initial: Record<string, string> = {};
       for (const [key, value] of Object.entries(metadata.extracted_data)) {
+        if (key.startsWith('_')) continue;  // skip internal metadata (_validation, etc.)
         initial[key] = value != null ? String(value) : '';
       }
       setFormData(initial);
@@ -48,9 +49,10 @@ export default function ReviewModal({ documentId, onClose, onVerified }: Props) 
     // Convert form values back to appropriate types
     const editedData: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(formData)) {
+      if (key.startsWith('_')) continue;
       if (value === '') {
         editedData[key] = null;
-      } else if (!isNaN(Number(value)) && key.includes('amount') || key.includes('count') || key.includes('quantity') || key.includes('subtotal') || key.includes('tax')) {
+      } else if (!isNaN(Number(value)) && (key.includes('amount') || key.includes('count') || key.includes('quantity') || key.includes('subtotal') || key.includes('tax'))) {
         editedData[key] = Number(value);
       } else if (key === 'signature_present') {
         editedData[key] = value === 'true';
@@ -69,10 +71,60 @@ export default function ReviewModal({ documentId, onClose, onVerified }: Props) 
     rejectMutation.mutate(documentId, { onSuccess: onClose });
   };
 
-  const formatLabel = (key: string) =>
-    key
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+  // Canonical display order per doc type
+  const FIELD_ORDER: Record<string, string[]> = {
+    CUSTOMER_PO:     ['po_number', 'bsif_name', 'po_date'],
+    COMPANY_PO:      ['purchase_bill_no', 'po_number', 'bill_no'],
+    VENDOR_DC:       ['dc_number', 'dc_date', 'po_reference', 'vendor_name', 'items_description', 'quantity', 'vehicle_number', 'receiver_name'],
+    VENDOR_INVOICE:  ['invoice_number', 'customer_order_no', 'po_reference'],
+    COMPANY_DC:      ['dc_number', 'po_reference', 'sales_order_no', 'dispatch_to'],
+    COMPANY_INVOICE: ['invoice_number', 'so_number', 'po_reference', 'customer_name', 'total_amount'],
+  };
+
+  // Human-readable labels — overrides snake_case default
+  const FIELD_LABELS: Record<string, string> = {
+    bsif_name:         'Company Name',
+    purchase_bill_no:  'Purchase Bill No',
+    bill_no:           'Bill No',
+    dc_number:         'DC No',
+    dc_date:           'DC Date',
+    po_reference:      'Customer Order No',
+    sales_order_no:    'Sales Order No',
+    dispatch_to:       'Delivery To',
+    invoice_number:    'Invoice No',
+    customer_order_no: 'Customer Order No',
+    so_number:         'Sales Order No',
+    customer_name:     'Customer Name',
+    total_amount:      'Total Amount',
+    vendor_name:       'Vendor Name',
+    items_description: 'Items',
+    receiver_name:     'Receiver Name',
+    vehicle_number:    'Vehicle No',
+    quantity:          'Quantity',
+  };
+
+  // Per-doc-type label overrides (same key can mean different things per type)
+  const DOC_LABEL_OVERRIDES: Record<string, Record<string, string>> = {
+    CUSTOMER_PO: { po_number: 'Customer PO Number' },
+    VENDOR_DC:   { po_reference: 'PO Reference' },
+  };
+
+  const formatLabel = (key: string) => {
+    const docType = metadata?.document_type ?? '';
+    const override = DOC_LABEL_OVERRIDES[docType]?.[key];
+    if (override) return override;
+    if (FIELD_LABELS[key]) return FIELD_LABELS[key];
+    return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
+  // Sort form keys by canonical order, unknown keys go to end
+  const sortedFormKeys = (keys: string[]): string[] => {
+    const docType = metadata?.document_type ?? '';
+    const order = FIELD_ORDER[docType] ?? [];
+    const inOrder = order.filter((k) => keys.includes(k));
+    const rest = keys.filter((k) => !order.includes(k));
+    return [...inOrder, ...rest];
+  };
 
   if (isLoading) {
     return (
@@ -141,7 +193,9 @@ export default function ReviewModal({ documentId, onClose, onVerified }: Props) 
                   Manual entry mode — fill in the fields from the document on the left, then click Verify.
                 </div>
               )}
-              {Object.entries(formData).map(([key, value]) => (
+              {sortedFormKeys(Object.keys(formData)).map((key) => {
+                const value = formData[key];
+                return (
                 <div key={key}>
                   <label className="block text-xs font-medium text-gray-500 mb-1">
                     {formatLabel(key)}
@@ -184,7 +238,7 @@ export default function ReviewModal({ documentId, onClose, onVerified }: Props) 
                     />
                   )}
                 </div>
-              ))}
+              ); })}
               {Object.keys(formData).length === 0 && !isLoading && (
                 <p className="text-sm text-gray-400 py-8 text-center">
                   No extraction data or template available. Try re-extracting the document.

@@ -1,0 +1,529 @@
+{
+  "document_types": {
+    "CUSTOMER_PO": {
+      "description": "Purchase Order issued by customer (buyer)",
+      "fields": {
+        "po_number": "string",
+        "po_date": "string",
+        "customer_name": "string",
+        "billing_address": "string",
+        "shipping_address": "string",
+        "total_amount": "number",
+        "currency": "string",
+        "payment_terms": "string",
+        "gst_number": "string"
+      }
+    },
+    "COMPANY_DC": {
+      "description": "Delivery Challan issued by company to dispatch goods",
+      "fields": {
+        "dc_number": "string",
+        "dc_date": "string",
+        "po_reference": "string",
+        "sales_order_no": "string",
+        "customer_order_date": "string",
+        "customer_name": "string",
+        "items_description": "string",
+        "quantity": "number",
+        "dispatch_to": "string",
+        "est_amount": "number"
+      }
+    },
+    "COMPANY_INVOICE": {
+      "description": "Tax Invoice issued by company to bill the customer",
+      "fields": {
+        "invoice_number": "string",
+        "invoice_date": "string",
+        "po_reference": "string",
+        "customer_order_date": "string",
+        "so_number": "string",
+        "acct_manager": "string",
+        "customer_name": "string",
+        "subtotal": "number",
+        "tax_amount": "number",
+        "total_amount": "number",
+        "irn_number": "string"
+      }
+    },
+    "VENDOR_DC": {
+      "description": "Delivery Challan from vendor/supplier",
+      "fields": {
+        "dc_number": "string",
+        "dc_date": "string",
+        "po_reference": "string",
+        "vendor_name": "string",
+        "items_description": "string",
+        "quantity": "number",
+        "vehicle_number": "string",
+        "receiver_name": "string"
+      }
+    },
+    "VENDOR_INVOICE": {
+      "description": "Tax Invoice from vendor/supplier",
+      "fields": {
+        "invoice_number": "string",
+        "invoice_date": "string",
+        "po_reference": "string",
+        "vendor_name": "string",
+        "subtotal": "number",
+        "tax_amount": "number",
+        "total_amount": "number",
+        "payment_terms": "string",
+        "gst_number": "string",
+        "irn_number": "string",
+        "ack_number": "string",
+        "ack_date": "string"
+      }
+    },
+    "COMPANY_PO": {
+      "description": "Purchase Bill issued by company to record vendor purchase",
+      "fields": {
+        "po_number": "string",
+        "po_date": "string",
+        "bill_no": "string",
+        "bill_date": "string",
+        "vendor_name": "string",
+        "subtotal": "number",
+        "tax_amount": "number",
+        "total_amount": "number"
+      }
+    },
+    "POD": {
+      "description": "Proof of Delivery document",
+      "fields": {
+        "pod_number": "string",
+        "delivery_date": "string",
+        "received_by": "string",
+        "dc_reference": "string",
+        "po_reference": "string",
+        "delivery_location": "string",
+        "condition_notes": "string",
+        "signature_present": "boolean"
+      }
+    }
+  },
+
+  "notes": {
+    "mandatory_fields": ["invoice_number", "dc_number", "po_number", "po_reference", "so_number/sales_order_no"],
+    "known_ocr_issues": {
+      "I_vs_1": "OCR reads 1ITR as 11TR, 1ISR as 11SR, 1OTM as 10TM (font renders I/O similar to 1/0)",
+      "reference_confusion": "On Company DCs, OCR confuses 'Reference' (person name) with 'Customer Order No.' (po_reference)",
+      "multi_page_totals": "For multi-page DCs (5-6 pages), totals only appear on the last page"
+    }
+  },
+
+  "documents": [
+    {
+      "id": "ADD-01",
+      "file": "Addision/RAM PO Copy.pdf",
+      "type": "CUSTOMER_PO",
+      "pages": 2,
+      "customer": "Addision",
+      "expected_values": {
+        "po_number": "IGKPO/106399/2526",
+        "customer_name": "ADDISON & CO, LTD",
+        "total_amount": null
+      }
+    },
+    {
+      "id": "ADD-02",
+      "file": "Addision/1DNT2526DC2995 ADDISON-DC.pdf",
+      "type": "COMPANY_DC",
+      "pages": 1,
+      "customer": "Addision",
+      "expected_values": {
+        "dc_number": "1DNT2526DC2995",
+        "po_reference": "IGKPO/106399/2526",
+        "sales_order_no": "1OTM2526001596",
+        "customer_name": "ADDISON & CO, LTD"
+      }
+    },
+    {
+      "id": "ADD-03",
+      "file": "Addision/1ITR2526001841 ADDISON-Customer Invoice.pdf",
+      "type": "COMPANY_INVOICE",
+      "pages": 1,
+      "customer": "Addision",
+      "expected_values": {
+        "invoice_number": "1ITR2526001841",
+        "po_reference": "IGKPO/106399/2526",
+        "so_number": "1OTM2526001596",
+        "customer_name": "ADDISON & CO, LTD"
+      }
+    },
+    {
+      "id": "ADD-04",
+      "file": "Addision/CT2526011078 1OTM2526001596-vendor invoice.pdf",
+      "type": "VENDOR_INVOICE",
+      "pages": 1,
+      "customer": "Addision",
+      "expected_values": {
+        "invoice_number": "CT2526011078",
+        "po_reference": "1OTM2526001596",
+        "total_amount": 23600
+      }
+    },
+    {
+      "id": "ADD-05",
+      "file": "Addision/Skylark PO.pdf",
+      "type": "COMPANY_PO",
+      "pages": 1,
+      "customer": "Addision",
+      "expected_values": {
+        "po_number": "1PTR2526000457",
+        "bill_no": "CT2526011078",
+        "total_amount": 23600
+      }
+    },
+
+    {
+      "id": "BHI-01",
+      "file": "Bhimasugam/PO-BSIF-059_compressed (1).pdf",
+      "type": "CUSTOMER_PO",
+      "pages": 42,
+      "customer": "Bhimasugam",
+      "expected_values": {
+        "po_number": "BSIF/059",
+        "customer_name": "BIMA SUGAM INDIA FEDERATION",
+        "total_amount": null
+      }
+    },
+    {
+      "id": "BHI-02",
+      "file": "Bhimasugam/1DNT2526DC2626.pdf",
+      "type": "COMPANY_DC",
+      "pages": 6,
+      "customer": "Bhimasugam",
+      "expected_values": {
+        "dc_number": "1DNT2526DC2626",
+        "po_reference": "BSIF/059",
+        "sales_order_no": "1OTM2526001386",
+        "customer_name": "BIMA SUGAM INDIA FEDERATION"
+      }
+    },
+    {
+      "id": "BHI-03",
+      "file": "Bhimasugam/1DNT2526DC2628.pdf",
+      "type": "COMPANY_DC",
+      "pages": 6,
+      "customer": "Bhimasugam",
+      "expected_values": {
+        "dc_number": "1DNT2526DC2628",
+        "po_reference": "BSIF/059",
+        "sales_order_no": "1OTM2526001387",
+        "customer_name": "BIMA SUGAM INDIA FEDERATION"
+      }
+    },
+    {
+      "id": "BHI-04",
+      "file": "Bhimasugam/1ITR2526001721.pdf",
+      "type": "COMPANY_INVOICE",
+      "pages": 1,
+      "customer": "Bhimasugam",
+      "expected_values": {
+        "invoice_number": "1ITR2526001721",
+        "po_reference": "BSIF/059",
+        "so_number": "1OTM2526001386",
+        "customer_name": "BIMA SUGAM INDIA FEDERATION"
+      }
+    },
+    {
+      "id": "BHI-05",
+      "file": "Bhimasugam/1ITR2526001722.pdf",
+      "type": "COMPANY_INVOICE",
+      "pages": 2,
+      "customer": "Bhimasugam",
+      "expected_values": {
+        "invoice_number": "1ITR2526001722",
+        "po_reference": "BSIF/059",
+        "so_number": "1OTM2526001387",
+        "customer_name": "BIMA SUGAM INDIA FEDERATION"
+      }
+    },
+    {
+      "id": "BHI-06",
+      "file": "Bhimasugam/10ID25B0310689 1PTR2526000382-vendor invoice.pdf",
+      "type": "VENDOR_INVOICE",
+      "pages": 2,
+      "customer": "Bhimasugam",
+      "expected_values": {
+        "invoice_number": "10ID25B0310689",
+        "po_reference": "SKY-PO-2025-2026-TR138",
+        "vendor_name": "INGRAM MICRO INDIA PRIVATE LIMITED"
+      }
+    },
+    {
+      "id": "BHI-07",
+      "file": "Bhimasugam/ITICHG0425102962 - 1OTM2526001387-Customer Invoice.pdf",
+      "type": "VENDOR_INVOICE",
+      "pages": 13,
+      "customer": "Bhimasugam",
+      "expected_values": {
+        "invoice_number": "ITICHG0425102962",
+        "po_reference": "1OTM2526001387"
+      }
+    },
+    {
+      "id": "BHI-08",
+      "file": "Bhimasugam/Skylark PO.pdf",
+      "type": "COMPANY_PO",
+      "pages": 3,
+      "customer": "Bhimasugam",
+      "expected_values": {
+        "po_number": null,
+        "bill_no": null
+      }
+    },
+
+    {
+      "id": "BIL-01",
+      "file": "Billion Honour/BHAS-PO-22.pdf",
+      "type": "CUSTOMER_PO",
+      "pages": 2,
+      "customer": "Billion Honour",
+      "expected_values": {
+        "po_number": "BHAS-PO-IT-2025/26-022",
+        "customer_name": "BILLION HONOUR ACCOUNTING SERVICES PRIVATE LIMITED",
+        "total_amount": 399902
+      }
+    },
+    {
+      "id": "BIL-02",
+      "file": "Billion Honour/1DNT2526DC2919 BILLION.pdf",
+      "type": "COMPANY_DC",
+      "pages": 1,
+      "customer": "Billion Honour",
+      "expected_values": {
+        "dc_number": "1DNT2526DC2919",
+        "po_reference": "BHAS-PO-IT-2025/26-022",
+        "sales_order_no": "1OTM2526001544",
+        "customer_name": "BILLION HONOUR ACCOUNTING SERVICES PRIVATE LIMITED"
+      }
+    },
+    {
+      "id": "BIL-03",
+      "file": "Billion Honour/1ITR2526001789 BILLION.pdf",
+      "type": "COMPANY_INVOICE",
+      "pages": 2,
+      "customer": "Billion Honour",
+      "expected_values": {
+        "invoice_number": "1ITR2526001789",
+        "po_reference": "BHAS-PO-IT-2025/26-022",
+        "so_number": "1OTM2526001544",
+        "customer_name": "BILLION HONOUR ACCOUNTING SERVICES PRIVATE LIMITED"
+      }
+    },
+    {
+      "id": "BIL-04",
+      "file": "Billion Honour/2526PSI25079221 1OTM2526001544-Vendor invoice.pdf",
+      "type": "VENDOR_INVOICE",
+      "pages": 1,
+      "customer": "Billion Honour",
+      "expected_values": {
+        "invoice_number": "2526PSI25079221",
+        "po_reference": "1OTM2526001544"
+      }
+    },
+    {
+      "id": "BIL-05",
+      "file": "Billion Honour/Skylark PO.pdf",
+      "type": "COMPANY_PO",
+      "pages": 2,
+      "customer": "Billion Honour",
+      "expected_values": {
+        "po_number": null,
+        "bill_no": null
+      }
+    },
+
+    {
+      "id": "ELI-01",
+      "file": "Elite/PO (2).pdf",
+      "type": "CUSTOMER_PO",
+      "pages": 2,
+      "customer": "Elite",
+      "expected_values": {
+        "po_number": "323-24/Hilite HO/AI",
+        "customer_name": "ELITE CONTRACTORS (CHENNAI) PRIVATE LIMITED"
+      }
+    },
+    {
+      "id": "ELI-02",
+      "file": "Elite/1DNT2526DC2865.pdf",
+      "type": "COMPANY_DC",
+      "pages": 2,
+      "customer": "Elite",
+      "expected_values": {
+        "dc_number": "1DNT2526DC2865",
+        "po_reference": "323-24/Hilite HO/AI",
+        "sales_order_no": "1OTM2526001448",
+        "customer_name": "ELITE CONTRACTORS (CHENNAI) PRIVATE LIMITED"
+      }
+    },
+    {
+      "id": "ELI-03",
+      "file": "Elite/1ITR2526001748.pdf",
+      "type": "COMPANY_INVOICE",
+      "pages": 2,
+      "customer": "Elite",
+      "expected_values": {
+        "invoice_number": "1ITR2526001748",
+        "po_reference": "323-24/Hilite HO/AI",
+        "so_number": "1OTM2526001448",
+        "customer_name": "ELITE CONTRACTORS (CHENNAI) PRIVATE LIMITED",
+        "total_amount": 613600
+      }
+    },
+    {
+      "id": "ELI-04",
+      "file": "Elite/C240847449 1OTM2526001448-Vendor Invoice.pdf",
+      "type": "VENDOR_INVOICE",
+      "pages": 3,
+      "customer": "Elite",
+      "expected_values": {
+        "invoice_number": "C240847449",
+        "po_reference": "1OTM2526001448",
+        "vendor_name": "REDINGTON (INDIA) LIMITED"
+      }
+    },
+    {
+      "id": "ELI-05",
+      "file": "Elite/Skylark PO.pdf",
+      "type": "COMPANY_PO",
+      "pages": 1,
+      "customer": "Elite",
+      "expected_values": {
+        "po_number": "1PTR2526000405",
+        "bill_no": "C240847449",
+        "vendor_name": "REDINGTON (INDIA) LIMITED",
+        "total_amount": 102281
+      }
+    },
+
+    {
+      "id": "MAN-01",
+      "file": "Mando/C DC.pdf",
+      "type": "COMPANY_DC",
+      "pages": 5,
+      "customer": "Mando",
+      "expected_values": {
+        "dc_number": "1DNT2526DC2871",
+        "po_reference": "4500174759",
+        "sales_order_no": "1OTM2526001428",
+        "customer_name": "HL MANDO ANAND INDIA PRIVATE LIMITED"
+      }
+    },
+    {
+      "id": "MAN-02",
+      "file": "Mando/C Invoice 0.pdf",
+      "type": "COMPANY_INVOICE",
+      "pages": 1,
+      "customer": "Mando",
+      "expected_values": {
+        "invoice_number": "1ISR2526000166",
+        "po_reference": "4500174759",
+        "so_number": "1OTM2526001428",
+        "customer_name": "HL MANDO ANAND INDIA PRIVATE LIMITED"
+      }
+    },
+    {
+      "id": "MAN-03",
+      "file": "Mando/C Invoice 1.pdf",
+      "type": "COMPANY_INVOICE",
+      "pages": 1,
+      "customer": "Mando",
+      "expected_values": {
+        "invoice_number": "1ITR2526001751",
+        "po_reference": "4500174759",
+        "so_number": "1OTM2526001428",
+        "customer_name": "HL MANDO ANAND INDIA PRIVATE LIMITED"
+      }
+    },
+    {
+      "id": "MAN-04",
+      "file": "Mando/Vendor invoice.pdf",
+      "type": "VENDOR_INVOICE",
+      "pages": 2,
+      "customer": "Mando",
+      "expected_values": {
+        "invoice_number": null,
+        "po_reference": "SKY-PO-2025-2026-TR-155 DL"
+      }
+    },
+    {
+      "id": "MAN-05",
+      "file": "Mando/Skylark PO.pdf",
+      "type": "COMPANY_PO",
+      "pages": 2,
+      "customer": "Mando",
+      "expected_values": {
+        "po_number": null,
+        "bill_no": null
+      }
+    }
+  ],
+
+  "chain_map": {
+    "Addision": {
+      "customer_po": "IGKPO/106399/2526",
+      "sales_orders": [
+        {
+          "so_number": "1OTM2526001596",
+          "dc": "1DNT2526DC2995",
+          "invoice": "1ITR2526001841"
+        }
+      ],
+      "vendor_invoice": "CT2526011078",
+      "company_po": "1PTR2526000457"
+    },
+    "Bhimasugam": {
+      "customer_po": "BSIF/059",
+      "sales_orders": [
+        {
+          "so_number": "1OTM2526001386",
+          "dc": "1DNT2526DC2626",
+          "invoice": "1ITR2526001721"
+        },
+        {
+          "so_number": "1OTM2526001387",
+          "dc": "1DNT2526DC2628",
+          "invoice": "1ITR2526001722"
+        }
+      ],
+      "vendor_invoices": ["10ID25B0310689", "ITICHG0425102962"]
+    },
+    "Billion Honour": {
+      "customer_po": "BHAS-PO-IT-2025/26-022",
+      "sales_orders": [
+        {
+          "so_number": "1OTM2526001544",
+          "dc": "1DNT2526DC2919",
+          "invoice": "1ITR2526001789"
+        }
+      ],
+      "vendor_invoice": "2526PSI25079221"
+    },
+    "Elite": {
+      "customer_po": "323-24/Hilite HO/AI",
+      "sales_orders": [
+        {
+          "so_number": "1OTM2526001448",
+          "dc": "1DNT2526DC2865",
+          "invoice": "1ITR2526001748"
+        }
+      ],
+      "vendor_invoice": "C240847449",
+      "company_po": "1PTR2526000405"
+    },
+    "Mando": {
+      "customer_po": "4500174759",
+      "sales_orders": [
+        {
+          "so_number": "1OTM2526001428",
+          "dc": "1DNT2526DC2871",
+          "invoices": ["1ISR2526000166", "1ITR2526001751"]
+        }
+      ]
+    }
+  }
+}

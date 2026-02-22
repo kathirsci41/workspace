@@ -93,9 +93,26 @@ async def rotate_document(
     await db.commit()
     await db.refresh(doc)
 
-    resp = DocumentResponse.model_validate(doc)
+    resp = DocumentResponse(
+        id=doc.id,
+        po_id=doc.po_id,
+        document_type=doc.document_type.value if hasattr(doc.document_type, 'value') else doc.document_type,
+        filename=doc.filename,
+        original_filename=doc.original_filename,
+        file_path=doc.file_path,
+        file_size=doc.file_size,
+        mime_type=doc.mime_type,
+        page_count=doc.page_count,
+        checksum=doc.checksum,
+        status=doc.status.value if hasattr(doc.status, 'value') else doc.status,
+        rotation=getattr(doc, 'rotation', 0),
+        created_at=doc.created_at,
+        updated_at=doc.updated_at,
+    )
     if doc.purchase_order:
         resp.po_number = doc.purchase_order.po_number
         if doc.purchase_order.customer:
             resp.customer_name = doc.purchase_order.customer.name
+    if doc.doc_metadata:
+        resp.metadata = ExtractionResponse.model_validate(doc.doc_metadata)
     return resp

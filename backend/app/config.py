@@ -21,6 +21,16 @@ class Settings(BaseSettings):
     ocr_pdf_dpi: int = 200
     ocr_max_pages: int = 10
 
+    # Two-layer OCR pipeline (GLM-OCR → Qwen2.5 extraction)
+    ocr_two_layer_enabled: bool = False
+    ocr_custom_model: str = "glm-ocr:latest"
+    ocr_extractor_model: str = "qwen2.5:7b"
+    ocr_extractor_num_ctx: int = 4096
+    ocr_save_debug_markdown: bool = False
+    # Extractor cloud override — if set, Layer 2 calls this URL instead of ocr_base_url
+    ocr_extractor_base_url: str = ""   # empty = use local ocr_base_url
+    ocr_extractor_api_key: str = ""    # empty = no auth header
+
     # CORS
     cors_origins: List[str] = ["http://localhost:5173"]
 

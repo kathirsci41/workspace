@@ -172,7 +172,6 @@ async def advanced_search(
     dc_no: str | None = None,
     po_no: str | None = None,
     so_no: str | None = None,
-    pod_no: str | None = None,
     customer_name: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
@@ -205,11 +204,6 @@ async def advanced_search(
         ref_filters.append(
             (ReferenceIndex.ref_type == "so_number")
             & (ReferenceIndex.ref_value.ilike(f"%{so_no}%"))
-        )
-    if pod_no:
-        ref_filters.append(
-            (ReferenceIndex.ref_type == "pod_number")
-            & (ReferenceIndex.ref_value.ilike(f"%{pod_no}%"))
         )
 
     if ref_filters:
@@ -313,7 +307,7 @@ async def advanced_search(
         "query": "|".join(
             filter(
                 None,
-                [invoice_no, dc_no, po_no, so_no, pod_no, customer_name],
+                [invoice_no, dc_no, po_no, so_no, customer_name],
             )
         ),
     }

@@ -1,9 +1,63 @@
-﻿node_modules/
+# ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
-venv/
 *.pyc
-.env
-storage/
+*.pyo
+*.pyd
 *.egg-info/
 dist/
 build/
+.eggs/
+*.egg
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ── Secrets / env files ───────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+backend/.env
+# Keep .env.example (safe to commit)
+!.env.example
+!backend/.env.example
+
+# ── Storage / uploads ─────────────────────────────────────────────────────────
+storage/
+uploads/
+
+# ── OCR debug output & test run logs ─────────────────────────────────────────
+debug_markdown/
+backend/debug_markdown/
+backend/reports/
+*.log
+
+# ── Node / Frontend ───────────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+
+# ── Database ──────────────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── OS / IDE ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.tmp
+*.bak

@@ -79,6 +79,14 @@ async def update_po(
     return resp
 
 
+@router.delete("/{id}", status_code=204)
+async def delete_po(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    await po_service.delete_po(db, id)
+
+
 @router.get("/{id}/chain-status", response_model=ChainStatusResponse)
 async def get_chain_status(
     id: UUID,

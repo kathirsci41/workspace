@@ -127,7 +127,7 @@ export default function POListPage() {
                   </td>
                   <td className="px-5 py-3 text-gray-600">
                     {po.total_amount != null
-                      ? `${po.currency} ${po.total_amount.toLocaleString()}`
+                      ? `₹\u00A0${po.total_amount.toLocaleString('en-IN')}`
                       : '—'}
                   </td>
                   <td className="px-5 py-3">
@@ -246,7 +246,6 @@ function CreatePOModal({
     customer_id: string;
     po_date?: string;
     total_amount?: number;
-    currency?: string;
   }) => void;
   isLoading: boolean;
   error: Error | null;
@@ -256,7 +255,6 @@ function CreatePOModal({
     customer_id: '',
     po_date: '',
     total_amount: '',
-    currency: 'INR',
   });
   const [validationError, setValidationError] = useState('');
 
@@ -279,7 +277,6 @@ function CreatePOModal({
       total_amount: form.total_amount
         ? parseFloat(form.total_amount)
         : undefined,
-      currency: form.currency || undefined,
     });
   };
 

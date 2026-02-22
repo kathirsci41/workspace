@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { usePurchaseOrder, useChainStatus } from '@/hooks/usePurchaseOrders';
+import { usePurchaseOrder, useChainStatus, useDeletePO } from '@/hooks/usePurchaseOrders';
 import { useReExtract, useCreateManualEntry } from '@/hooks/useExtraction';
 import { useDeleteDocument } from '@/hooks/useDocuments';
 import ChainStatusBar from '@/components/ChainStatusBar';
@@ -23,6 +23,7 @@ export default function PODetailPage() {
   const { data: chainData, isLoading: chainLoading } = useChainStatus(id!);
   const reExtractMutation = useReExtract();
   const deleteMutation = useDeleteDocument();
+  const deletePOMutation = useDeletePO();
   const manualEntryMutation = useCreateManualEntry();
 
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -91,6 +92,20 @@ export default function PODetailPage() {
     });
   };
 
+  const handleDeletePO = () => {
+    if (
+      !window.confirm(
+        `Delete PO "${po.po_number}"?\n\nThis will permanently delete the PO and all ${
+          Object.values(chainData?.chain ?? {}).flat().length
+        } uploaded document(s). This cannot be undone.`
+      )
+    )
+      return;
+    deletePOMutation.mutate(id!, {
+      onSuccess: () => navigate('/purchase-orders'),
+    });
+  };
+
   const handleManualEntry = (docId: string) => {
     manualEntryMutation.mutate(docId, {
       onSuccess: () => {
@@ -137,6 +152,15 @@ export default function PODetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleDeletePO}
+            disabled={deletePOMutation.isPending}
+            className="flex items-center gap-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-red-200 disabled:opacity-50"
+            title="Delete this PO and all documents"
+          >
+            <Trash2 size={14} />
+            {deletePOMutation.isPending ? 'Deleting…' : 'Delete PO'}
+          </button>
           <span
             className={clsx(
               'text-xs font-medium px-3 py-1 rounded-full',

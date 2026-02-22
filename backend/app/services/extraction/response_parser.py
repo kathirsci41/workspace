@@ -61,14 +61,22 @@ class ResponseParser:
         return merged
 
     def calculate_confidence(self, extracted: dict, schema_fields: list[str]) -> float:
-        """Calculate extraction confidence based on filled fields."""
+        """Calculate extraction confidence based on filled fields.
+
+        Fields flagged LOW_CONFIDENCE or AMOUNT_PARSE_FAILED in _validation
+        count as half a point — present but suspect.
+        """
         if not schema_fields:
             return 0.0
-        filled = sum(
-            1 for f in schema_fields
-            if extracted.get(f) is not None
-            and str(extracted.get(f)).strip() != ""
-        )
+        validation = extracted.get("_validation", {})
+        filled = 0.0
+        for f in schema_fields:
+            val = extracted.get(f)
+            if val is not None and str(val).strip() != "":
+                if validation.get(f) in ("LOW_CONFIDENCE", "AMOUNT_PARSE_FAILED"):
+                    filled += 0.5
+                else:
+                    filled += 1.0
         return round((filled / len(schema_fields)) * 100, 1)
 
     def parse_date(self, date_str: str | None) -> date | None:

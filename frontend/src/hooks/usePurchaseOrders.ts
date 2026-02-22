@@ -3,6 +3,7 @@ import {
   getPurchaseOrders,
   getPurchaseOrder,
   createPO,
+  deletePO,
   getChainStatus,
   getDocumentsForPO,
 } from '@/api/purchaseOrders';
@@ -30,6 +31,16 @@ export function useCreatePO() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createPO,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] });
+    },
+  });
+}
+
+export function useDeletePO() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deletePO,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] });
     },

@@ -9,7 +9,7 @@ interface Stats {
   total_customers: number;
   total_purchase_orders: number;
   total_documents: number;
-  pending_review: number;
+  pending_reviews: number;
   verified: number;
 }
 
@@ -38,7 +38,7 @@ export default function DashboardPage() {
         },
         {
           label: 'Pending Reviews',
-          value: stats.pending_review,
+          value: stats.pending_reviews,
           icon: Clock,
           color: 'bg-amber-100 text-amber-600',
         },
