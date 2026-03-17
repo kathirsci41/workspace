@@ -131,6 +131,25 @@ GET http://20.198.16.146/api/v1/admin/health
 
 ---
 
+## Endpoint Verification
+
+All endpoints tested manually after deployment on 2026-03-17.
+
+| Endpoint | Method | Result |
+|---|---|---|
+| `/api/v1/admin/health` | GET | ✅ DB, Redis, Storage ok |
+| `/api/v1/admin/stats` | GET | ✅ Returns all status counts |
+| `/api/v1/customers` | GET | ✅ Paginated response |
+| `/api/v1/customers` | POST | ✅ Customer created with UUID |
+| `/api/v1/purchase-orders` | GET | ✅ Paginated response |
+| `/api/v1/purchase-orders` | POST | ✅ PO created, status INITIATED |
+| `/api/v1/documents` | GET | ✅ Paginated response |
+| `/api/v1/purchase-orders/{id}/documents` | POST | ✅ File stored, status UPLOADED, checksum recorded |
+
+Document extraction not tested — requires RunPod endpoint to be active.
+
+---
+
 ## Migration Chain Applied (Fresh DB)
 
 ```
