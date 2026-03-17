@@ -17,6 +17,29 @@ down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+# Declare enum types with create_type=False so SQLAlchemy never emits
+# CREATE TYPE — we manage that ourselves via op.execute() below.
+postatus = postgresql.ENUM(
+    'INITIATED', 'IN_PROGRESS', 'NEAR_COMPLETE', 'COMPLETE', 'CANCELLED',
+    name='postatus', create_type=False
+)
+# documenttype starts with POD; migration a1b2c3d4e5f6 replaces it with COMPANY_PO
+documenttype = postgresql.ENUM(
+    'CUSTOMER_PO', 'VENDOR_DC', 'VENDOR_INVOICE',
+    'COMPANY_DC', 'COMPANY_INVOICE', 'POD',
+    name='documenttype', create_type=False
+)
+# documentstatus starts without PENDING_MODEL; migration b4c2d8e1f0a9 adds it
+documentstatus = postgresql.ENUM(
+    'UPLOADED', 'EXTRACTING', 'PENDING_REVIEW',
+    'VERIFIED', 'REJECTED', 'EXTRACTION_FAILED',
+    name='documentstatus', create_type=False
+)
+metadatastatus = postgresql.ENUM(
+    'PENDING', 'EXTRACTED', 'VERIFIED', 'FAILED',
+    name='metadatastatus', create_type=False
+)
+
 
 def upgrade() -> None:
     bind = op.get_bind()
@@ -36,7 +59,7 @@ def upgrade() -> None:
             batch_op.drop_index('ix_audit_logs_entity_type')
         op.drop_table('audit_logs')
 
-    # Create enum types (idempotent — safe to re-run)
+    # Create enum types only if they don't already exist
     op.execute("""
         DO $$ BEGIN
             CREATE TYPE postatus AS ENUM (
@@ -45,7 +68,6 @@ def upgrade() -> None:
         EXCEPTION WHEN duplicate_object THEN NULL;
         END $$;
     """)
-    # documenttype starts with POD; migration a1b2c3d4e5f6 replaces it with COMPANY_PO
     op.execute("""
         DO $$ BEGIN
             CREATE TYPE documenttype AS ENUM (
@@ -55,7 +77,6 @@ def upgrade() -> None:
         EXCEPTION WHEN duplicate_object THEN NULL;
         END $$;
     """)
-    # documentstatus starts without PENDING_MODEL; migration b4c2d8e1f0a9 adds it
     op.execute("""
         DO $$ BEGIN
             CREATE TYPE documentstatus AS ENUM (
@@ -105,10 +126,7 @@ def upgrade() -> None:
             sa.Column('po_number', sa.String(100), nullable=False),
             sa.Column('po_date', sa.Date(), nullable=True),
             sa.Column('total_amount', sa.Numeric(15, 2), nullable=True),
-            sa.Column('status',
-                sa.Enum('INITIATED', 'IN_PROGRESS', 'NEAR_COMPLETE', 'COMPLETE', 'CANCELLED',
-                        name='postatus', create_type=False),
-                nullable=False, server_default='INITIATED'),
+            sa.Column('status', postatus, nullable=False, server_default='INITIATED'),
             sa.Column('chain_completeness', sa.Float(), nullable=False, server_default='0.0'),
             sa.Column('notes', sa.Text(), nullable=True),
             sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
@@ -126,11 +144,7 @@ def upgrade() -> None:
             sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
             sa.Column('po_id', postgresql.UUID(as_uuid=True),
                 sa.ForeignKey('purchase_orders.id'), nullable=False),
-            sa.Column('document_type',
-                sa.Enum('CUSTOMER_PO', 'VENDOR_DC', 'VENDOR_INVOICE',
-                        'COMPANY_DC', 'COMPANY_INVOICE', 'POD',
-                        name='documenttype', create_type=False),
-                nullable=False),
+            sa.Column('document_type', documenttype, nullable=False),
             sa.Column('filename', sa.String(255), nullable=False,
                 comment='UUID-prefixed stored name'),
             sa.Column('original_filename', sa.String(255), nullable=False,
@@ -143,11 +157,7 @@ def upgrade() -> None:
                 server_default='application/pdf'),
             sa.Column('page_count', sa.Integer(), nullable=True),
             sa.Column('checksum', sa.String(64), nullable=False, comment='SHA-256 hex'),
-            sa.Column('status',
-                sa.Enum('UPLOADED', 'EXTRACTING', 'PENDING_REVIEW',
-                        'VERIFIED', 'REJECTED', 'EXTRACTION_FAILED',
-                        name='documentstatus', create_type=False),
-                nullable=False, server_default='UPLOADED'),
+            sa.Column('status', documentstatus, nullable=False, server_default='UPLOADED'),
             sa.Column('rotation', sa.Integer(), nullable=False, server_default='0'),
             sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
             sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
@@ -166,11 +176,7 @@ def upgrade() -> None:
             sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
             sa.Column('document_id', postgresql.UUID(as_uuid=True),
                 sa.ForeignKey('documents.id'), nullable=False),
-            sa.Column('document_type',
-                sa.Enum('CUSTOMER_PO', 'VENDOR_DC', 'VENDOR_INVOICE',
-                        'COMPANY_DC', 'COMPANY_INVOICE', 'POD',
-                        name='documenttype', create_type=False),
-                nullable=False),
+            sa.Column('document_type', documenttype, nullable=False),
             sa.Column('extracted_data', postgresql.JSONB(), nullable=True),
             sa.Column('raw_ocr_text', sa.Text(), nullable=True),
             sa.Column('primary_ref_no', sa.String(100), nullable=True),
@@ -178,10 +184,7 @@ def upgrade() -> None:
             sa.Column('doc_date', sa.Date(), nullable=True),
             sa.Column('total_amount', sa.Numeric(15, 2), nullable=True),
             sa.Column('confidence_score', sa.Float(), nullable=True),
-            sa.Column('status',
-                sa.Enum('PENDING', 'EXTRACTED', 'VERIFIED', 'FAILED',
-                        name='metadatastatus', create_type=False),
-                nullable=False, server_default='PENDING'),
+            sa.Column('status', metadatastatus, nullable=False, server_default='PENDING'),
             sa.Column('extraction_attempts', sa.Integer(), nullable=False, server_default='0'),
             sa.Column('last_error', sa.Text(), nullable=True),
             sa.Column('extracted_at', sa.DateTime(), nullable=True),
@@ -213,11 +216,7 @@ def upgrade() -> None:
                 comment='e.g. invoice_number, dc_number, po_number'),
             sa.Column('ref_value', sa.String(255), nullable=False,
                 comment='The actual reference value'),
-            sa.Column('document_type',
-                sa.Enum('CUSTOMER_PO', 'VENDOR_DC', 'VENDOR_INVOICE',
-                        'COMPANY_DC', 'COMPANY_INVOICE', 'POD',
-                        name='documenttype', create_type=False),
-                nullable=False),
+            sa.Column('document_type', documenttype, nullable=False),
             sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
             sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         )
