@@ -278,7 +278,7 @@ export default function AdminPage() {
             <>
               <ServiceCard name="database" value={health.database} icon={Database} />
               <ServiceCard name="redis"    value={health.redis}    icon={Server} />
-              <ServiceCard name="ollama"   value={health.ollama}   icon={Cpu} />
+              <ServiceCard name="model endpoint" value={health.ollama} icon={Cpu} />
               <ServiceCard name="storage"  value={health.storage}  icon={HardDrive} />
             </>
           ) : (
