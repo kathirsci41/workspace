@@ -17,4 +17,4 @@ CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --
 
 # Celery worker — no migrations, just starts the worker
 FROM base AS worker
-CMD ["celery", "-A", "app.celery_app", "worker", "--loglevel=info", "--concurrency=2"]
+CMD ["celery", "-A", "celery_app", "worker", "--loglevel=info", "--concurrency=2"]
