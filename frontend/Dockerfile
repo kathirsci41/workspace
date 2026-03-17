@@ -1,12 +1,18 @@
-FROM node:20-slim
+# Stage 1 — build the React app
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY . .
+RUN npm run build
 
-EXPOSE 5174
+# Stage 2 — serve with nginx
+FROM nginx:alpine AS runtime
 
-CMD ["npm", "run", "dev", "--", "--host"]
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx-frontend.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
