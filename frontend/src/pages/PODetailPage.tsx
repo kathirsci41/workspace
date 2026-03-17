@@ -38,6 +38,7 @@ export default function PODetailPage() {
 
   // Confirm dialogs
   const [reExtractConfirm, setReExtractConfirm] = useState<string | null>(null); // docId
+  const [deleteDocConfirm, setDeleteDocConfirm] = useState<string | null>(null); // docId
   const [deletePOConfirm, setDeletePOConfirm]   = useState(false);
 
   // Toast notification
@@ -128,12 +129,18 @@ export default function PODetailPage() {
   };
 
   const handleDelete = (docId: string) => {
-    if (!window.confirm('Delete this document? You can re-upload after.')) return;
-    deleteMutation.mutate(docId, {
+    setDeleteDocConfirm(docId);
+  };
+
+  const confirmDeleteDoc = () => {
+    if (!deleteDocConfirm) return;
+    deleteMutation.mutate(deleteDocConfirm, {
       onSuccess: () => {
-        if (selectedDocId === docId) setSelectedDocId(null);
+        if (selectedDocId === deleteDocConfirm) setSelectedDocId(null);
         queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
+        setDeleteDocConfirm(null);
       },
+      onError: () => setDeleteDocConfirm(null),
     });
   };
 
@@ -457,6 +464,36 @@ export default function PODetailPage() {
                 className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
               >
                 {deletePOMutation.isPending ? 'Deleting…' : 'Yes, Delete PO'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete document confirmation modal */}
+      {deleteDocConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 space-y-4">
+            <div className="flex items-center gap-3 text-red-700">
+              <Trash2 size={20} />
+              <h3 className="font-semibold text-base">Delete this document?</h3>
+            </div>
+            <p className="text-sm text-gray-600">
+              This will permanently delete the document. You can re-upload after.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteDocConfirm(null)}
+                className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteDoc}
+                disabled={deleteMutation.isPending}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? 'Deleting…' : 'Yes, Delete'}
               </button>
             </div>
           </div>
