@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DocPlatform — Practical Pipeline Architecture</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #0a0f1e; color: #e2e8f0; min-height: 100vh; }
+.header { background: linear-gradient(135deg, #0f172a, #1e293b); padding: 24px 36px; border-bottom: 1px solid #1e3a5f; }
+.header h1 { font-size: 20px; font-weight: 800; color: #fff; }
+.header p { font-size: 12px; color: #64748b; margin-top: 4px; }
+.tabs { display: flex; background: #0f172a; border-bottom: 1px solid #1e293b; padding: 0 36px; gap: 0; overflow-x:auto; }
+.tab { padding: 13px 22px; font-size: 12px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; color: #64748b; transition: all .2s; white-space: nowrap; }
+.tab.active { color: #60a5fa; border-bottom-color: #3b82f6; }
+.content { padding: 28px 36px; }
+.panel { display: none; }
+.panel.active { display: block; }
+.pipeline-wrap { display: flex; flex-direction: column; gap: 0; max-width: 960px; }
+.row { display: flex; align-items: stretch; min-height: 48px; }
+.row-label { width: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: #334155; }
+.block { flex: 1; border-radius: 8px; margin: 2px 0; overflow: hidden; border: 1px solid; }
+.block-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; cursor: pointer; }
+.block-icon { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.block-info { flex: 1; }
+.block-info h3 { font-size: 13px; font-weight: 700; }
+.block-info p { font-size: 11px; margin-top: 2px; opacity: 0.75; }
+.block-tags { display: flex; gap: 6px; align-items: center; flex-shrink: 0; flex-wrap:wrap; }
+.tag { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.4px; }
+.chevron { color: #475569; font-size: 11px; flex-shrink:0; }
+.block-body { display: none; padding: 0 16px 16px; }
+.block-body.open { display: block; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+.info-box { background: rgba(0,0,0,.3); border-radius: 6px; padding: 12px; border: 1px solid rgba(255,255,255,.05); }
+.info-box h4 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 7px; }
+.info-box ul { list-style:none; }
+.info-box li { font-size: 11px; color: #94a3b8; list-style: none; padding: 2px 0; display: flex; gap: 5px; }
+.info-box li::before { content: 'x'; color: #60a5fa; font-weight: 700; }
+.conn { display: flex; align-items: center; margin: 0 0 0 56px; height: 22px; }
+.conn-line { width: 2px; height: 100%; background: #1e3a5f; margin-left: 22px; }
+.conn-label { font-size: 10px; color: #334155; background: #0f172a; padding: 2px 8px; border-radius: 8px; border: 1px solid #1e293b; margin-left: 12px; }
+.fork { display: flex; gap: 8px; margin: 4px 0 4px 56px; }
+.fork-box { flex: 1; padding: 8px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; border: 1px solid; }
+.t-pre { background: #0f1629; border-color: #dc2626; }
+.t-pre .block-icon { background: #991b1b; }
+.t-pre h3 { color: #fca5a5; }
+.t-pre p { color: #ef4444; }
+.t-gate { background: #0f1629; border-color: #2563eb; }
+.t-gate .block-icon { background: #1d4ed8; }
+.t-gate h3 { color: #93c5fd; }
+.t-gate p { color: #60a5fa; }
+.t-router { background: #0f1629; border-color: #7c3aed; }
+.t-router .block-icon { background: #6d28d9; }
+.t-router h3 { color: #c4b5fd; }
+.t-router p { color: #a78bfa; }
+.t-dig { background: #0f1629; border-color: #059669; }
+.t-dig .block-icon { background: #047857; }
+.t-dig h3 { color: #6ee7b7; }
+.t-dig p { color: #34d399; }
+.t-cv { background: #0f1629; border-color: #d97706; }
+.t-cv .block-icon { background: #b45309; }
+.t-cv h3 { color: #fcd34d; }
+.t-cv p { color: #f59e0b; }
+.t-lm { background: #160c02; border-color: #f97316; border-width: 2px; }
+.t-lm .block-icon { background: #c2410c; }
+.t-lm h3 { color: #fdba74; }
+.t-lm p { color: #fb923c; }
+.t-ocr { background: #0f1629; border-color: #4f46e5; }
+.t-ocr .block-icon { background: #4338ca; }
+.t-ocr h3 { color: #a5b4fc; }
+.t-ocr p { color: #818cf8; }
+.t-val { background: #0f1629; border-color: #dc2626; }
+.t-val .block-icon { background: #b91c1c; }
+.t-val h3 { color: #fca5a5; }
+.t-val p { color: #f87171; }
+.t-save { background: #0f1629; border-color: #0d9488; }
+.t-save .block-icon { background: #0f766e; }
+.t-save h3 { color: #99f6e4; }
+.t-save p { color: #2dd4bf; }
+.t-hitl { background: #0f1629; border-color: #65a30d; }
+.t-hitl .block-icon { background: #4d7c0f; }
+.t-hitl h3 { color: #bef264; }
+.t-hitl p { color: #a3e635; }
+.tag-new { background: #064e3b; color: #6ee7b7; }
+.tag-fix { background: #7f1d1d; color: #fca5a5; }
+.tag-key { background: #451a03; color: #fdba74; border: 1px solid #f97316; }
+.tag-keep { background: #1e3a8a; color: #93c5fd; }
+.tag-gap { background: #dc2626; color: #fff; }
+.hl { border-radius: 8px; padding: 16px 20px; margin: 10px 0; }
+.hl-orange { background: #160c02; border: 2px solid #f97316; }
+.hl-orange h4 { color: #fdba74; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.hl-orange p { font-size: 12px; color: #d1d5db; line-height: 1.7; }
+.hl-red { background: #1a0505; border: 1px solid #ef4444; }
+.hl-red h4 { color: #fca5a5; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+.hl-red p { font-size: 12px; color: #9ca3af; line-height: 1.6; }
+.hl-blue { background: #05101a; border: 1px solid #3b82f6; }
+.hl-blue h4 { color: #93c5fd; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+.hl-blue p { font-size: 12px; color: #9ca3af; line-height: 1.6; }
+.decision-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.d-card { background: #0f1629; border-radius: 10px; padding: 20px; border: 2px solid; }
+.d-card h3 { font-size: 13px; font-weight: 800; margin-bottom: 6px; }
+.d-card .verdict { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 8px; display: inline-block; margin-bottom: 12px; }
+.d-card p { font-size: 12px; color: #94a3b8; line-height: 1.7; margin-bottom: 10px; }
+.d-card ul { list-style: none; }
+.d-card ul li { font-size: 11px; padding: 2px 0; display: flex; gap: 5px; }
+.d-card ul li.pro { color: #6ee7b7; }
+.d-card ul li.pro::before { content: "ok"; color: #34d399; font-weight:700; }
+.d-card ul li.con { color: #fca5a5; }
+.d-card ul li.con::before { content: "x"; color: #f87171; font-weight:700; }
+.compare-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.compare-table th { background: #1e293b; color: #94a3b8; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 10px 14px; text-align: left; border-bottom: 1px solid #334155; }
+.compare-table td { padding: 10px 14px; border-bottom: 1px solid #0f172a; vertical-align: top; }
+.compare-table tr:nth-child(even) td { background: #0a0f1e; }
+.compare-table tr:nth-child(odd) td { background: #0d1321; }
+.compare-table .good { color: #34d399; font-weight: 600; }
+.compare-table .bad { color: #f87171; font-weight: 600; }
+.compare-table .warn { color: #fbbf24; font-weight: 600; }
+.compare-table .rl { color: #e2e8f0; font-weight: 700; }
+.pr { background: #0f1629; border-radius: 8px; padding: 16px 20px; display: flex; gap: 16px; border-left: 4px solid; margin-bottom:10px; }
+.pr .num { font-size: 22px; font-weight: 900; width: 28px; flex-shrink: 0; line-height: 1.1; }
+.pr h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.pr p { font-size: 12px; color: #94a3b8; line-height: 1.6; }
+.pr .note { font-size: 11px; font-weight: 600; margin-top: 6px; }
+.flow-row { display:flex; align-items:center; gap:0; background:#0f1629; border-radius:10px; padding:20px; border:2px solid #f97316; overflow-x:auto; margin-bottom:20px; }
+.flow-box { background:#0a0f1e; border-radius:8px; padding:12px 14px; text-align:center; min-width:110px; border:1px solid #334155; flex-shrink:0; }
+.flow-box.hl2 { border-color:#f97316; background:#160c02; }
+.flow-box .fi { font-size:18px; margin-bottom:4px; }
+.flow-box .fn { font-size:11px; font-weight:700; color:#e2e8f0; }
+.flow-box .fs { font-size:10px; color:#64748b; margin-top:2px; }
+.flow-box.hl2 .fn { color:#fdba74; }
+.flow-box.hl2 .fs { color:#fb923c; }
+.flow-arr { padding:0 10px; font-size:18px; font-weight:700; flex-shrink:0; }
+@media(max-width:700px){
+  .two-col,.decision-grid{grid-template-columns:1fr;}
+  .fork{flex-direction:column;}
+  .content{padding:16px;}
+  .tabs{padding:0 12px;}
+  .row-label{width:32px;}
+  .conn{margin-left:32px;}
+  .fork{margin-left:32px;}
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>DocPlatform V3 — Practical Architecture</h1>
+  <p>What actually works vs what looks good on paper · LayoutLMv3 exact placement · Pre-pipeline gaps</p>
+</div>
+<div class="tabs">
+  <div class="tab active" onclick="show('arch',this)">Full Architecture</div>
+  <div class="tab" onclick="show('layoutlm',this)">LayoutLMv3 — Where Exactly?</div>
+  <div class="tab" onclick="show('practical',this)">Practical Reality</div>
+  <div class="tab" onclick="show('compare',this)">Layer Comparison</div>
+</div>
+<div class="content">
+
+<!-- ARCHITECTURE -->
+<div class="panel active" id="panel-arch">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;align-items:center;">
+    <span style="font-size:11px;background:#1a0505;padding:3px 10px;border-radius:12px;border:1px solid #ef4444;color:#fca5a5;">Fix existing</span>
+    <span style="font-size:11px;background:#05130d;padding:3px 10px;border-radius:12px;border:1px solid #10b981;color:#6ee7b7;">New</span>
+    <span style="font-size:11px;background:#160c02;padding:3px 10px;border-radius:12px;border:2px solid #f97316;color:#fdba74;">LayoutLMv3 (Key)</span>
+    <span style="font-size:11px;background:#1a0505;padding:3px 10px;border-radius:12px;border:2px solid #dc2626;color:#fca5a5;">Gap (currently missing)</span>
+    <span style="font-size:11px;color:#475569;margin-left:auto;">Click block to expand</span>
+  </div>
+  <div class="pipeline-wrap">
+
+    <!-- GAP CALLOUT -->
+    <div class="hl hl-red" style="margin:0 0 6px 56px;">
+      <h4>Missing Layer — Currently Before Everything</h4>
+      <p>In your code, <code style="color:#60a5fa;background:#0a0f1e;padding:1px 5px;border-radius:3px;">doc.document_type.value</code> is set manually by the user at upload. Wrong selection = wrong extraction schema for everything downstream. A document classifier fixes this completely.</p>
+    </div>
+
+    <div class="row">
+      <div class="row-label">P0</div>
+      <div class="block t-pre">
+        <div class="block-head" onclick="tog('b0')">
+          <div class="block-icon">🏷️</div>
+          <div class="block-info"><h3>Document Type Classifier</h3><p>Lightweight model auto-identifies: VENDOR_INVOICE, COMPANY_DC, CUSTOMER_PO etc.</p></div>
+          <div class="block-tags"><span class="tag tag-new">New</span><span class="tag tag-gap">Gap</span></div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="block-body" id="b0">
+          <div class="two-col">
+            <div class="info-box"><h4 style="color:#fca5a5;">Current Problem</h4><ul>
+              <li>User manually picks doc type at upload</li>
+              <li>Wrong type = wrong schema = wrong extraction</li>
+              <li>No validation that selection matches document</li>
+              <li>Blocks batch/automated ingestion</li>
+            </ul></div>
+            <div class="info-box"><h4 style="color:#34d399;">Solution: Lightweight Classifier</h4><ul>
+              <li>First-page thumbnail → fine-tuned EfficientNet-B0 or CLIP</li>
+              <li>6 output classes (your document types)</li>
+              <li>Train on existing verified documents</li>
+              <li>Inference: ~50ms on CPU, no GPU needed</li>
+              <li>If confidence less than 0.85: prompt user to confirm</li>
+            </ul></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-line"></div><div class="conn-label">confirmed doc type passes forward</div></div>
+
+    <div class="row">
+      <div class="row-label">L1</div>
+      <div class="block t-gate">
+        <div class="block-head" onclick="tog('b1')">
+          <div class="block-icon">🚦</div>
+          <div class="block-info"><h3>Format and Quality Gate</h3><p>Reject JPEG, validate PDF container, checksum dedup, DPI scan quality check</p></div>
+          <div class="block-tags"><span class="tag tag-fix">Fix</span></div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="block-body" id="b1">
+          <div class="two-col">
+            <div class="info-box"><h4 style="color:#fca5a5;">Currently Missing</h4><ul>
+              <li>JPEG accepted — lossy compression blurs characters</li>
+              <li>No scan quality check before queuing</li>
+              <li>No duplicate detection</li>
+            </ul></div>
+            <div class="info-box"><h4 style="color:#93c5fd;">After Fix</h4><ul>
+              <li>Accept only: PDF, PNG, TIFF</li>
+              <li>JPEG rejected with clear message</li>
+              <li>Effective DPI check — flag if below 150</li>
+              <li>SHA-256 checksum duplicate detection</li>
+            </ul></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-line"></div></div>
+
+    <div class="row">
+      <div class="row-label">L2</div>
+      <div class="block t-router">
+        <div class="block-head" onclick="tog('b2')">
+          <div class="block-icon">🔀</div>
+          <div class="block-info"><h3>Hybrid Router — Digital vs Scanned Detection</h3><p>PyMuPDF text layer probe routes to fast path or full OCR pipeline</p></div>
+          <div class="block-tags"><span class="tag tag-new">New</span></div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="block-body" id="b2">
+          <div class="two-col">
+            <div class="info-box"><h4 style="color:#a78bfa;">How It Works</h4><ul>
+              <li>fitz.open(path) then page.get_text() per page</li>
+              <li>chars greater than 50 per page = digital native</li>
+              <li>chars less than 50 = scanned image PDF</li>
+              <li>Mixed PDFs handled per-page</li>
+            </ul></div>
+            <div class="info-box"><h4 style="color:#a78bfa;">For Your Specific Doc Types</h4><ul>
+              <li>Company Invoices from your ERP: digital, Route A</li>
+              <li>Vendor DCs (physical challan scanned): Route B</li>
+              <li>Customer POs emailed as PDF: likely digital, Route A</li>
+              <li>Vendor Invoices: varies by vendor, router handles it</li>
+            </ul></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fork">
+      <div class="fork-box" style="border-color:#059669;color:#34d399;background:#041a0e;">Route A: Digital PDF — skip all OCR, go to L3A</div>
+      <div class="fork-box" style="border-color:#d97706;color:#fbbf24;background:#1a0f02;">Route B: Scanned — L3B preprocess then L4 OCR</div>
+    </div>
+
+    <div class="conn"><div class="conn-line"></div></div>
+
+    <div class="row">
+      <div class="row-label">L3A</div>
+      <div class="block t-dig">
+        <div class="block-head" onclick="tog('b3a')">
+          <div class="block-icon">⚡</div>
+          <div class="block-info"><h3>Programmatic Extraction — Digital Fast Path</h3><p>PyMuPDF get_text dict + pdfplumber tables. Text and exact coordinates. Zero GPU.</p></div>
+          <div class="block-tags"><span class="tag tag-new">New</span></div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="block-body" id="b3a">
+          <div class="two-col">
+            <div class="info-box"><h4 style="color:#6ee7b7;">Output</h4><ul>
+              <li>Every word with exact x/y bounding box</li>
+              <li>Tables as row/column arrays via pdfplumber</li>
+              <li>Reading order preserved</li>
+              <li>Goes directly to LayoutLMv3 (L5)</li>
+            </ul></div>
+            <div class="info-box"><h4 style="color:#6ee7b7;">Why It Matters</h4><ul>
+              <li>Under 100ms for a 10-page invoice</li>
+              <li>Zero GPU cost</li>
+              <li>100% character accuracy — no OCR errors possible</li>
+              <li>Coordinates are exact, not OCR estimates</li>
+            </ul></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-line"></div></div>
+
+    <div class="row">
+      <div class="row-label">L3B</div>
+      <div class="block t-cv">
+        <div class="block-head" onclick="tog('b3b')">
+          <div class="block-icon">🔧</div>
+          <div class="block-info"><h3>OpenCV Pre-Processing — Scanned Only</h3><p>300 DPI full resolution, no cap. Deskew, binarize, denoise, contrast normalize.</p></div>
+          <div class="block-tags"><span class="tag tag-fix">Fix</span><span class="tag tag-new">+ New steps</span></div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="block-body" id="b3b">
+          <div class="two-col">
+            <div class="info-box"><h4 style="color:#fca5a5;">Phase 0 Fixes Here (35 min)</h4><ul>
+              <li>MAX_IMAGE_DIM = 768 cap DELETED (4 lines)</li>
+              <li>OCR_PDF_DPI = 200 set to 300 in .env</li>
+              <li>OCR_MAX_PAGES = 1 set to 10 in .env</li>
+              <li>These three alone give +40-60% accuracy immediately</li>
+            </ul></div>
+            <div class="info-box"><h4 style="color:#fcd34d;">New CV Steps Added</h4><ul>
+              <li>Deskew: HoughLines correct rotation up to 15 degrees</li>
+              <li>Binarize: adaptive Gaussian threshold, clean B/W</li>
+              <li>Denoise: 3x3 median blur, removes scanner artifacts</li>
+              <li>CLAHE: contrast normalize for faded/dark scans</li>
+            </ul></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-line"></div></div>
+
+    <div class="row">
+      <div class="row-label">L4</div>
+      <div class="block t-ocr">
+        <div class="block-head" onclick="tog('b4')">
+          <div class="block-icon">👁️</div>
+          <div class="block-info"><h3>qwen2.5vl OCR — Improved Layer 1</h3><p>Reads pre-processed pages. NOW outputs text with bounding box coordinates per word (grounding mode).</p></div>
+          <div class="block-tags"><span class="tag tag-fix">Fix prompt</span><span class="tag tag-keep">Keep model</span></div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="block-body" id="b4">
+          <div class="two-col">
+            <div class="info-box"><h4 style="color:#fca5a5;">What Changes</h4><ul>
+              <li>Prompt updated: request text WITH position coordinates</li>
+              <li>All pages processed (was: page 1 only)</li>
+              <li>Full 300 DPI images (was: 768px destroyed)</li>
+              <li>Document-type context added to prompt</li>
+            </ul></div>
+            <div class="info-box"><h4 style="color:#a5b4fc;">Critical: Coordinate Output</h4><ul>
+              <li>Output: text tokens with (x1, y1, x2, y2) per word</li>
+              <li>These coordinates are what LayoutLMv3 NEEDS</li>
+              <li>Without coords: LayoutLMv3 loses its spatial advantage</li>
+              <li>qwen2.5vl grounding mode outputs this natively</li>
+            </ul></div>
+          </div>
+          <div class="hl hl-blue" style="margin-top:10px;">
+            <h4>On Layout Analysis (DiT) — Practical Decision</h4>
+            <p>Previous architecture showed DiT as a separate layer here. In practice for 6 known document types, well fine-tuned LayoutLMv3 handles layout implicitly via spatial embeddings. DiT adds latency and complexity. Start without it — add if LayoutLMv3 struggles on specific complex table layouts. Keep pipeline simple first.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-line"></div><div class="conn-label">text + bounding boxes merge here (digital and scanned paths)</div></div>
+
+    <!-- LAYOUTLM — KEY LAYER -->
+    <div class="row">
+      <div class="row-label">L5</div>
+      <div class="block t-lm">
+        <div class="block-head" onclick="tog('b5')">
+          <div class="block-icon">🧠</div>
+          <div class="block-info"><h3>LayoutLMv3 — Spatial Field Extraction</h3><p>Input: text tokens + bounding boxes + image patches. Output: named fields + per-field confidence score.</p></div>
+          <div class="block-tags">
+            <span class="tag tag-key">KEY LAYER</span>
+            <span class="tag tag-new">Replaces qwen2.5:7b L2</span>
+          </div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="block-body" id="b5">
+          <div class="two-col">
+            <div class="info-box"><h4 style="color:#fca5a5;">What Current qwen2.5:7b Gets Wrong</h4><ul>
+              <li>Receives markdown — all coordinates stripped</li>
+              <li>Cannot distinguish fields by position on page</li>
+              <li>Hallucinates values when text is ambiguous</li>
+              <li>One document-level confidence ratio for all fields</li>
+              <li>7B params — slow and expensive</li>
+              <li>Generic model, not trained on your doc layouts</li>
+            </ul></div>
+            <div class="info-box"><h4 style="color:#fdba74;">What LayoutLMv3 Does Right</h4><ul>
+              <li>Sees text + WHERE it is + what the page looks like</li>
+              <li>Token classification: B-invoice_number, I-invoice_number, O</li>
+              <li>Per-field confidence: invoice_no 0.96, po_ref 0.71</li>
+              <li>Fine-tuned on YOUR verified docs</li>
+              <li>125-368M params — faster than 7B</li>
+              <li>Never confuses spatially separated fields</li>
+            </ul></div>
+          </div>
+          <div class="hl hl-orange" style="margin-top:10px;">
+            <h4>Training Data Already Exists in Your Database</h4>
+            <p>SELECT * FROM document_metadata WHERE status = 'VERIFIED'. The extracted_data JSON is your ground truth. Run qwen2.5vl on the original PDFs to get coordinates, pair with verified fields = training examples. Every human correction in the HITL layer adds more. This is active learning — the pipeline gets smarter every week.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-line"></div></div>
+
+    <div class="row">
+      <div class="row-label">L6</div>
+      <div class="block t-val">
+        <div class="block-head" onclick="tog('b6')">
+          <div class="block-icon">✅</div>
+          <div class="block-info"><h3>Math and Business Rule Validation</h3><p>Invoice equation check, date sanity, duplicate detection, vendor cross-reference</p></div>
+          <div class="block-tags"><span class="tag tag-new">New</span></div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="block-body" id="b6">
+          <div class="two-col">
+            <div class="info-box"><h4 style="color:#fca5a5;">Checks Run</h4><ul>
+              <li>sum(line_items x qty) + tax equals total (0.5% tolerance)</li>
+              <li>Date valid, not future, not older than 2yr</li>
+              <li>invoice_number checked against ReferenceIndex</li>
+              <li>vendor_name fuzzy match against master list</li>
+              <li>Low confidence key fields auto-route to review</li>
+            </ul></div>
+            <div class="info-box"><h4 style="color:#fca5a5;">Routing Outcomes</h4><ul>
+              <li>All pass + confidence 0.90+ : AUTO_APPROVED</li>
+              <li>Math fail or low confidence: PENDING_REVIEW</li>
+              <li>Duplicate found: DUPLICATE_FLAGGED</li>
+              <li>Unknown vendor: VENDOR_UNRECOGNIZED</li>
+            </ul></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-line"></div></div>
+
+    <div class="row">
+      <div class="row-label">L7</div>
+      <div class="block t-save">
+        <div class="block-head" onclick="tog('b7')">
+          <div class="block-icon">💾</div>
+          <div class="block-info"><h3>Version-Safe Persistence</h3><p>No deletes. Versioned snapshots. Per-field confidence stored. Correction audit trail.</p></div>
+          <div class="block-tags"><span class="tag tag-fix">Fix</span></div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="block-body" id="b7">
+          <div class="two-col">
+            <div class="info-box"><h4 style="color:#fca5a5;">Bug Being Fixed</h4><ul>
+              <li>re-extract runs DELETE FROM document_metadata</li>
+              <li>All human corrections wiped instantly</li>
+              <li>Per-field confidence never stored</li>
+            </ul></div>
+            <div class="info-box"><h4 style="color:#99f6e4;">After Fix</h4><ul>
+              <li>extraction_version incremented on re-extract</li>
+              <li>field_confidences JSON: {invoice_no: 0.94, po_ref: 0.71}</li>
+              <li>corrections table: field, original, corrected, operator, timestamp</li>
+              <li>Corrections queue for LayoutLMv3 nightly fine-tune</li>
+            </ul></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-line"></div></div>
+
+    <div class="row">
+      <div class="row-label">L8</div>
+      <div class="block t-hitl">
+        <div class="block-head" onclick="tog('b8')">
+          <div class="block-icon">👤</div>
+          <div class="block-info"><h3>Human Review + Active Learning Loop</h3><p>PDF side-by-side, bounding box field highlights, corrections feed fine-tune queue automatically</p></div>
+          <div class="block-tags"><span class="tag tag-new">New</span></div>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="block-body" id="b8">
+          <div class="two-col">
+            <div class="info-box"><h4 style="color:#fca5a5;">Current Gap</h4><ul>
+              <li>Reviewer sees form only — no document link</li>
+              <li>Must open file separately to verify</li>
+              <li>Corrections lost — no training signal captured</li>
+              <li>Pipeline accuracy never improves over time</li>
+            </ul></div>
+            <div class="info-box"><h4 style="color:#bef264;">After Enhancement</h4><ul>
+              <li>PDF rendered inline, form alongside</li>
+              <li>Each field highlighted at bounding box on document</li>
+              <li>Fields below 0.80 confidence pre-flagged amber</li>
+              <li>Save: captures original + corrected + operator + timestamp</li>
+              <li>Nightly: corrections feed LayoutLMv3 incremental fine-tune</li>
+            </ul></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- LAYOUTLM PLACEMENT -->
+<div class="panel" id="panel-layoutlm">
+  <div class="hl hl-orange" style="margin-bottom:20px;">
+    <h4>The Core Practical Question: DiT + LayoutLMv3 Separately, or LayoutLMv3 Only?</h4>
+    <p>Previous architecture showed DiT layout analysis as a separate step before LayoutLMv3. Practically, for 6 known document types, LayoutLMv3 handles layout implicitly through spatial embeddings. Here is the honest comparison of all three options.</p>
+  </div>
+
+  <div class="decision-grid" style="margin-bottom:24px;">
+    <div class="d-card" style="border-color:#4f46e5;">
+      <h3 style="color:#a5b4fc;">Option A: DiT then OCR then LayoutLMv3</h3>
+      <span class="verdict" style="background:#1e3a8a;color:#93c5fd;">3 model calls — complex</span>
+      <p>Separate layout zone detection, then OCR per zone, then LayoutLMv3 extraction.</p>
+      <ul>
+        <li class="pro">Best for completely unknown document layouts</li>
+        <li class="pro">DiT catches complex multi-column structures</li>
+        <li class="con">3 separate model inference calls per document</li>
+        <li class="con">Latency compounds: DiT 200ms + OCR 30s + LM 500ms</li>
+        <li class="con">More to deploy, maintain, version</li>
+        <li class="con">Overkill for your 6 known document types</li>
+      </ul>
+    </div>
+    <div class="d-card" style="border-color:#f97316;background:#160c02;">
+      <h3 style="color:#fdba74;">Option B: OCR then LayoutLMv3 only — Recommended</h3>
+      <span class="verdict" style="background:#451a03;color:#fdba74;border:1px solid #f97316;">2 model calls — start here</span>
+      <p>qwen2.5vl outputs text plus coordinates. LayoutLMv3 handles layout and extraction in one pass.</p>
+      <ul>
+        <li class="pro">LayoutLMv3 spatial embeddings handle layout implicitly</li>
+        <li class="pro">2 model calls, not 3 — lower latency</li>
+        <li class="pro">Fine-tuned on your docs — knows your layouts</li>
+        <li class="pro">Simpler to deploy, debug, iterate</li>
+        <li class="con">May need DiT later for novel vendor layouts</li>
+      </ul>
+    </div>
+    <div class="d-card" style="border-color:#059669;">
+      <h3 style="color:#6ee7b7;">Option C: End-to-End (Donut, GOT-OCR 2.0)</h3>
+      <span class="verdict" style="background:#064e3b;color:#6ee7b7;">1 model call — future path</span>
+      <p>Single model takes document image, outputs structured JSON directly. No intermediate OCR.</p>
+      <ul>
+        <li class="pro">One model call for everything</li>
+        <li class="pro">No error propagation between layers</li>
+        <li class="con">Needs significantly more fine-tuning data</li>
+        <li class="con">Harder to debug when wrong</li>
+        <li class="con">Cannot use PyMuPDF digital fast path</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:12px;">Exact Call Chain — Option B (Recommended)</div>
+  <div class="flow-row">
+    <div class="flow-box"><div class="fi">📄</div><div class="fn">PDF Input</div><div class="fs">Any doc type</div></div>
+    <div class="flow-arr" style="color:#7c3aed;">→</div>
+    <div class="flow-box"><div class="fi">🔀</div><div class="fn">Hybrid Router</div><div class="fs">Digital or Scanned?</div></div>
+    <div class="flow-arr" style="color:#4f46e5;">→</div>
+    <div class="flow-box"><div class="fi">👁️</div><div class="fn">qwen2.5vl OCR</div><div class="fs">text + x,y,w,h per word</div></div>
+    <div class="flow-arr" style="color:#f97316;">→</div>
+    <div class="flow-box hl2"><div class="fi">🧠</div><div class="fn">LayoutLMv3</div><div class="fs">BIO token labels → fields</div></div>
+    <div class="flow-arr" style="color:#059669;">→</div>
+    <div class="flow-box"><div class="fi">📊</div><div class="fn">JSON Fields</div><div class="fs">+ per-field confidence</div></div>
+  </div>
+  <div style="font-size:11px;color:#64748b;margin-bottom:20px;">For digital PDFs: PyMuPDF goes directly from Router to LayoutLMv3, bypassing qwen2.5vl entirely. Coordinates come from the PDF text layer — perfect precision.</div>
+
+  <div class="hl hl-blue">
+    <h4>What BIO Token Classification Means in Practice</h4>
+    <p>LayoutLMv3 processes the document as a word sequence. Each word token gets classified: B-invoice_number (beginning), I-invoice_number (continuation), or O (not a target field). The model learns these patterns from your fine-tuning data. For example: the token "1ITR2526..." appearing top-right, after "Invoice No.:" → classified as B-invoice_number. Spatial position is encoded as normalized coordinates (x1/1000, y1/1000, x2/1000, y2/1000). This spatial encoding is why it outperforms a pure text LLM on documents with consistent visual layouts.</p>
+  </div>
+</div>
+
+<!-- PRACTICAL REALITY -->
+<div class="panel" id="panel-practical">
+  <div class="hl hl-red" style="margin-bottom:20px;">
+    <h4>Honest Practical Assessment — What Will Actually Be Hard</h4>
+    <p>The architecture is sound. These are the real challenges going from diagram to working production code.</p>
+  </div>
+
+  <div class="pr" style="border-color:#ef4444;">
+    <div class="num" style="color:#ef4444;">1</div>
+    <div>
+      <h4 style="color:#fca5a5;">Getting Bounding Boxes Out of qwen2.5vl</h4>
+      <p>LayoutLMv3 needs text with (x1, y1, x2, y2) coordinates. qwen2.5vl has a grounding mode for this but it is not the default — you need a specific prompt and a coordinate output parser. This is the most critical integration point. If Layer 1 cannot reliably output coordinates, LayoutLMv3 loses its main advantage. For the digital path (PyMuPDF), coordinates come free and are perfectly precise — this is why the hybrid router unlocks so much value.</p>
+      <div class="note" style="color:#f97316;">Plan: 2-3 days to validate qwen2.5vl grounding output format and build coordinate parser</div>
+    </div>
+  </div>
+
+  <div class="pr" style="border-color:#f97316;">
+    <div class="num" style="color:#f97316;">2</div>
+    <div>
+      <h4 style="color:#fdba74;">How Much Verified Data Do You Actually Have?</h4>
+      <p>LayoutLMv3 fine-tuning needs labelled examples. Minimum for meaningful results: 100-200 per document type. If you have only 20 verified COMPANY_DC documents, the fine-tuned model for that type will overfit. Run this query first: SELECT document_type, COUNT(*) FROM document_metadata WHERE status='VERIFIED' GROUP BY document_type. If counts are low, start with LayoutLMv3 in zero-shot mode using its existing pretraining — it still outperforms qwen2.5:7b — and fine-tune incrementally as verified documents accumulate from the HITL loop.</p>
+      <div class="note" style="color:#f97316;">Plan: Run the count query before committing to fine-tuning timeline</div>
+    </div>
+  </div>
+
+  <div class="pr" style="border-color:#7c3aed;">
+    <div class="num" style="color:#a78bfa;">3</div>
+    <div>
+      <h4 style="color:#c4b5fd;">Phase 0 Must Come First — Training Data Is Currently Dirty</h4>
+      <p>Every verified document in your database was extracted with 768px cap, 200 DPI, and page 1 only. That means your training data has OCR errors baked in. The correct order is: Phase 0 fixes today (35 min), then re-extract all existing documents with corrected settings, then let humans re-verify the now-more-accurate extractions, THEN use those clean re-verified extractions as training data for LayoutLMv3. If you skip this and train on the dirty labels, you will fine-tune LayoutLMv3 to reproduce your old OCR errors.</p>
+      <div class="note" style="color:#8b5cf6;">Plan: Phase 0 fixes first, then re-extract all, then re-verify, then LayoutLMv3 training</div>
+    </div>
+  </div>
+
+  <div class="pr" style="border-color:#3b82f6;">
+    <div class="num" style="color:#60a5fa;">4</div>
+    <div>
+      <h4 style="color:#93c5fd;">PyMuPDF Digital Detection Has Edge Cases</h4>
+      <p>The character count heuristic works for 90% of cases. Edge cases include: DRM-protected PDFs with corrupted text layers, PDFs embedding text as vector graphics, vendor invoices that are digital PDFs but with hand-stamped overlays (RECEIVED stamp, signature). Handle these incrementally as you encounter them in production — do not try to solve all edge cases upfront. Log every routing decision so misroutes are visible and debuggable.</p>
+      <div class="note" style="color:#3b82f6;">Plan: Start with simple heuristic, log misroutes, fix edge cases iteratively</div>
+    </div>
+  </div>
+
+  <div class="pr" style="border-color:#10b981;">
+    <div class="num" style="color:#34d399;">5</div>
+    <div>
+      <h4 style="color:#6ee7b7;">Document Classifier Training — Check Visual Distinctiveness First</h4>
+      <p>The 6-class document classifier works well only if your document types are visually distinct from each other. VENDOR_INVOICE and COMPANY_INVOICE might look similar in layout. Before training, print a few examples of each type side by side and check whether YOU can tell them apart visually at a glance. If you cannot, the classifier cannot either. In that case, use visual similarity for initial classification and fall back to text-content heuristics (does the document contain "1ITR" prefix? must be COMPANY_INVOICE) as a secondary signal.</p>
+      <div class="note" style="color:#10b981;">Plan: Visual inspection first, then classifier training if types are visually distinct</div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPARE -->
+<div class="panel" id="panel-compare">
+  <p style="font-size:13px;color:#64748b;margin-bottom:16px;">Every layer: current state vs recommended and why the change matters.</p>
+  <table class="compare-table">
+    <thead>
+      <tr>
+        <th>Layer</th>
+        <th>Current (Your Code)</th>
+        <th>Recommended</th>
+        <th>Reason for Change</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="rl">P0: Doc Classifier</td>
+        <td class="bad">Manual user selection at upload</td>
+        <td class="good">EfficientNet-B0 / CLIP fine-tuned classifier</td>
+        <td>Wrong type selected silently corrupts all downstream extraction</td>
+      </tr>
+      <tr>
+        <td class="rl">L1: Format Gate</td>
+        <td class="bad">JPEG accepted, no quality check</td>
+        <td class="good">PDF/PNG/TIFF only, DPI check, checksum dedup</td>
+        <td>JPEG compression blurs characters, causes digit substitution errors</td>
+      </tr>
+      <tr>
+        <td class="rl">L2: Router</td>
+        <td class="bad">Not present — all PDFs go to GPU OCR</td>
+        <td class="good">PyMuPDF text probe — digital or scanned</td>
+        <td>ERP-generated invoices currently get OCR'd, introducing errors that did not exist</td>
+      </tr>
+      <tr>
+        <td class="rl">L3A: Digital Path</td>
+        <td class="bad">Does not exist</td>
+        <td class="good">PyMuPDF get_text + pdfplumber tables</td>
+        <td>100% accuracy, under 100ms, zero GPU for all digital PDFs</td>
+      </tr>
+      <tr>
+        <td class="rl">L3B: Pre-Processing</td>
+        <td class="bad">768px cap, 200 DPI, 1 page, no CV</td>
+        <td class="good">Full res 300 DPI, 10 pages, OpenCV pipeline</td>
+        <td>768px cap alone causes 68% resolution loss — largest single accuracy killer in the codebase</td>
+      </tr>
+      <tr>
+        <td class="rl">L4: Layout Analysis</td>
+        <td class="bad">Does not exist</td>
+        <td class="warn">Skip for now — LayoutLMv3 handles implicitly. Add DiT later if needed.</td>
+        <td>DiT adds latency for known doc types. LayoutLMv3 spatial embeddings sufficient to start.</td>
+      </tr>
+      <tr>
+        <td class="rl">L4: OCR Layer 1</td>
+        <td class="warn">qwen2.5vl, 4-word prompt, 1 page, no coords output</td>
+        <td class="good">qwen2.5vl, structure-aware prompt, 10 pages, grounding mode for coords</td>
+        <td>Coordinate output is required for LayoutLMv3. Current prompt does not request it.</td>
+      </tr>
+      <tr>
+        <td class="rl">L5: Field Extraction Layer 2</td>
+        <td class="bad">qwen2.5:7b — markdown in, JSON out, no coords, doc-level confidence</td>
+        <td class="good">LayoutLMv3 — text plus coords plus image, BIO tags out, per-field confidence</td>
+        <td>Spatial understanding, per-field confidence scores, fine-tunable on your specific document types</td>
+      </tr>
+      <tr>
+        <td class="rl">L6: Validation</td>
+        <td class="bad">Does not exist — errors reach ERP</td>
+        <td class="good">Math check plus date plus duplicate plus vendor verification</td>
+        <td>INR 137100 misread as 1371 currently passes into accounts payable without any check</td>
+      </tr>
+      <tr>
+        <td class="rl">L7: Persistence</td>
+        <td class="bad">DELETE on re-extract, no per-field confidence, no corrections table</td>
+        <td class="good">Versioned snapshots, field_confidences JSON column, corrections audit trail</td>
+        <td>Re-extract currently wipes history. Corrections are lost training signal.</td>
+      </tr>
+      <tr>
+        <td class="rl">L8: HITL</td>
+        <td class="bad">Form only, no doc link, corrections not captured for training</td>
+        <td class="good">PDF inline, bounding box highlights, corrections feed LayoutLMv3 fine-tune queue</td>
+        <td>Reviewers currently work blind. Every correction is currently thrown away.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</div>
+<script>
+function show(id, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  el.classList.add('active');
+}
+function tog(id) {
+  var el = document.getElementById(id);
+  if(el) el.classList.toggle('open');
+}
+</script>
+</body>
+</html>
