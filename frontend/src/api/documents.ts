@@ -1,5 +1,5 @@
 import client from './client';
-import type { Document, DocumentStatus } from '@/types';
+import type { Document } from '@/types';
 
 export async function listDocuments(
   filters?: {

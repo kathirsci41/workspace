@@ -203,8 +203,8 @@ export default function DocumentsPage() {
                       {doc.document_type.replace(/_/g, ' ')}
                     </span>
                   </td>
-                  <td className="px-5 py-3 text-gray-700 max-w-[200px] truncate" title={doc.original_filename ?? doc.filename}>
-                    {doc.original_filename ?? doc.filename}
+                  <td className="px-5 py-3 text-gray-700 max-w-[200px] truncate" title={doc.original_filename ?? '—'}>
+                    {doc.original_filename ?? '—'}
                   </td>
                   <td className="px-5 py-3 font-medium text-blue-700">
                     {doc.po_number || '—'}
