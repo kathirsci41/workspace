@@ -125,6 +125,97 @@ Case ID, Customer name, Customer PO number/date, Opportunity ID, SO number, Vend
 
 ---
 
+### 7.4 Document Flow by Order Type
+
+Orders fall into three types, each with different document chain requirements.
+
+#### Document Requirement Matrix
+
+| Document | Trade / Software | Services (AMC, Cloud) | Stock / Inventory |
+|---|---|---|---|
+| Customer PO | Required | Required | Required |
+| SO (internal) | Required | Required | Required |
+| Vendor PO | Required | Required | Not applicable |
+| Vendor DC | Required | If applicable | Not applicable |
+| Vendor Invoice | Required | Required | Not applicable |
+| Company DC | Required | If applicable | Required |
+| Company Invoice | Required | Required | Required |
+| POD | Required | Required | Required |
+
+> **Services note:** Vendor DC and Company DC may or may not be generated depending on the vendor and delivery method. The chain is considered complete without them — they are "if applicable", not mandatory.
+>
+> **Stock/Inventory note:** When the ordered item is available in inventory, the entire vendor procurement block (Vendor PO → Vendor DC → Vendor Invoice) is skipped. The order is fulfilled directly from stock.
+
+---
+
+#### Type 1 — Trade / Software (Full Chain)
+
+```mermaid
+flowchart LR
+    A["Customer PO"] --> B["SO Generate"]
+    B --> C["Vendor PO"]
+    C --> D["Vendor DC"]
+    D --> E["Vendor Invoice"]
+    E --> F["Company DC"]
+    F --> G["Company Invoice"]
+    G --> H["POD"]
+
+    style A fill:#4A90D9,color:#fff
+    style B fill:#4A90D9,color:#fff
+    style C fill:#E07B39,color:#fff
+    style D fill:#E07B39,color:#fff
+    style E fill:#E07B39,color:#fff
+    style F fill:#5BA85A,color:#fff
+    style G fill:#5BA85A,color:#fff
+    style H fill:#2ECC71,color:#fff
+```
+
+---
+
+#### Type 2 — Services / AMC / Cloud (DC Optional)
+
+```mermaid
+flowchart LR
+    A["Customer PO"] --> B["SO Generate"]
+    B --> C["Vendor PO"]
+    C --> D["Vendor DC\n(if applicable)"]
+    D --> E["Vendor Invoice"]
+    E --> F["Company DC\n(if applicable)"]
+    F --> G["Company Invoice"]
+    G --> H["POD"]
+
+    style A fill:#4A90D9,color:#fff
+    style B fill:#4A90D9,color:#fff
+    style C fill:#E07B39,color:#fff
+    style D fill:#E07B39,color:#fff,stroke-dasharray:5 5
+    style E fill:#E07B39,color:#fff
+    style F fill:#5BA85A,color:#fff,stroke-dasharray:5 5
+    style G fill:#5BA85A,color:#fff
+    style H fill:#2ECC71,color:#fff
+```
+
+---
+
+#### Type 3 — Stock / Inventory Fulfillment (No Vendor Block)
+
+```mermaid
+flowchart LR
+    A["Customer PO"] --> B["SO Generate"]
+    B --> F["Company DC"]
+    F --> G["Company Invoice"]
+    G --> H["POD"]
+
+    style A fill:#4A90D9,color:#fff
+    style B fill:#4A90D9,color:#fff
+    style F fill:#5BA85A,color:#fff
+    style G fill:#5BA85A,color:#fff
+    style H fill:#2ECC71,color:#fff
+```
+
+> **Future enhancement:** Chain completeness % currently treats all 6 document types equally for all orders. A future `order_type` flag on the PO will allow the system to calculate completeness correctly per order type — e.g., a Services order at 6/6 applicable documents = 100%, even if Vendor DC was not generated.
+
+---
+
 ## 8. Proposed Solution (TO-BE)
 
 A centralised portal indexes documents stored on the NAS and links them to a unique Case ID.
@@ -278,8 +369,6 @@ A centralised portal indexes documents stored on the NAS and links them to a uni
 - Chain completeness tracking per PO
 - Global search by PO/invoice/DC number
 - Admin console: health check, pipeline stats, celery queue, failure requeue
-- Staging deployment: `http://20.198.16.146` (Azure VM, South India)
-- CI/CD: GitHub Actions → Azure VM on push to `DPP-2.3.0`
 
 ### Pending from PDD
 - Signed POD / Acknowledgement as 7th document type
