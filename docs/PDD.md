@@ -350,6 +350,94 @@ flowchart LR
 
 ---
 
+### 7.6 Billing Scenarios
+
+#### Billing Types
+
+| Type | Description | Typical Order |
+|---|---|---|
+| Full billing | Single invoice for the entire PO amount | Trade / Software / Stock |
+| Partial billing | Invoice raised per batch / per delivery | Split delivery (Scenario 3) |
+| Recurring billing | Invoice raised on a fixed schedule | Services / AMC / Cloud |
+
+---
+
+#### Type 1 — Full Billing
+
+One Customer PO → one SO → one Company Invoice for the full amount. Most straightforward case.
+
+```
+Customer PO (100%) → SO → Vendor PO → Vendor Invoice → Company Invoice (100%) → POD
+```
+
+---
+
+#### Type 2 — Partial Billing
+
+Customer PO delivered and billed in batches. Each batch generates its own Company DC and Company Invoice for that portion.
+
+```
+Customer PO (total ₹100)
+    ├── Batch 1 (₹40) → SO-001 → Vendor PO-001 → Company DC-001 + Invoice-001
+    └── Batch 2 (₹60) → SO-002 → Vendor PO-002 → Company DC-002 + Invoice-002
+```
+
+> Sum of all partial invoices = total Customer PO value.
+
+---
+
+#### Type 3 — Recurring Billing
+
+Used for service contracts (AMC, cloud subscriptions, support contracts). The same contract generates invoices periodically over the contract duration.
+
+**Billing frequencies:**
+
+| Frequency | Invoices per year | Example |
+|---|---|---|
+| Monthly | 12 | Cloud subscription billed monthly |
+| Quarterly | 4 | Maintenance contract billed per quarter |
+| Half-yearly | 2 | AMC billed twice a year |
+| Yearly | 1 | Annual license renewal |
+
+**Two sub-cases depending on vendor arrangement:**
+
+**Sub-case A — Vendor also recurs (both sides repeat each cycle)**
+e.g., Cloud subscription: vendor bills company monthly → company bills customer monthly.
+
+```
+Contract Start
+    ├── Month 1: Vendor Invoice → Company Invoice (Month 1)
+    ├── Month 2: Vendor Invoice → Company Invoice (Month 2)
+    ├── ...
+    └── Month 12: Vendor Invoice → Company Invoice (Month 12)
+```
+
+**Sub-case B — Vendor one-time, company recurs (only outgoing side repeats)**
+e.g., AMC: hardware/license procured once from vendor → company bills customer annually.
+
+```
+Contract Start
+    ├── One-time: Vendor PO → Vendor Invoice (procurement)
+    ├── Year 1: Company Invoice (AMC fee Year 1)
+    ├── Year 2: Company Invoice (AMC fee Year 2)
+    └── Year 3: Company Invoice (AMC fee Year 3)
+```
+
+---
+
+#### Billing vs Document Chain
+
+| Billing Type | Customer PO | SO | Vendor PO | Company Invoice | POD |
+|---|---|---|---|---|---|
+| Full billing | 1 | 1 | 1 | 1 | 1 |
+| Partial billing | 1 | Many | Many | 1 per batch | 1 per batch |
+| Recurring — Vendor recurs | 1 | 1 per cycle | 1 per cycle | 1 per cycle | As applicable |
+| Recurring — Vendor one-time | 1 | 1 | 1 | 1 per period | As applicable |
+
+> **Architectural gap:** The current system has no `billing_type`, `contract_start_date`, `billing_frequency`, or `contract_duration` fields. Recurring billing cycles cannot be auto-generated or tracked. This is a planned feature for a future version.
+
+---
+
 ## 8. Proposed Solution (TO-BE)
 
 A centralised portal indexes documents stored on the NAS and links them to a unique Case ID.
