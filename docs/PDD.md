@@ -216,6 +216,140 @@ flowchart LR
 
 ---
 
+### 7.5 Purchase Order Scenarios — CPO : SO : VPO Relationships
+
+#### SO as the Backbone
+
+The Sales Order (SO) is the internal reference that ties the entire chain together:
+
+```
+Customer PO received → SO generated internally
+    ↓
+Vendor PO raised against SO (SO is the procurement reference)
+    ↓
+Vendor Invoice/DC arrives against Vendor PO
+    ↓
+Company uses Vendor PO → SO → Customer to trace the full chain
+```
+
+#### Relationship Matrix
+
+| CPO | SO | VPO | Description |
+|---|---|---|---|
+| 1 | 1 | 1 | Standard single-vendor fulfillment |
+| 1 | 1 | Many | One order, items from multiple vendors |
+| 1 | Many | Many | One CPO split into batches or separate line item flows |
+| Many | Many | 1 | Multiple customer SOs fulfilled via one bulk vendor purchase |
+| Many | Many | Many | Multiple independent customer orders, each with own chain |
+
+> **Key rule:** SO and VPO have a **many-to-many relationship**. One SO can have multiple VPOs (multi-vendor), and one VPO can serve multiple SOs (bulk procurement).
+
+---
+
+#### Scenario 1 — Standard (1 CPO : 1 SO : 1 VPO)
+
+Most common case. Single customer order, single vendor.
+
+```mermaid
+flowchart LR
+    CPO1["Customer PO"] --> SO1["SO-001"]
+    SO1 --> VPO1["Vendor PO-001"]
+    VPO1 --> DC1["Vendor DC + Invoice"]
+    DC1 --> OUT1["Company DC + Invoice + POD"]
+
+    style CPO1 fill:#4A90D9,color:#fff
+    style SO1 fill:#7B68EE,color:#fff
+    style VPO1 fill:#E07B39,color:#fff
+    style DC1 fill:#E07B39,color:#fff
+    style OUT1 fill:#5BA85A,color:#fff
+```
+
+---
+
+#### Scenario 2 — Multi-Vendor (1 CPO : 1 SO : Many VPO)
+
+Customer orders items from different vendors. One SO, multiple Vendor POs raised.
+
+```mermaid
+flowchart LR
+    CPO1["Customer PO"] --> SO1["SO-001"]
+    SO1 --> VPO1["Vendor PO-001\n(Vendor A)"]
+    SO1 --> VPO2["Vendor PO-002\n(Vendor B)"]
+    VPO1 --> OUT1["Company DC + Invoice + POD"]
+    VPO2 --> OUT1
+
+    style CPO1 fill:#4A90D9,color:#fff
+    style SO1 fill:#7B68EE,color:#fff
+    style VPO1 fill:#E07B39,color:#fff
+    style VPO2 fill:#E07B39,color:#fff
+    style OUT1 fill:#5BA85A,color:#fff
+```
+
+---
+
+#### Scenario 3 — Split Delivery (1 CPO : Many SO : Many VPO)
+
+Customer PO is large — delivered in batches. Each batch gets its own SO and vendor procurement.
+
+```mermaid
+flowchart LR
+    CPO1["Customer PO"] --> SO1["SO-001\n(Batch 1)"]
+    CPO1 --> SO2["SO-002\n(Batch 2)"]
+    SO1 --> VPO1["Vendor PO-001"]
+    SO2 --> VPO2["Vendor PO-002"]
+    VPO1 --> OUT1["DC + Invoice + POD\n(Batch 1)"]
+    VPO2 --> OUT2["DC + Invoice + POD\n(Batch 2)"]
+
+    style CPO1 fill:#4A90D9,color:#fff
+    style SO1 fill:#7B68EE,color:#fff
+    style SO2 fill:#7B68EE,color:#fff
+    style VPO1 fill:#E07B39,color:#fff
+    style VPO2 fill:#E07B39,color:#fff
+    style OUT1 fill:#5BA85A,color:#fff
+    style OUT2 fill:#5BA85A,color:#fff
+```
+
+---
+
+#### Scenario 4 — Bulk Procurement (Many SO : 1 VPO)
+
+Company bulk-buys from one vendor to fulfill multiple customer SOs in a single Vendor PO (cost efficiency / stock replenishment).
+
+```mermaid
+flowchart LR
+    CPO1["Customer PO-A"] --> SO1["SO-001"]
+    CPO2["Customer PO-B"] --> SO2["SO-002"]
+    SO1 --> VPO1["Vendor PO-001\n(Bulk)"]
+    SO2 --> VPO1
+    VPO1 --> OUT1["DC + Invoice\n(Customer A)"]
+    VPO1 --> OUT2["DC + Invoice\n(Customer B)"]
+
+    style CPO1 fill:#4A90D9,color:#fff
+    style CPO2 fill:#4A90D9,color:#fff
+    style SO1 fill:#7B68EE,color:#fff
+    style SO2 fill:#7B68EE,color:#fff
+    style VPO1 fill:#E07B39,color:#fff
+    style OUT1 fill:#5BA85A,color:#fff
+    style OUT2 fill:#5BA85A,color:#fff
+```
+
+---
+
+#### Architectural Gap — Current System
+
+| Aspect | Current System | Reality |
+|---|---|---|
+| CPO → SO | 1 PO record = 1 SO number field | 1 CPO can generate multiple SOs |
+| SO → VPO | No explicit SO↔VPO link | Many-to-many relationship |
+| Bulk procurement | Not tracked | 1 VPO can serve multiple SOs |
+| Partial delivery | Not tracked | 1 CPO can have multiple delivery batches |
+
+**Current limitation:** The `purchase_orders` table stores one `so_number` per PO — assumes 1:1 between PO and SO. The system cannot currently link one Vendor PO to multiple SOs or track partial deliveries against a single CPO.
+
+**Future fix:** Introduce a `SalesOrder` entity and a `SOVendorPOLink` join table to properly model the many-to-many relationship between SOs and Vendor POs.
+
+---
+
 ## 8. Proposed Solution (TO-BE)
 
 A centralised portal indexes documents stored on the NAS and links them to a unique Case ID.
