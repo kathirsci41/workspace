@@ -340,7 +340,7 @@ def extract_document(self, document_id: str):
                         f"Fields: {len([v for k, v in validated.items() if v is not None])}"
                     )
                 except Exception as e:
-                    logger.warning(f"Digital Layer 2 extraction failed: {e}")
+                    logger.warning("Digital Layer 2 extraction failed: %s", e, exc_info=True)
                     # Fallback: try to parse the raw text directly
                     parser = ResponseParser()
                     extracted_data = parser.parse_and_merge(raw_texts, doc_type)
@@ -484,7 +484,7 @@ def extract_document(self, document_id: str):
             return {"status": "success", "confidence": confidence}
 
         except Exception as e:
-            logger.error(f"Extraction failed for {document_id}: {e}")
+            logger.error("Extraction failed for %s: %s", document_id, e, exc_info=True)
             doc.status = DocumentStatus.EXTRACTION_FAILED
 
             # Update metadata with error — preserve any partial results
@@ -525,13 +525,13 @@ def extract_document(self, document_id: str):
             # likely image-only or encrypted and a retry will produce the same result.
             _err_str = str(e)
             if "all pages failed or were empty" in _err_str:
-                logger.error(f"Permanent OCR failure (no retry) for {document_id}: {_err_str}")
+                logger.error("Permanent OCR failure (no retry) for %s: %s", document_id, _err_str)
                 return {"status": "failed", "error": _err_str}
 
             try:
                 raise self.retry(exc=e)
             except self.MaxRetriesExceededError:
-                logger.error(f"Max retries exceeded for {document_id}")
+                logger.error("Max retries exceeded for %s", document_id, exc_info=True)
                 return {"status": "failed", "error": _err_str}
 
 

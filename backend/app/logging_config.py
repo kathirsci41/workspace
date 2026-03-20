@@ -15,15 +15,35 @@ All files:
 
 Usage:
   from app.logging_config import setup_logging
-  setup_logging("app")     # in main.py      → app.log
-  setup_logging("celery")  # in celery_app.py → celery.log
+  setup_logging("app")     # in main.py      -> app.log
+  setup_logging("celery")  # in celery_app.py -> celery.log
 """
 
+import io
 import logging
 import logging.config
+import sys
 from pathlib import Path
 
 from app.config import _PROJECT_ROOT
+
+
+class _UTF8StreamHandler(logging.StreamHandler):
+    """StreamHandler that forces UTF-8 on stdout regardless of terminal encoding.
+
+    Fixes UnicodeEncodeError on Windows where the default console uses cp1252
+    and cannot encode characters like arrows, accented letters, or Devanagari
+    script that may appear in extracted document text.
+    """
+
+    def __init__(self):
+        stream = io.TextIOWrapper(
+            sys.stdout.buffer,
+            encoding="utf-8",
+            errors="replace",
+            line_buffering=True,
+        )
+        super().__init__(stream)
 
 LOGS_DIR = _PROJECT_ROOT / "logs"
 
@@ -98,9 +118,8 @@ def setup_logging(component: str = "app") -> None:
 
     handlers = {
         "console": {
-            "class": "logging.StreamHandler",
+            "class": "app.logging_config._UTF8StreamHandler",
             "formatter": "simple",
-            "stream": "ext://sys.stdout",
             "level": "DEBUG",
         },
         "file_app": _make_file_handler("app"),
@@ -134,9 +153,9 @@ def setup_logging(component: str = "app") -> None:
                 "propagate": False,
             }
 
-    # app.* catch-all — routes to app.log
+    # app.* catch-all — routes to the active component's file
     loggers["app"] = {
-        "handlers": ["console", "file_app"],
+        "handlers": ["console", f"file_{component}"],
         "level": "DEBUG",
         "propagate": False,
     }
@@ -154,6 +173,7 @@ def setup_logging(component: str = "app") -> None:
     }
 
     logging.config.dictConfig(config)
+
     logging.getLogger("app").info(
-        "Logging initialised [component=%s] → %s", component, str(LOGS_DIR)
+        "Logging initialised [component=%s] -> %s", component, str(LOGS_DIR)
     )

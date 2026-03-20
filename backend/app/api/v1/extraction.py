@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func, distinct
+from sqlalchemy.orm.attributes import flag_modified
 from uuid import UUID
 from datetime import datetime
 
@@ -437,6 +438,7 @@ async def save_corrections(
         saved_fields.append(field)
 
     if saved_fields:
+        flag_modified(meta, 'extracted_data')
         await db.commit()
 
         logger.info(

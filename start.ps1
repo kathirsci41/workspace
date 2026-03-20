@@ -167,34 +167,58 @@ Write-Host ""
 Start-Process "http://localhost:5174"
 
 $frontendLog = Join-Path $LogsDir "frontend.log"
-$logMap = @{
-    "DocPlatform-Backend"  = $null
-    "DocPlatform-Celery"   = $null
-    "DocPlatform-Frontend" = $frontendLog
+
+# Tail log files directly — Backend and Celery write to log files immediately via Python logging.
+# Frontend has no Python logger so its stdout is still captured via Receive-Job and written to frontend.log.
+$positions = @{
+    (Join-Path $LogsDir "app.log")    = 0
+    (Join-Path $LogsDir "celery.log") = 0
+    $frontendLog                       = 0
+}
+$labels = @{
+    (Join-Path $LogsDir "app.log")    = "Backend"
+    (Join-Path $LogsDir "celery.log") = "Celery"
+    $frontendLog                       = "Frontend"
 }
 
 try {
     while ($true) {
-        foreach ($job in @($backendJob, $celeryJob, $frontendJob)) {
-            $output = Receive-Job -Job $job -ErrorAction SilentlyContinue
-            if ($output) {
-                $label   = $job.Name.Replace("DocPlatform-", "")
-                $logFile = $logMap[$job.Name]
-                foreach ($line in $output) {
-                    Write-Host "[$label] $line"
-                    if ($logFile) {
-                        $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-                        $entry = "$ts | $line"
-                        Add-Content -Path $logFile -Value $entry -Encoding UTF8
+        # Capture frontend stdout → write to frontend.log (picked up by tail below)
+        $fOut = Receive-Job -Job $frontendJob -ErrorAction SilentlyContinue
+        if ($fOut) {
+            $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            foreach ($line in $fOut) {
+                Add-Content -Path $frontendLog -Value "$ts | $line" -Encoding UTF8
+            }
+        }
+
+        # Tail all three log files — print only new lines since last iteration
+        foreach ($logFile in @($positions.Keys)) {
+            if (Test-Path $logFile) {
+                $content = Get-Content $logFile -Encoding UTF8 -ErrorAction SilentlyContinue
+                if ($content) {
+                    $newCount = @($content).Count
+                    $oldCount = $positions[$logFile]
+                    if ($newCount -gt $oldCount) {
+                        $label = $labels[$logFile]
+                        for ($i = $oldCount; $i -lt $newCount; $i++) {
+                            Write-Host "[$label] $($content[$i])"
+                        }
+                        $positions[$logFile] = $newCount
                     }
                 }
             }
+        }
+
+        # Detect crashed jobs
+        foreach ($job in @($backendJob, $celeryJob, $frontendJob)) {
             if ($job.State -eq "Failed") {
-                Write-Err "$($job.Name) failed!"
+                Write-Err "$($job.Name) crashed!"
                 Receive-Job -Job $job -ErrorAction SilentlyContinue | ForEach-Object { Write-Err "  $_" }
             }
         }
-        Start-Sleep -Seconds 2
+
+        Start-Sleep -Milliseconds 200
     }
 }
 finally {

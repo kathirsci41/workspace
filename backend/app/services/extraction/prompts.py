@@ -32,16 +32,15 @@ EXTRACTION_PROMPTS = {
     },
     "COMPANY_PO": {
         "instruction": (
-            "Extract details from this Company Purchase Bill document. "
-            "Three different reference numbers appear in the header: "
-            "Purchase Bill No (issued by the vendor, starts with 1PBTR), "
-            "PO No (our company's PO to the vendor, starts with 1PTR), "
-            "and Bill No (vendor's internal bill number)."
+            "Extract details from this Purchase Order issued by our company (Skylark) to a vendor/supplier. "
+            "The Order No is the main reference number (starts with '1PTR'). "
+            "The vendor is the supplier receiving this PO."
         ),
         "schema": {
-            "purchase_bill_no": "string - Purchase Bill No — issued by vendor to us (starts with '1PBTR')",
-            "po_number":        "string - PO No — our company's PO number issued to this vendor (starts with '1PTR')",
-            "bill_no":          "string - Bill No — vendor's own internal bill/invoice number",
+            "po_number":    "string - Order No — our company's PO number issued to the vendor (starts with '1PTR')",
+            "po_date":      "string - Order Date — date exactly as printed on document",
+            "mode_of_bill": "string - Mode of Bill — billing condition (e.g. ON FULL DELIVERY)",
+            "vendor_name":  "string - Vendor Name — name of the supplier/vendor this PO is sent to",
         },
     },
     "VENDOR_DC": {
@@ -134,7 +133,7 @@ def get_primary_field(doc_type: str) -> str:
     """Get the primary reference field for a document type."""
     mapping = {
         "CUSTOMER_PO": "po_number",
-        "COMPANY_PO": "purchase_bill_no",
+        "COMPANY_PO": "po_number",
         "VENDOR_DC": "dc_number",
         "VENDOR_INVOICE": "invoice_number",
         "COMPANY_DC": "dc_number",
@@ -147,7 +146,7 @@ def get_date_field(doc_type: str) -> str:
     """Get the date field for a document type."""
     mapping = {
         "CUSTOMER_PO": "po_date",
-        "COMPANY_PO": "",
+        "COMPANY_PO": "po_date",
         "VENDOR_DC": "dc_date",
         "VENDOR_INVOICE": "",
         "COMPANY_DC": "dc_date",
@@ -163,9 +162,8 @@ def get_searchable_fields(doc_type: str) -> list[tuple[str, str]]:
             ("po_number", "po_number"),
         ],
         "COMPANY_PO": [
-            ("purchase_bill_no", "purchase_bill_no"),
             ("po_number", "po_number"),
-            ("bill_no", "bill_no"),          # bill_no = vendor invoice number (procurement chain link)
+            ("vendor_name", "vendor_name"),
         ],
         "VENDOR_DC": [
             ("dc_number", "dc_number"),
