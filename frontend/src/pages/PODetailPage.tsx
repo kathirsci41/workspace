@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Trash2, PenLine, Check, X, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2, Trash2, PenLine, Check, X, AlertTriangle } from 'lucide-react';
+import { useToast } from '@/context/ToastContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePurchaseOrder, useChainStatus, useDeletePO, useUpdatePO } from '@/hooks/usePurchaseOrders';
 import { useReExtract, useCreateManualEntry } from '@/hooks/useExtraction';
@@ -18,6 +19,7 @@ export default function PODetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const showToast = useToast();
 
   const { data: po, isLoading: poLoading } = usePurchaseOrder(id!);
   const { data: chainData, isLoading: chainLoading } = useChainStatus(id!);
@@ -40,16 +42,6 @@ export default function PODetailPage() {
   const [reExtractConfirm, setReExtractConfirm] = useState<string | null>(null); // docId
   const [deleteDocConfirm, setDeleteDocConfirm] = useState<string | null>(null); // docId
   const [deletePOConfirm, setDeletePOConfirm]   = useState(false);
-
-  // Toast notification
-  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warn' } | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const showToast = (msg: string, type: 'success' | 'warn' = 'success') => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast({ msg, type });
-    toastTimer.current = setTimeout(() => setToast(null), 4000);
-  };
 
   // Track previous extracting state to detect completion
   const prevExtractingRef = useRef(false);
@@ -77,14 +69,19 @@ export default function PODetailPage() {
   useEffect(() => {
     // Show toast when extraction finishes
     if (prevExtractingRef.current && !hasExtracting && chainData) {
-      const hasPending = Object.values(chainData.chain).some((slots) =>
-        slots.some((s) => s.status === 'PENDING_REVIEW')
-      );
-      const hasFailed = Object.values(chainData.chain).some((slots) =>
-        slots.some((s) => s.status === 'EXTRACTION_FAILED')
-      );
-      if (hasFailed) showToast('Extraction finished — one or more documents need attention.', 'warn');
-      else if (hasPending) showToast('Extraction complete — documents are ready to review.');
+      const allSlots = Object.values(chainData.chain).flat();
+      const hasFailed       = allSlots.some(s => s.status === 'EXTRACTION_FAILED');
+      const hasPendingModel = allSlots.some(s => s.status === 'PENDING_MODEL');
+      const hasPending      = allSlots.some(s => s.status === 'PENDING_REVIEW');
+
+      if (hasFailed && !hasPending)
+        showToast('Extraction failed — open the document to enter manually.', 'error');
+      else if (hasFailed && hasPending)
+        showToast('Extraction finished — one or more documents need attention.', 'warn');
+      else if (hasPendingModel)
+        showToast('AI model unavailable — document will retry when service is back.', 'warn');
+      else if (hasPending)
+        showToast('Extraction complete — documents are ready to review.', 'success');
     }
     prevExtractingRef.current = hasExtracting;
   }, [hasExtracting, chainData]);
@@ -124,6 +121,11 @@ export default function PODetailPage() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
         setReExtractConfirm(null);
+        showToast('Re-extraction started — document will update shortly.', 'info');
+      },
+      onError: () => {
+        setReExtractConfirm(null);
+        showToast('Failed to start re-extraction. Please try again.', 'error');
       },
     });
   };
@@ -157,6 +159,10 @@ export default function PODetailPage() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
         setReviewDocId(docId);
+        showToast('Manual entry mode — fill in the fields from the document.', 'info');
+      },
+      onError: () => {
+        showToast('Could not open manual entry. Please try again.', 'error');
       },
     });
   };
@@ -181,7 +187,7 @@ export default function PODetailPage() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 h-full">
       {/* Header */}
       <div className="flex items-center gap-4 flex-wrap">
         <button
@@ -299,7 +305,7 @@ export default function PODetailPage() {
       )}
 
       {/* Two-column layout */}
-      <div className="flex gap-4" style={{ minHeight: '65vh' }}>
+      <div className="flex gap-4 flex-1 min-h-0">
         {/* Left: Document Cards */}
         <div className="w-[55%] space-y-3 overflow-y-auto pr-1">
           {CHAIN_ORDER.map((docType) => {
@@ -357,7 +363,7 @@ export default function PODetailPage() {
         </div>
 
         {/* Right: PDF Preview */}
-        <div className="w-[45%]">
+        <div className="w-[45%] min-w-0">
           <PDFPreviewPanel
             documentId={selectedDocId}
             refNumber={selectedSlot?.ref_no}
@@ -388,7 +394,7 @@ export default function PODetailPage() {
             setReviewDocId(null);
             queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
             queryClient.invalidateQueries({ queryKey: ['documents', 'status', 'PENDING_REVIEW'] });
-            showToast('Document verified successfully.');
+            showToast('Document verified and saved.', 'success');
           }}
         />
       )}
@@ -403,7 +409,7 @@ export default function PODetailPage() {
           onSaved={() => {
             setEditDocId(null);
             queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
-            showToast('Changes saved successfully.');
+            showToast('Changes saved successfully.', 'success');
           }}
         />
       )}
@@ -500,25 +506,6 @@ export default function PODetailPage() {
         </div>
       )}
 
-      {/* Toast notification */}
-      {toast && (
-        <div
-          className={clsx(
-            'fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all',
-            toast.type === 'success'
-              ? 'bg-green-600 text-white'
-              : 'bg-amber-500 text-white'
-          )}
-        >
-          {toast.type === 'success'
-            ? <CheckCircle2 size={16} />
-            : <AlertTriangle size={16} />}
-          {toast.msg}
-          <button onClick={() => setToast(null)} className="ml-2 opacity-70 hover:opacity-100">
-            <X size={14} />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
