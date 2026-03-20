@@ -9,7 +9,8 @@
 | Version | Date | Description |
 |---|---|---|
 | 0.1 | 2026-01-13 | Initial PDD — AS-IS analysis, MVP scope, NAS-based portal concept |
-| 2.3.0 | 2026-03-17 | Implemented: AI extraction pipeline, staging deployment, CI/CD pipeline |
+| 2.2.0 | 2026-03-14 | Production baseline: AI extraction pipeline, PENDING_MODEL status, SO cross-document validation, admin requeue |
+| 2.3.0 | 2026-03-17 | Production hardening: Docker Compose prod setup, bug fixes, admin console |
 
 ---
 
@@ -25,11 +26,11 @@ This PDD defines a centralised, on-premise platform to improve file management a
 Customer issues PO → Company performs internal processing and procurement → Issues Vendor PO → Receives vendor material/license with vendor invoice and DC → Delivers to customer with company invoice/DC → Collects signed acknowledgement (POD).
 
 **Current tools/systems:**
-- **Zoho CRM** — leads, opportunities, quotes/proposals (used for validation and status updates)
-- **Core ERP** — sales order (SO), OES, approvals, vendor PO, GRN, purchase bill, tax invoice/DC
+
+- **.Net based ERP** — sales order (SO), OES, approvals, vendor PO, GRN, purchase bill, tax invoice/DC, tracking
 - **Microsoft Outlook** — external communication with vendors (sending vendor PO PDFs)
 - **NAS / intranet shared folders** — central repository for exports and scanned hard copies
-- **Excel** — tracking
+- **Excel** — tracking internal
 
 ---
 
@@ -67,7 +68,7 @@ Customer issues PO → Company performs internal processing and procurement → 
 
 | Role | Responsibility |
 |---|---|
-| Sales Coordinator | Receives Customer PO; validates against quote in Zoho CRM; updates opportunity status |
+| Sales Coordinator | Receives Customer PO; validates against internal quote; creates SO in ERP |
 | Order Processing / OES | Creates SO/OES, attaches PO, manages approvals and costing updates |
 | Purchase Team | Vendor negotiation, vendor PO creation, reschedule adjustments, release of vendor PO PDF |
 | Logistics / Stores | GRN creation, inward validation, scanning vendor documents for archival |
@@ -79,13 +80,74 @@ Customer issues PO → Company performs internal processing and procurement → 
 
 ## 6. Current Process (AS-IS)
 
+### 6.1 Process Phases
+
 | Phase | Owner(s) | Key Activities | Primary Documents |
 |---|---|---|---|
-| 1. Input & Validation | Sales Coordinator / Ops | Receive customer PO (email); cross-check quote in Zoho CRM; update opportunity status | Customer PO; Quote/Proposal reference |
+| 1. Input & Validation | Sales Coordinator / Ops | Receive customer PO (email); validate against internal quote; create SO in ERP | Customer PO; Quote/Proposal reference |
 | 2. Order Entry & OES | Ops / OES / Finance | Create SO in ERP; attach PO; create OES (risk & margin checks); BOM entry; sequential internal approvals | SO; OES; BOM; approvals |
 | 3. Procurement | Purchase Team | Offline vendor negotiation; vendor PO in ERP; reschedule when timelines shift; release PO PDF via Outlook | Vendor PO PDF; (re)schedule updates |
 | 4. Inward Processing | Logistics / Stores / Finance | Vendor delivers material/license + vendor invoice/DC; create GRN; create purchase bill; update OES with actuals | GRN; Vendor Invoice; Vendor DC; Purchase Bill |
 | 5. Outward & Closure | Ops / Logistics / Finance | Generate company DC and tax invoice; deliver to customer; collect signed POD/acknowledgement | Company Invoice; Company DC; Signed POD/Ack |
+
+---
+
+### 6.2 Document Traceability Chain (AS-IS)
+
+The order lifecycle produces a chain of documents that reference each other through two key numbers: the **SO number** (internal, customer-facing side) and the **VPO number** (vendor-facing side). These two numbers are the backbone of traceability.
+
+#### Complete Document Flow & Matching Loop
+
+**Forward (creation):**
+
+```
+Customer PO received
+    → ERP creates SO number (internal — never shown to vendor)
+    → Against the SO, company issues Vendor PO (VPO number sent to vendor)
+    → Vendor ships goods: Vendor DC and Vendor Invoice both print the VPO number
+```
+
+**Match (vendor documents → customer requirement):**
+
+```
+Vendor DC / Vendor Invoice received
+    → Read VPO number from the document
+    → VPO matches to SO in ERP
+    → SO confirms which Customer PO and customer this belongs to
+    → Vendor documents are now linked to the correct customer requirement
+```
+
+**Outward (billing):**
+
+```
+    → Against the same SO, company generates:
+          Company DC      — printed with SO number ("Sales Order No.")
+          Company Invoice — printed with SO number ("SO No.")
+    → Delivered to customer → POD / acknowledgement collected → chain closed
+```
+
+#### Which Number Appears on Which Document
+
+| Document | Reference Printed | Who Sees It |
+|---|---|---|
+| Customer PO | Customer's own PO number | Company (received from customer) |
+| Company PO (VPO) | VPO number (e.g. 1PTR2526000467) | Vendor (sent by company) |
+| Vendor DC | VPO number ("Other References") | Company (received from vendor) |
+| Vendor Invoice | VPO number ("Other References") | Company (received from vendor) |
+| Company DC | SO number ("Sales Order No.") | Customer (sent by company) |
+| Company Invoice | SO number ("SO No.") | Customer (sent by company) |
+
+#### How Traceability Works Today (ERP)
+
+To find all documents for a customer requirement, an operator today must:
+
+1. Know either the Customer PO number or the SO number
+2. Open the ERP → search the SO → find the linked VPO numbers
+3. Search NAS folders manually for each document by number
+
+**The pain:** Documents are spread across ERP, email, and multiple NAS folders. There is no single place to see all 6 documents for one requirement. Finding files during a re-query (customer or vendor follow-up) takes significant time.
+
+**What DPP solves:** All 6 documents are stored under one PO record. Search by any number — Customer PO, SO, VPO, invoice, or DC — and the platform finds the PO instantly, showing all documents, their statuses, and chain completeness in one screen.
 
 ---
 
@@ -112,7 +174,7 @@ Customer issues PO → Company performs internal processing and procurement → 
 | Enum Value | Direction | Primary Key Field | Status |
 |---|---|---|---|
 | CUSTOMER_PO | Customer → Us | po_number | ✅ Implemented |
-| COMPANY_PO | Us → Vendor | purchase_bill_no | ✅ Implemented |
+| COMPANY_PO | Us → Vendor | po_number | ✅ Implemented |
 | VENDOR_DC | Vendor → Us | dc_number | ✅ Implemented |
 | VENDOR_INVOICE | Vendor → Us | invoice_number | ✅ Implemented |
 | COMPANY_DC | Us → Customer | dc_number | ✅ Implemented |
@@ -220,17 +282,33 @@ flowchart LR
 
 #### SO as the Backbone
 
-The Sales Order (SO) is the internal reference that ties the entire chain together:
+The Sales Order (SO) is the internal reference that ties the entire chain together. It is generated inside the ERP after the Customer PO is received and is never visible to the vendor.
 
 ```
-Customer PO received → SO generated internally
+Customer PO received (e.g. SP-IT/Mum-148/25-26)
     ↓
-Vendor PO raised against SO (SO is the procurement reference)
+ERP generates SO internally — purely internal, never printed on vendor-facing documents
     ↓
-Vendor Invoice/DC arrives against Vendor PO
+Against the SO, ERP generates a Vendor PO number (e.g. 1PTR2526000467)
+Vendor PO is sent to the vendor — vendor sees only the VPO number, not the SO
     ↓
-Company uses Vendor PO → SO → Customer to trace the full chain
+Vendor ships goods → Vendor DC and Vendor Invoice both reference the VPO number
+    ↓
+ERP lookup: VPO number → finds SO → finds Customer PO → finds Customer
+    ↓
+Company DC dispatched → prints Customer Order No (CPO) + Sales Order No (SO)
+Company Invoice issued → prints Customer Order No (CPO) + ref (NOT the VPO number)
 ```
+
+**Where the SO number appears:**
+
+- ✅ Company DC — printed as "Sales Order No."
+- ✅ Company Invoice — printed as "SO No." or reference
+- ❌ Vendor PO — not printed (vendor sees only the VPO number)
+- ❌ Vendor DC — not printed
+- ❌ Vendor Invoice — not printed
+
+The PO number is the traceability link on the vendor side. The SO is the traceability link on the customer-facing side. Both map to each other only inside the ERP.
 
 #### Relationship Matrix
 
@@ -269,6 +347,12 @@ flowchart LR
 #### Scenario 2 — Multi-Vendor (1 CPO : 1 SO : Many VPO)
 
 Customer orders items from different vendors. One SO, multiple Vendor POs raised.
+
+**Real example (Hindalco SDWAN order):** Customer PO SP-IT/Mum-148/25-26 resulted in two Vendor POs — `9POT2526000007` to Techknowlogic (hardware + SaaS) and `9POT2526000008` to Inflow Technologies (SFP transceivers). Both vendors printed Skylark's PO number in their invoices under "Other References", so the link is traceable via the `po_reference` field already extracted from VENDOR_INVOICE.
+
+**What the current system supports:** Each VENDOR_INVOICE extraction captures `po_reference` (the VPO number). Multiple COMPANY_PO documents can be uploaded under one PurchaseOrder, each with its own `po_number`. The VPO↔VendorInvoice link is in the extracted data.
+
+**Remaining gaps:** The system has one VENDOR_INVOICE slot in chain completeness — it does not track that one VPO can generate multiple invoices (e.g. one for hardware, one for services). There is no explicit grouping of which VENDOR_INVOICE belongs to which COMPANY_PO document.
 
 ```mermaid
 flowchart LR
@@ -438,48 +522,200 @@ Contract Start
 
 ---
 
+### 7.7 Delivery Location
+
+Delivery address is one of the fields extracted from documents. The Customer PO contains the Ship To address (where goods should be delivered), and the Company DC contains the delivery address confirming where goods were dispatched. Address text is stored in `extracted_data` JSON — there is no dedicated structured column for it yet.
+
+#### Delivery Scenarios
+
+| Scenario | Description |
+| --- | --- |
+| Same site | Billing address and delivery address are the same |
+| Different site | Customer PO specifies a Ship To address different from billing address |
+| Multi-site | Customer wants items delivered to multiple locations — separate DC per site |
+| Drop-ship | Vendor ships directly to customer's site, bypassing company warehouse |
+
+---
+
 ## 8. Proposed Solution (TO-BE)
 
-A centralised portal indexes documents stored on the NAS and links them to a unique Case ID.
+A centralised portal indexes all documents in the order lifecycle against a unique Case ID (SO Number), with AI-assisted extraction, cross-document validation, and a structured review workflow.
 
-**Primary user journey:** Enter Case ID → View case header → See document list (with file path) → Open preview/download (if allowed)
+**Primary user journey:** Upload document → AI extracts metadata → Operator reviews and corrects → Verified document linked to PO → Full chain visible on PO detail page
 
-**Must-have capabilities:**
-- Search by Case ID and show all linked documents with file paths
-- Controlled document taxonomy and case checklist (required documents)
-- Audit logs for key actions
-- Approval workflow for update/delete actions
+**Fallback journey (Manual Entry):** When the AI service is offline or extraction fails → operator clicks Manual Entry on the document card → review screen opens with empty fields → operator fills in metadata by reading the source document on the left → clicks Verify → document is fully verified and joins the chain as normal
 
-**Good-to-have capabilities:**
-- Inline preview for PDFs/images and one-click download
-- Auto-suggestions for linking based on folder structure/naming rules
-- Advanced search (customer name, PO number, vendor invoice number)
+---
+
+### 8.1 What Works Today (DPP v2.3.0)
+
+- Upload and store all 6 document types under a Purchase Order
+- AI extraction (GLM-OCR → Qwen2.5) from scanned PDFs and images
+- Structured metadata extraction with field-level validation
+- Chain completeness tracking (% of documents verified)
+- Human review and correction of AI-extracted fields (PENDING_REVIEW → VERIFIED / REJECTED)
+- Manual Entry fallback — when AI is unavailable or fails, operator fills all fields by hand; same Verify/Reject workflow applies; work continues uninterrupted
+- Custom Fields — operator can add any extra label+value pair to a document during review (e.g. freight charge, special reference); stored alongside standard fields
+- Cross-document SO number validation — runs automatically when COMPANY_DC or COMPANY_INVOICE is processed; frontend SO entry prompt not yet built
+- Admin health monitoring (DB, Redis, OCR service, storage)
+- Docker Compose production setup (on-prem deployment ready)
+
+---
+
+### 8.2 Capability Matrix
+
+Maps every business scenario documented in Section 7 to the current system's ability to handle it.
+
+**Legend:** ✅ Possible — ⚠️ Partial (works but with known gaps) — ❌ Not possible (not yet built)
+
+#### Order Types
+
+| Scenario | Status | Gap / Note |
+|---|---|---|
+| Trade / Software — full 6-document chain | ✅ | All 6 document types supported |
+| Services — DC optional (chain complete without DC) | ⚠️ | Chain completeness % counts missing DC as incomplete; no `order_type` flag to skip it |
+| Stock / Inventory — no vendor block | ⚠️ | No `order_type` flag; vendor document slots appear as missing on the chain bar |
+
+#### CPO : SO : VPO Relationships
+
+| Scenario | Status | Gap / Note |
+|---|---|---|
+| 1 CPO : 1 SO : 1 VPO (standard) | ✅ | Fully supported — standard case |
+| 1 CPO : 1 SO : Many VPO (multi-vendor) | ⚠️ | Multiple Vendor POs can be uploaded under one PO; vendors print the VPO number on their invoices so the link is traceable. Gap: chain completeness has one Vendor Invoice slot regardless of how many VPOs exist; no explicit per-VPO grouping |
+| 1 CPO : Many SO : Many VPO (split delivery) | ❌ | No split delivery tracking; one PO = one SO number field |
+| Many SO : 1 VPO (bulk procurement) | ❌ | No bulk procurement linking across POs |
+
+#### Billing
+
+| Scenario | Status | Gap / Note |
+|---|---|---|
+| Full billing — single invoice per PO | ✅ | Supported |
+| Partial billing — invoice per batch | ❌ | No batch tracking; no partial invoice model |
+| Recurring — vendor recurs (both sides repeat per cycle) | ❌ | No `billing_frequency` or cycle tracking |
+| Recurring — vendor one-time, company recurs | ❌ | No contract duration or recurring invoice model |
+
+#### Delivery Location
+
+| Scenario | Status | Gap / Note |
+|---|---|---|
+| Delivery address extracted from Customer PO | ✅ | Address captured in `extracted_data` JSON if LLM picks it up |
+| Delivery address extracted from Company DC | ✅ | Same — captured in extracted JSON |
+| Structured `delivery_address` field on PO model | ❌ | Address in JSON blob only; not a dedicated searchable column |
+
+---
+
+### 8.3 Roadmap Gaps
+
+The following capabilities are not yet built and are required for full business coverage:
+
+| Gap | Priority | Planned In |
+|---|---|---|
+| `order_type` flag on PO (Trade / Services / Stock) | High | v2.4.0 |
+| Chain completeness respects order type rules | High | v2.4.0 |
+| `SalesOrder` entity + `SOVendorPOLink` join table (many-to-many) | High | v3.0 |
+| Split delivery tracking (1 CPO → many SO batches) | Medium | v3.0 |
+| Partial billing tracking (batch invoices summing to PO total) | Medium | v3.0 |
+| Recurring billing model (`billing_frequency`, `contract_duration`) | Low | v3.1 |
+| Structured `delivery_address` field on PO model (from CPO extraction) | Medium | v2.4.0 |
 
 ---
 
 ## 9. Scope & Phasing
 
-| Phase | Scope | Target | Status |
+### 9.1 Original Plan (v0.1 — January 2026)
+
+| Phase | Scope | Status |
+|---|---|---|
+| Phase 1 — NAS Portal (MVP) | Case ID creation, manual document linking, file path list, audit logs, approval workflow | Superseded — never built |
+| Phase 2 — AI Extraction | OCR + LLM-based metadata extraction, on-prem deployment | Completed (DPP v2.2.0+) |
+| Phase 3 — Integrations | ERP sync, multi-user roles, audit logs | Pending |
+
+The v0.1 plan called for a lightweight NAS index portal as MVP, with AI extraction as a later phase. In practice, Phase 1 was skipped entirely — the team jumped directly to AI extraction as the core feature.
+
+### 9.2 Actual Development Path
+
+| Milestone | Version | Date | What Was Built |
 |---|---|---|---|
-| Phase 1 — MVP | NAS portal, Case ID creation, manual document linking, file path list, audit logs, approval workflow | 1 week | Superseded by Phase 2 |
-| Phase 2 — AI Extraction | OCR + LLM-based metadata extraction, on-prem deployment, structured data from scanned docs | — | ✅ Implemented (DPP v2.3.0) |
-| Phase 2+ — Integrations | ERP sync, Zoho CRM sync, multi-user roles, dashboards | — | ❌ Pending |
+| Concept | v0.1 | Jan 2026 | NAS portal concept (never built) |
+| Case-based portal | Phase 1.0 | Jan 2026 | Backend only: Case + SalesOrder + Document entities, NAS storage, SHA-256 dedup, 6 doc types |
+| SO hierarchy | Phase 1.1 | Jan 2026 | Case → SO → Document hierarchy; month-locked SO numbers |
+| First AI extraction | Phase 2.0 | Feb 2026 | GLM-OCR integration, synchronous extraction, DocumentMetadata model |
+| Full platform rewrite | Phase 2.1 | Feb 2026 | PurchaseOrder-centric model, Customer master, Celery async pipeline, JWT auth, UUID PKs, ReferenceIndex |
+| Two-layer OCR | Phase 2.1.0 | Feb 2026 | glm-ocr + qwen2.5:7b, VRAM management, circuit breaker pattern |
+| Production baseline | DPP 2.2.0 | Mar 2026 | PENDING_MODEL status, SO cross-doc validation, admin requeue endpoint |
+| Production hardening | DPP 2.3.0 | Mar 2026 | Docker Compose prod setup, multi-stage Dockerfiles, bug fixes |
+
+### 9.3 Next Phase (Planned)
+
+| Item | Priority | Notes |
+|---|---|---|
+| Frontend SO entry prompt | High | Modal/input after CUSTOMER_PO verify so operator can set the SO number; backend already done |
+| ERP integration | High | Read SO/invoice data directly from .Net ERP to reduce manual entry |
+| Multi-user auth + RBAC | High | Currently no authentication; anyone on the network can access |
+| Audit logs | High | Compliance requirement; no record of who verified or changed what |
+| Approval workflow (update/delete) | Medium | Manual delete with no approval gate currently |
+| SO:VPO many-to-many | Medium | Current model assumes 1:1; actual business has multi-vendor SOs |
+| Order-type-aware chain completeness | Medium | Services orders should not count DC as missing |
+| Structured `delivery_address` field | Medium | Store extracted delivery address as dedicated column |
 
 ---
 
 ## 10. Functional Requirements
 
+### 10.1 Core Document Management
+
 | FR ID | Priority | Requirement | Status |
 |---|---|---|---|
-| FR-01 | Must | Unique Case ID management (create/search/view) | ✅ PO ID as Case ID |
-| FR-02 | Must | Link documents to Case ID (manual + bulk) | ✅ Upload under PO |
-| FR-03 | Must | Document list shows type, filename, last updated, file path | ✅ |
-| FR-04 | Must | Controlled taxonomy and required-doc checklist | ✅ Chain completeness % |
-| FR-05 | Should | Preview for PDF/images; download based on permissions | ❌ Pending |
-| FR-06 | Must | Audit logs for search/view/download/link/update/delete | ❌ Pending |
-| FR-07 | Must | Approval workflow for update/delete (Head/Manager) | ❌ Pending |
+| FR-01 | Must | Unique PO-level Case ID (create/search/view) | ✅ UUID-based PO ID |
+| FR-02 | Must | Link documents to PO (upload per document type) | ✅ |
+| FR-03 | Must | Document list shows type, filename, status, timestamps | ✅ |
+| FR-04 | Must | Controlled document taxonomy (6 types) + required-doc checklist | ✅ Chain completeness % |
+| FR-05 | Should | Preview for PDF/images; download | ✅ PDF inline preview and download in-browser |
+| FR-06 | Must | Audit logs for all key user actions | ❌ Pending |
+| FR-07 | Must | Approval workflow for document update/delete | ❌ Pending |
 | FR-08 | Could | ERP sync for SO/OES/GRN/Purchase Bill/Invoice metadata | ❌ Pending |
-| FR-09 | Could | OCR/LLM extraction to auto-tag scanned documents | ✅ Implemented (GLM-OCR + Qwen2.5) |
+
+### 10.2 AI Extraction Pipeline
+
+| FR ID | Priority | Requirement | Status |
+|---|---|---|---|
+| FR-10 | Must | OCR extraction from uploaded PDFs and images | ✅ GLM-OCR (Layer 1) |
+| FR-11 | Must | Structured metadata extraction per document type | ✅ Qwen2.5:7b (Layer 2) |
+| FR-12 | Must | Human review and correction of extracted fields | ✅ Review modal with field editing |
+| FR-13 | Must | Verify / Reject workflow per document | ✅ VERIFIED / REJECTED statuses |
+| FR-14 | Must | Extraction failure handling with error details | ✅ EXTRACTION_FAILED + last_error |
+| FR-15 | Should | Re-extraction on demand (with overwrite confirmation) | ✅ Re-extract button |
+| FR-16 | Should | Pre-flight check before extraction (model availability) | ✅ PENDING_MODEL status |
+| FR-17 | Must | When extraction is unavailable or fails, operator can manually fill in document metadata through the same review screen | ✅ Manual Entry button on document card; review screen with manual mode; all 6 document types supported |
+| FR-18 | Should | Operator can add custom free-text fields (label + value) to any document during review or editing | ✅ Add Field button in review and edit screens |
+
+### 10.3 Cross-Document Validation
+
+| FR ID | Priority | Requirement | Status |
+|---|---|---|---|
+| FR-20 | Must | After CUSTOMER_PO is verified, operator enters the ERP-generated SO number against that PO — this becomes the reference for all future validations on that chain | ⚠️ The SO number field exists on the PO record and is saved correctly — but there is no screen for the operator to enter it after verifying the Customer PO. Validation never triggers until this is built. |
+| FR-21 | Must | SO number cross-validated on COMPANY_DC and COMPANY_INVOICE | ✅ so_validator.py |
+| FR-22 | Should | Mismatch flagged in document validation errors (PENDING_REVIEW) | ✅ |
+| FR-23 | Could | Structured delivery address field extracted from Customer PO and stored on PO model | ❌ Pending |
+
+### 10.4 Search and Navigation
+
+| FR ID | Priority | Requirement | Status |
+|---|---|---|---|
+| FR-30 | Must | Global search by PO number, invoice number, DC number, SO number | ✅ ReferenceIndex full-text search |
+| FR-31 | Should | Filter POs by customer, status, date range, chain completeness | ✅ date_from, date_to, sort_by, chain_filter, missing_doc_type all implemented |
+| FR-32 | Should | Documents page with cross-PO filter by type, status, customer | ✅ DocumentsPage with type, status, customer_id filters |
+| FR-33 | Could | Unified pending review queue across all POs | ❌ Pending |
+
+### 10.5 Admin and Ops
+
+| FR ID | Priority | Requirement | Status |
+|---|---|---|---|
+| FR-40 | Must | System health check (DB, Redis, OCR, storage) | ✅ Admin console |
+| FR-41 | Must | Pipeline stats (document counts by status) | ✅ |
+| FR-42 | Must | Celery queue status (workers, active, queued) | ✅ |
+| FR-43 | Should | Requeue documents stuck in PENDING_MODEL | ✅ POST /admin/requeue-pending-models |
+| FR-44 | Could | Extraction failure analysis with error categorisation | ⚠️ Raw error shown; no categorisation |
 
 ---
 
@@ -487,28 +723,39 @@ A centralised portal indexes documents stored on the NAS and links them to a uni
 
 | NFR ID | Category | Requirement | Status |
 |---|---|---|---|
-| NFR-01 | Deployment | On-premise only; direct NAS access over LAN | ✅ On-prem capable (Docker) |
-| NFR-02 | Security | Role-based access control | ❌ No auth yet |
-| NFR-03 | Privacy | No external data transfer | ✅ Local LLM option via Ollama |
-| NFR-04 | Auditability | Immutable audit logs | ❌ Pending |
-| NFR-05 | Performance | Search results < 2 seconds | ✅ |
+| NFR-01 | Deployment | On-premise capable; Docker Compose single-server deployment | ✅ docker-compose.prod.yml |
+| NFR-02 | Security | Role-based access control; no anonymous access | ❌ No auth yet — planned v3.0 |
+| NFR-03 | Privacy | No external data transfer for document content | ✅ Local Ollama option; RunPod used only for OCR model |
+| NFR-04 | Auditability | Immutable audit logs for document actions | ❌ Pending |
+| NFR-05 | Performance | Search results < 2 seconds | ✅ ReferenceIndex + indexed queries |
 | NFR-06 | Reliability | DB backups + documented restore procedure | ❌ Pending |
-| NFR-07 | Compatibility | PDF/JPG/PNG preview in MVP | ❌ Preview pending |
+| NFR-07 | Scalability | Multiple Celery workers for parallel extraction | ✅ docker-compose deploy.replicas |
+| NFR-08 | Observability | Health endpoint + admin console for ops visibility | ✅ |
+| NFR-09 | Portability | Runs on Windows (dev) and Linux (production) | ✅ Tested on both |
+| NFR-10 | Document formats | PDF accepted for upload | ⚠️ PDF  ✅; JPEG, PNG rejected by frontend — fix pending |
 
 ---
 
-## 12. Data Model (High-Level)
+## 12. Data Model
 
-**Entities (v0.1 PDD):**
-- **Case** — unique Case ID; customer and transaction identifiers; status and dates
-- **Document** — type, filename, source, NAS path, status (draft/signed), timestamps
-- **CaseDocumentLink** — mapping between Case and Document
-- **ApprovalRequest** — requests for update/delete, approver decisions, timestamps
-- **AuditLog** — immutable records of user actions
+### 12.1 Current Entities (DPP v2.3.0)
 
-**Unique ID decision (v0.1):** Reuse Zoho Opportunity ID if stable, otherwise generate Case ID (e.g., LOG-YYYY-####)
+| Entity | What it stores |
+|---|---|
+| Customer | Company name, code, contact details |
+| PurchaseOrder | PO number, SO number, customer, status, chain completeness % |
+| Document | Document type, filename, upload status, file location |
+| DocumentMetadata | AI-extracted fields, validation errors, extraction attempts, last error |
+| ReferenceIndex | Cross-document lookup — maps any reference number to its document and PO |
 
-**Implemented (DPP v2.3.0):** SO Number used as unique Case ID per PO, internally generated after Customer PO is verified.
+### 12.2 Document Status Lifecycle
+
+```text
+UPLOADED → EXTRACTING → PENDING_REVIEW → VERIFIED
+                      ↘ EXTRACTION_FAILED
+                      ↘ REJECTED
+                      ↘ PENDING_MODEL  (OCR endpoint unavailable)
+```
 
 ---
 
@@ -516,87 +763,108 @@ A centralised portal indexes documents stored on the NAS and links them to a uni
 
 | Option | Description | Decision |
 |---|---|---|
-| A — NAS Index + Web Portal | Lightweight portal indexing NAS folders, metadata in local DB | Started as MVP approach |
-| B — Integrated Portal (ERP + Zoho) | Connectors to ERP/CRM to auto-populate metadata | Deferred — ERP API access needed |
-| C — OCR/LLM-Assisted Intake | On-prem OCR + LLM to extract metadata from scanned docs | ✅ Implemented in DPP v2.3.0 |
+| A — NAS Index + Web Portal | Lightweight portal indexing NAS folders, metadata in local DB | Planned as MVP; never built |
+| B — Integrated Portal (ERP) | Connectors to .Net ERP to auto-populate SO/invoice metadata | Deferred — ERP API access not yet available |
+| C — OCR/LLM-Assisted Intake | On-prem OCR + LLM to extract metadata from scanned documents | ✅ Implemented — core platform as of DPP v2.2.0 |
 
-**Recommended approach (v0.1):** Start with Option A for MVP, design for Option B/C extensibility. **Actual path taken:** Jumped to Option C with AI extraction as core feature.
-
----
-
-## 14. Technical Architecture
-
-**MVP (v0.1 vision):** On-prem web UI + Backend API + PostgreSQL + NAS file service
-
-**Implemented (DPP v2.3.0):**
-- **Frontend:** React + TypeScript (Vite)
-- **Backend:** FastAPI + PostgreSQL + Redis
-- **AI Pipeline:** GLM-OCR (Layer 1: image → Markdown) + Qwen2.5:7b (Layer 2: Markdown → structured JSON)
-- **Task Queue:** Celery workers
-- **LLM Runtime:** Ollama (local) or RunPod (remote)
-- **Deployment:** Docker Compose (dev + prod), GitHub Actions CI/CD, Azure VM staging
+**Actual path taken:** Skipped Option A entirely; implemented Option C as the primary approach. Option B remains a future integration target.
 
 ---
 
-## 15. Implementation Plan (Original 1-Week MVP)
-
-| Day | Activities |
-|---|---|
-| Day 1 | Confirm Case ID decision, document taxonomy, NAS root paths, access permissions; set up environment |
-| Day 2 | Implement DB schema and backend APIs (Case, Document, Link, Audit, Approvals) |
-| Day 3 | Implement UI for case search + document list + manual/bulk linking |
-| Day 4 | Add preview/download for PDF/images; implement audit logging |
-| Day 5 | Implement approval workflow for update/delete; UAT with sample historical cases; finalise deployment package |
-
----
-
-## 16. Risks & Mitigations
+## 14. Risks & Mitigations
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| ERP documentation/API unavailable | Integration delays | Deliver NAS-based MVP first; define ERP field mapping early |
-| Inconsistent file naming/folder placement | Auto-linking unreliable | Introduce standard folder structure by Case ID; bulk import; enforce SOP |
-| Adoption resistance | Teams continue saving files ad-hoc | Train users; define SOP; make platform default retrieval point; use completeness alerts |
-| On-prem infrastructure constraints | Limited compute/storage | Use lightweight stack; leverage existing servers; implement backups |
+| OCR quality on bad scans | Extraction fails or produces wrong data | Re-upload with better scan; operator correction in review modal |
+| OCR service goes down | All extraction stops | Admin health check flags it in real time; local fallback available |
+| No authentication | Any user on the network can access and modify data | Acceptable for single-team internal use; auth planned for next version |
+| ERP API unavailable | Manual SO/invoice entry required | Operator enters SO number manually after Customer PO is verified |
+| No audit trail | Cannot trace who changed or verified a document | Planned: user login + audit log table in next version |
+| Adoption — teams continue saving files ad-hoc | Documents not uploaded to DPP | SOP enforcement required; completeness alerts help identify gaps |
+| Data loss on server failure | No backup configured | PostgreSQL dump + storage folder backup procedure to be documented |
 
 ---
 
-## 17. Open Questions (v0.1)
+## 15. Open Questions (Current — DPP v2.3.0)
 
-1. Which ID should be the primary key: Zoho Opportunity ID, ERP SO number, Customer PO number, or a newly generated Case ID?
-2. What is the exact required document checklist per scenario (hardware vs services)?
-3. What is the current NAS folder structure, and who has access?
-4. Do users need to search beyond Case ID (customer name, PO no., vendor invoice no., date range)?
-5. Who is the approver (Head/Manager) and how should approval requests be notified (email vs in-app)?
-6. Expected monthly volume (cases/month) and typical documents per case?
-7. Retention requirements: how long to keep documents and audit logs?
-8. ERP integration preference once available: API, DB read access, or standardised exports?
+*Questions from v0.1 that are now resolved are struck out. New open questions added below.*
+
+**Resolved from v0.1:**
+
+- Primary key decision → **resolved:** UUID-based PO ID; SO number stored as a field after Customer PO is verified
+- Document checklist per scenario → **partially resolved:** 6 document types defined; order-type-aware rules (Services/Stock) pending
+- Search beyond Case ID → **resolved:** global search by PO number, invoice number, DC number, SO number via ReferenceIndex
+
+**Still open:**
+
+1. Order type flag (Trade / Services / Stock) — how should the operator set this? Manual selection on PO creation, or inferred from extracted fields?
+2. For Services orders, which document types should count as optional in chain completeness?
+3. ERP integration method — API access, DB read, or standardised export file?
+4. Retention policy — how long should documents and metadata be kept?
+5. Who is the approver for document delete/update, and how should they be notified?
+6. POD / signed acknowledgement handling — scanned document or digital signature capture?
 
 ---
 
-## 18. MVP Acceptance Criteria (v0.1)
+## 16. Acceptance Criteria (DPP v2.3.0)
 
-- User can search by Case ID and view linked documents with correct file paths
-- System supports linking at least the key document types (Customer PO; Vendor Invoice/DC; Company Invoice/DC; POD/Ack)
-- Audit log records all key actions; update/delete requires approval and is enforced
-- Solution runs on-prem and reads files directly from NAS without duplicating files out of the repository
+### Already Met
+
+- Upload documents for all 6 types under a PO
+- AI extraction produces structured metadata per document type
+- Operator can review, correct, verify, or reject extracted data
+- Chain completeness % visible per PO
+- Global search finds documents by PO number, invoice, DC number, SO number
+- Admin console shows system health, pipeline stats, queue status
+- PDF in-browser preview and download
+- SO number stored on PO and validated against COMPANY_DC / COMPANY_INVOICE
+- Operator can manually fill in document metadata when AI extraction is unavailable or fails
+- Operator can add custom free-text fields to any document during review or editing
+
+### Not Yet Met
+
+- Signed POD / Acknowledgement as a 7th document type
+- Audit logs (who verified, who changed, when)
+- Approval workflow for document update or delete
+- Multi-user authentication and role-based access control
+- .Net ERP integration (SO / invoice data auto-populated from ERP)
+- Order-type-aware chain completeness (Services / Stock rules)
+- Structured delivery address field extracted from Customer PO
 
 ---
 
-## 19. Current Implementation Status (DPP v2.3.0)
+## 17. Current Implementation Status (DPP v2.3.0)
 
 ### What's Working
-- Full document chain (6 types) linked to PO as Case ID
-- AI extraction: OCR + LLM structured data extraction from uploaded PDFs/images
-- Chain completeness tracking per PO
-- Global search by PO/invoice/DC number
-- Admin console: health check, pipeline stats, celery queue, failure requeue
 
-### Pending from PDD
-- Signed POD / Acknowledgement as 7th document type
-- Audit logs
-- Approval workflow for update/delete
-- Document preview / download
+- Customer and PO management (create, list, search, update, delete)
+- Document upload and management for all 6 document types
+- AI extraction pipeline: automated OCR + structured data extraction per document type
+- Human review and correction of extracted data
+- Verify / Reject workflow with status tracking
+- Chain completeness % per PO (tracks which document types are present and verified)
+- Global search by PO number, invoice number, DC number, SO number
+- Extraction health check — if the AI service is unavailable, the document is flagged for later retry instead of failing silently
+- Admin console — system health, pipeline stats, queue status, failure diagnostics
+- Documents page — cross-PO document list filterable by type, status, and customer
+- Filter system on PO list — date range, SO number, sort, chain completeness, missing document type
+- Operator remarks — free-text notes field on every document; saved with the verification record
+- Custom Fields — operators can add any number of extra label+value pairs during review or editing; captures information the AI missed or fields not in the standard template
+- Manual Entry fallback — when extraction fails or the AI service is offline, operators fill all document fields by hand via the same review screen; supports all 6 document types and custom fields
+- PDF in-browser preview and download
+
+
+### Partially Working
+
+- **SO number cross-document validation** — the system is built and runs automatically during extraction. When COMPANY_DC or COMPANY_INVOICE is processed, the extracted SO number is compared against the SO recorded on the PO. **Gap:** operators have no screen to record the SO number after verifying a Customer PO, so the comparison never has a value to check against. This requires a small addition to the verification screen.
+
+### Pending
+
+- SO entry screen for operators — input field after Customer PO verification to record the SO number
+- Signed POD / Acknowledgement (7th document type)
+- Audit logs (who verified what, when)
+- Approval workflow for document update or delete
 - Multi-user authentication and role-based access control
-- ERP / Zoho CRM integration
-- NAS path linking (currently storing files directly)
+- .Net ERP integration
+- Order-type-aware chain completeness (Services vs Stock rules)
+- Structured delivery address field on PO

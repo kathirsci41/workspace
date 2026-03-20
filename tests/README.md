@@ -1,7 +1,7 @@
 # DPP 2.2.0 — Unit Test Suite
 
-**263 tests total** — 221 backend (pytest) + 42 frontend (vitest)
-All tests run in under 2 seconds combined. No database, no network, no running server required.
+**274 tests total** — 232 backend (pytest) + 42 frontend (vitest)
+All tests run in under 4 seconds combined. No database, no network, no running server required.
 
 ---
 
