@@ -5,6 +5,11 @@ import hashlib
 import aiofiles
 
 
+class NASUnavailableError(Exception):
+    """Raised when the NAS storage path is not accessible."""
+    pass
+
+
 class StorageService:
     def __init__(self, nas_base_path: str):
         self.base_path = nas_base_path
@@ -23,13 +28,30 @@ class StorageService:
         relative_path = f"documents/{customer_id}/{po_number}/{document_type}/{uuid_filename}"
         return relative_path, uuid_filename
 
+    def check_accessible(self) -> None:
+        """Raise NASUnavailableError if the base storage path is not writable."""
+        if not os.path.isdir(self.base_path):
+            raise NASUnavailableError(
+                f"Storage path not found: {self.base_path}"
+            )
+        if not os.access(self.base_path, os.W_OK):
+            raise NASUnavailableError(
+                f"Storage path is not writable: {self.base_path}"
+            )
+
     async def save_file(self, relative_path: str, file_data: bytes) -> str:
         """Save file to NAS. Returns relative path."""
         self._validate_path(relative_path)
+        self.check_accessible()
         full_path = os.path.join(self.base_path, relative_path)
-        os.makedirs(os.path.dirname(full_path), exist_ok=True)
-        async with aiofiles.open(full_path, "wb") as f:
-            await f.write(file_data)
+        try:
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            async with aiofiles.open(full_path, "wb") as f:
+                await f.write(file_data)
+        except OSError as exc:
+            raise NASUnavailableError(
+                f"Failed to write to storage: {exc}"
+            ) from exc
         return relative_path
 
     async def read_file(self, relative_path: str) -> bytes:

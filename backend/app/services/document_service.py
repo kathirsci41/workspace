@@ -10,7 +10,7 @@ from app.models.document import Document, DocumentType, DocumentStatus
 from app.models.document_metadata import DocumentMetadata
 from app.models.reference_index import ReferenceIndex
 from app.models.purchase_order import PurchaseOrder
-from app.services.storage_service import StorageService
+from app.services.storage_service import StorageService, NASUnavailableError
 from app.services.po_service import update_chain_completeness
 from app.config import settings
 
@@ -79,7 +79,13 @@ async def upload_document(
     )
 
     # Save file
-    await storage_service.save_file(relative_path, contents)
+    try:
+        await storage_service.save_file(relative_path, contents)
+    except NASUnavailableError:
+        raise HTTPException(
+            status_code=503,
+            detail="Storage unavailable — please check the storage status.",
+        )
 
     # Count pages
     page_count = None
