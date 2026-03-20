@@ -179,71 +179,90 @@ export default function AdminPage() {
 
   // ── Fetch functions ──────────────────────────────────────────────────────
 
-  const fetchHealth = useCallback(async () => {
+  const fetchHealth = useCallback(async (signal?: AbortSignal) => {
     try {
-      const { data } = await client.get('/api/v1/admin/health');
+      const { data } = await client.get('/api/v1/admin/health', { signal });
       setHealth(data);
       setHealthTs(new Date());
     } catch { /* keep previous */ }
   }, []);
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (signal?: AbortSignal) => {
     try {
-      const { data } = await client.get('/api/v1/admin/stats');
+      const { data } = await client.get('/api/v1/admin/stats', { signal });
       setStats(data);
       setStatsTs(new Date());
     } catch { /* keep previous */ }
   }, []);
 
-  const fetchQueue = useCallback(async () => {
+  const fetchQueue = useCallback(async (signal?: AbortSignal) => {
     try {
-      const { data } = await client.get('/api/v1/admin/queue');
+      const { data } = await client.get('/api/v1/admin/queue', { signal });
       setQueue(data);
       setQueueTs(new Date());
     } catch { /* keep previous */ }
   }, []);
 
-  const fetchFailures = useCallback(async () => {
+  const fetchFailures = useCallback(async (signal?: AbortSignal) => {
     try {
       const { data } = await client.get('/api/v1/documents', {
         params: { status: 'EXTRACTION_FAILED', per_page: 20, page: 1 },
+        signal,
       });
       setFailures(data.items ?? []);
       setFailuresTs(new Date());
     } catch { /* keep previous */ }
   }, []);
 
-  const fetchActive = useCallback(async () => {
+  const fetchActive = useCallback(async (signal?: AbortSignal) => {
     try {
       const [extracting, uploaded] = await Promise.all([
-        client.get('/api/v1/documents', { params: { status: 'EXTRACTING', per_page: 20, page: 1 } }),
-        client.get('/api/v1/documents', { params: { status: 'UPLOADED',   per_page: 20, page: 1 } }),
+        client.get('/api/v1/documents', { params: { status: 'EXTRACTING', per_page: 20, page: 1 }, signal }),
+        client.get('/api/v1/documents', { params: { status: 'UPLOADED',   per_page: 20, page: 1 }, signal }),
       ]);
       setActive([...(extracting.data.items ?? []), ...(uploaded.data.items ?? [])]);
       setActiveTs(new Date());
     } catch { /* keep previous */ }
   }, []);
 
-  const refreshAll = useCallback(async () => {
+  const refreshAll = useCallback(async (signal?: AbortSignal) => {
     setRefreshing(true);
-    await Promise.all([fetchHealth(), fetchStats(), fetchQueue(), fetchFailures(), fetchActive()]);
+    await Promise.all([fetchHealth(signal), fetchStats(signal), fetchQueue(signal), fetchFailures(signal), fetchActive(signal)]);
     setRefreshing(false);
   }, [fetchHealth, fetchStats, fetchQueue, fetchFailures, fetchActive]);
 
-  // ── Initial load + intervals ─────────────────────────────────────────────
+  // ── Initial load + smart intervals ───────────────────────────────────────
+  // - All in-flight requests are aborted on unmount via AbortController
+  // - fetchActive polls every 30s but skips if no tasks are active/queued
+  // - fetchQueue polls every 30s (was 15s)
+  // - fetchHealth/Stats poll every 60s (cached server-side at 30s anyway)
 
   useEffect(() => {
-    refreshAll();
+    const ac = new AbortController();
+    const { signal } = ac;
+
+    refreshAll(signal);
 
     const intervals = [
-      setInterval(fetchHealth,   30_000),
-      setInterval(fetchStats,    30_000),
-      setInterval(fetchQueue,    15_000),
-      setInterval(fetchFailures, 60_000),
-      setInterval(fetchActive,   10_000),
+      setInterval(() => fetchHealth(signal),   60_000),
+      setInterval(() => fetchStats(signal),    60_000),
+      setInterval(() => fetchQueue(signal),    30_000),
+      setInterval(() => fetchFailures(signal), 60_000),
+      setInterval(async () => {
+        // Smart poll: only re-fetch active docs if queue has work or active list is non-empty
+        const hasWork = (queue?.active_tasks ?? 0) > 0
+          || (queue?.queued_tasks ?? 0) > 0
+          || active.length > 0;
+        if (hasWork) await fetchActive(signal);
+      }, 30_000),
     ];
-    return () => intervals.forEach(clearInterval);
-  }, [refreshAll, fetchHealth, fetchStats, fetchQueue, fetchFailures, fetchActive]);
+
+    return () => {
+      ac.abort();
+      intervals.forEach(clearInterval);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -255,7 +274,7 @@ export default function AdminPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Admin Console</h2>
         <button
-          onClick={refreshAll}
+          onClick={() => refreshAll()}
           disabled={refreshing}
           className="flex items-center gap-2 text-sm px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
         >
