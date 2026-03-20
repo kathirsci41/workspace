@@ -1,5 +1,6 @@
 import { Download, FileText } from 'lucide-react';
 import { getPreviewUrl, getDownloadUrl } from '@/api/documents';
+import PDFViewer from '@/components/PDFViewer';
 
 interface Props {
   documentId: string | null;
@@ -45,13 +46,9 @@ export default function PDFPreviewPanel({
           Download
         </a>
       </div>
-      {/* PDF iframe */}
+      {/* PDF viewer */}
       <div className="flex-1 min-h-0">
-        <iframe
-          src={getPreviewUrl(documentId)}
-          className="w-full h-full border-0"
-          title="PDF Preview"
-        />
+        <PDFViewer url={getPreviewUrl(documentId)} />
       </div>
     </div>
   );

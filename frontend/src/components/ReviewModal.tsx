@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   X, Check, Ban, Loader2, PenLine,
-  Zap, Camera, AlertTriangle, ChevronDown, ChevronUp, Hash,
+  Zap, Camera, AlertTriangle, ChevronDown, ChevronUp, Hash, Plus,
 } from 'lucide-react';
 import {
   useMetadata,
@@ -12,6 +12,7 @@ import {
 } from '@/hooks/useExtraction';
 import { useUpdatePO } from '@/hooks/usePurchaseOrders';
 import { getPreviewUrl } from '@/api/documents';
+import PDFViewer from '@/components/PDFViewer';
 import clsx from 'clsx';
 
 interface Props {
@@ -38,6 +39,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
   const { data: template } = useFieldTemplate(documentId, isDataEmpty && !isLoading);
 
   const [formData, setFormData]           = useState<Record<string, string>>({});
+  const [customFields, setCustomFields]   = useState<{ id: string; label: string; value: string }[]>([]);
   const [isManualMode, setIsManualMode]   = useState(false);
   const [errorsOpen, setErrorsOpen]       = useState(true);
   const [warningsOpen, setWarningsOpen]   = useState(false);
@@ -56,12 +58,21 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
     if (metadata?.extracted_data && Object.keys(metadata.extracted_data).length > 0) {
       const initial: Record<string, string> = {};
       for (const [key, value] of Object.entries(metadata.extracted_data)) {
-        if (key.startsWith('_')) continue;
+        if (key.startsWith('_') || key.startsWith('custom_')) continue;
         initial[key] = value != null ? String(value) : '';
       }
+      // Always include operator_notes (from existing data or empty)
+      initial['operator_notes'] = (metadata.extracted_data['operator_notes'] as string) ?? '';
       setFormData(initial);
-      // Snapshot for correction diffing
-      originalSnapshot.current = { ...initial };
+      // Load existing custom fields
+      const existingCustom = Object.entries(metadata.extracted_data)
+        .filter(([k]) => k.startsWith('custom_'))
+        .map(([k, v]) => ({ id: crypto.randomUUID(), label: k.slice(7), value: String(v ?? '') }));
+      setCustomFields(existingCustom);
+      // Snapshot for correction diffing (includes custom fields)
+      const snap: Record<string, string> = { ...initial };
+      for (const { label, value } of existingCustom) snap[`custom_${label}`] = value;
+      originalSnapshot.current = snap;
       setIsManualMode(
         metadata.model_version === 'manual' ||
         Object.values(metadata.extracted_data).every((v) => v === null || v === '')
@@ -71,7 +82,9 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       for (const key of Object.keys(template.fields)) {
         initial[key] = '';
       }
+      initial['operator_notes'] = '';
       setFormData(initial);
+      setCustomFields([]);
       originalSnapshot.current = { ...initial };
       setIsManualMode(true);
     }
@@ -145,6 +158,11 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       }
     }
 
+    // Inject custom fields into editedData
+    for (const { label, value } of customFields) {
+      if (label.trim()) editedData[`custom_${label.trim()}`] = value;
+    }
+
     setSoMismatchMsg(null);
     verifyMutation.mutate(
       { documentId, editedData },
@@ -201,6 +219,14 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       .filter(([key, val]) => val !== (originalSnapshot.current[key] ?? ''))
       .map(([key, val]) => ({ field: key, corrected_value: val || null }));
 
+    // Include custom field changes
+    for (const { label, value } of customFields) {
+      if (!label.trim()) continue;
+      const key = `custom_${label.trim()}`;
+      if (value !== (originalSnapshot.current[key] ?? ''))
+        corrections.push({ field: key, corrected_value: value || null });
+    }
+
     if (corrections.length === 0) {
       onClose();
       return;
@@ -216,10 +242,16 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
     rejectMutation.mutate(documentId, { onSuccess: onClose });
   };
 
+  const addCustomField = () =>
+    setCustomFields((f) => [...f, { id: crypto.randomUUID(), label: '', value: '' }]);
+
+  const removeCustomField = (id: string) =>
+    setCustomFields((f) => f.filter((cf) => cf.id !== id));
+
   // ── Field ordering and labels — unchanged from original ──────────
   const FIELD_ORDER: Record<string, string[]> = {
     CUSTOMER_PO:     ['po_number', 'bsif_name', 'po_date'],
-    COMPANY_PO:      ['purchase_bill_no', 'po_number', 'bill_no'],
+    COMPANY_PO:      ['po_number', 'po_date', 'mode_of_bill', 'vendor_name'],
     VENDOR_DC:       ['dc_number', 'dc_date', 'po_reference', 'vendor_name', 'items_description', 'quantity', 'vehicle_number', 'receiver_name'],
     VENDOR_INVOICE:  ['invoice_number', 'customer_order_no', 'po_reference'],
     COMPANY_DC:      ['dc_number', 'po_reference', 'sales_order_no', 'dispatch_to'],
@@ -228,8 +260,8 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
 
   const FIELD_LABELS: Record<string, string> = {
     bsif_name:         'Company Name',
-    purchase_bill_no:  'Purchase Bill No',
-    bill_no:           'Bill No',
+    po_date:           'PO Date',
+    mode_of_bill:      'Mode of Bill',
     dc_number:         'DC No',
     dc_date:           'DC Date',
     po_reference:      'Customer Order No',
@@ -249,6 +281,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
 
   const DOC_LABEL_OVERRIDES: Record<string, Record<string, string>> = {
     CUSTOMER_PO: { po_number: 'Customer PO Number' },
+    COMPANY_PO:  { po_number: 'Order No', po_date: 'Order Date' },
     VENDOR_DC:   { po_reference: 'PO Reference' },
   };
 
@@ -264,7 +297,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
     const docType = metadata?.document_type ?? '';
     const order = FIELD_ORDER[docType] ?? [];
     const inOrder = order.filter((k) => keys.includes(k));
-    const rest    = keys.filter((k) => !order.includes(k));
+    const rest    = keys.filter((k) => !order.includes(k) && k !== 'operator_notes');
     return [...inOrder, ...rest];
   };
 
@@ -395,11 +428,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
 
           {/* Left: PDF */}
           <div className="w-1/2 border-r border-gray-200">
-            <iframe
-              src={getPreviewUrl(documentId)}
-              className="w-full h-full border-0"
-              title="Document Preview"
-            />
+            <PDFViewer url={getPreviewUrl(documentId)} />
           </div>
 
           {/* Right: Form */}
@@ -559,6 +588,63 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
                   No extraction data or template available. Try re-extracting the document.
                 </p>
               )}
+
+              {/* ── Operator Remarks — always visible ─────────────── */}
+              {'operator_notes' in formData && (
+                <div className="pt-3 mt-1 border-t border-gray-100">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                    Remarks
+                    {formData['operator_notes'] !== (originalSnapshot.current['operator_notes'] ?? '') && (
+                      <span className="ml-1.5 text-blue-500 font-semibold" title="Modified">✎</span>
+                    )}
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formData['operator_notes']}
+                    onChange={(e) => setFormData((f) => ({ ...f, operator_notes: e.target.value }))}
+                    placeholder="Add any notes or remarks about this document..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+                  />
+                </div>
+              )}
+
+              {/* ── Custom Fields ──────────────────────────────────── */}
+              <div className="pt-3 mt-1 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-gray-500">Custom Fields</span>
+                  <button
+                    onClick={addCustomField}
+                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    <Plus size={13} /> Add Field
+                  </button>
+                </div>
+                {customFields.length === 0 && (
+                  <p className="text-xs text-gray-400 italic">No custom fields — click "Add Field" to add one.</p>
+                )}
+                {customFields.map(({ id, label, value }) => (
+                  <div key={id} className="flex gap-2 mb-2 items-center">
+                    <input
+                      placeholder="Label"
+                      value={label}
+                      onChange={(e) => setCustomFields((f) => f.map((cf) => cf.id === id ? { ...cf, label: e.target.value } : cf))}
+                      className="w-2/5 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                    <input
+                      placeholder="Value"
+                      value={value}
+                      onChange={(e) => setCustomFields((f) => f.map((cf) => cf.id === id ? { ...cf, value: e.target.value } : cf))}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => removeCustomField(id)}
+                      className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* ── Action buttons ─────────────────────────────────── */}
