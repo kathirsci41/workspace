@@ -15,7 +15,7 @@ Handles the full document chain — Customer PO, Company PO, Vendor DC, Vendor I
 | Cache / Broker | Redis 7 | 6380 |
 | Task Queue | Celery (solo pool) | — |
 | OCR — Layer 1 | Ollama + `glm-ocr:latest` | 11434 |
-| OCR — Layer 2 | Ollama + `gemma3:12b` | 11434 |
+| OCR — Layer 2 | Ollama + `qwen2.5:7b` | 11434 |
 
 **OCR endpoint:** RunPod remote (`https://<id>.proxy.runpod.net/`) or local Ollama at `http://localhost:11434`
 
@@ -24,7 +24,7 @@ Handles the full document chain — Customer PO, Company PO, Vendor DC, Vendor I
 ## Features
 
 - **Customer and PO management** — CRUD with status tracking and chain completeness score
-- **Two-layer AI extraction** — `glm-ocr` converts document to Markdown, `gemma3:12b` extracts structured JSON
+- **Two-layer AI extraction** — `glm-ocr` converts document to Markdown, `qwen2.5:7b` extracts structured JSON
 - **Document chain** — 6 document types per PO with 0–100% completeness score
 - **SO number validation** — COMPANY_DC and COMPANY_INVOICE auto-validated against stored SO number
 - **Human review workflow** — Operators verify or correct extracted fields with full audit trail
@@ -61,7 +61,7 @@ docker compose -f docker-compose.dev.yml up -d postgres redis
 
 ```bash
 ollama pull glm-ocr
-ollama pull gemma3:12b
+ollama pull qwen2.5:7b
 ```
 
 ### 3. Backend
@@ -127,7 +127,7 @@ Copy `.env.example` to `.env` and adjust. Key settings:
 | `OCR_MODEL_NAME` | `glm-ocr:latest` | Layer 1 OCR model |
 | `OCR_TWO_LAYER_ENABLED` | `true` | Enable two-layer pipeline |
 | `OCR_EXTRACTOR_BASE_URL` | same as `OCR_BASE_URL` | Layer 2 model endpoint |
-| `OCR_EXTRACTOR_MODEL` | `gemma3:12b` | Layer 2 extraction model |
+| `OCR_EXTRACTOR_MODEL` | `qwen2.5:7b` | Layer 2 extraction model |
 | `OCR_EXTRACTOR_NUM_CTX` | `8192` | Context window for Layer 2 |
 | `OCR_TIMEOUT` | `1200` | Seconds per OCR request |
 | `OCR_PDF_DPI` | `200` | PDF-to-image render DPI |
@@ -140,7 +140,7 @@ Copy `.env.example` to `.env` and adjust. Key settings:
 
 ## Project Structure
 
-```text
+```
 DPP 2.2.0/
 ├── backend/
 │   ├── app/
@@ -289,7 +289,7 @@ Hybrid router — digital vs scanned detection
               PDF → images (Ghostscript, 200 DPI)
               OpenCV preprocessing (grayscale, contrast, deskew)
               Layer 1: glm-ocr:latest — image → Markdown
-              Layer 2: gemma3:12b — Markdown → structured JSON
+              Layer 2: qwen2.5:7b — Markdown → structured JSON
         |
         v
 Validation
