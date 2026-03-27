@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     ocr_custom_model: str = "glm-ocr:latest"
     ocr_extractor_model: str = "qwen2.5:7b"
     ocr_extractor_num_ctx: int = 4096
+    ocr_extractor_num_predict: int = 4096
     ocr_save_debug_markdown: bool = False
     # Extractor cloud override — if set, Layer 2 calls this URL instead of ocr_base_url
     ocr_extractor_base_url: str = ""   # empty = use local ocr_base_url

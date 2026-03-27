@@ -320,7 +320,7 @@ def validate_extracted_fields(fields: dict, doc_type: str) -> dict:
     # ── Normalize amounts ────────────────────────────────────────────────
     amount_fields = (
         "total_amount", "subtotal", "tax_amount", "est_amount",
-        "grand_total", "unit_rate",
+        "grand_total", "unit_rate", "taxable_amount",
     )
     for field in amount_fields:
         if field in result and result[field] is not None:

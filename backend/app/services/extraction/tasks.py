@@ -33,6 +33,31 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _estimate_num_predict(doc_type: str, num_ctx: int, floor: int) -> int:
+    """Return num_predict capped at the configured floor value.
+
+    The old formula used (num_ctx - 2048) as a ceiling which caused two problems:
+    - With large num_ctx (8192) it set num_predict=6144, making generation very slow
+      and triggering Cloudflare 524 timeouts on RunPod.
+    - With small num_ctx (4096) it left only 2048 tokens for input, truncating the
+      document and producing near-zero extractions.
+
+    The configured floor (OCR_EXTRACTOR_NUM_PREDICT, default 2048) is sufficient for
+    the full JSON output of any supported schema (~500-1500 tokens in practice).
+    num_ctx stays large (8192) to give the model plenty of input space.
+    """
+    schema = EXTRACTION_SCHEMAS.get(doc_type, {})
+    array_fields = sum(
+        1 for v in schema.values()
+        if isinstance(v, str) and 'json array' in v.lower()
+    )
+    scalar_fields = len(schema) - array_fields
+    logger.debug(
+        f"[NumPredict] {doc_type}: scalar={scalar_fields} array={array_fields} → {floor}"
+    )
+    return floor
+
+
 @celery_app.task(bind=True, max_retries=1, default_retry_delay=10)
 def extract_document(self, document_id: str):
     """Run OCR extraction on an uploaded document."""
@@ -85,6 +110,19 @@ def extract_document(self, document_id: str):
 
             # 5. Build prompt
             doc_type = doc.document_type.value
+
+            # Resolve customer name for per-customer delivery schema lookup
+            customer_hint = ""
+            if doc_type == "CUSTOMER_PO":
+                _po = db.query(PurchaseOrder).filter(
+                    PurchaseOrder.id == doc.po_id
+                ).first()
+                if _po and _po.customer:
+                    customer_hint = _po.customer.name or ""
+                    logger.debug(
+                        f"[CustomerHint] CUSTOMER_PO doc {document_id}: "
+                        f"customer={customer_hint!r}"
+                    )
 
             # 6. Digital fast path check — skip OCR for digital PDFs
             raw_texts = []
@@ -144,6 +182,11 @@ def extract_document(self, document_id: str):
                     timeout=settings.ocr_timeout,
                     max_retries=settings.ocr_max_retries,
                     extractor_num_ctx=settings.ocr_extractor_num_ctx,
+                    extractor_num_predict=_estimate_num_predict(
+                        doc_type,
+                        settings.ocr_extractor_num_ctx,
+                        settings.ocr_extractor_num_predict,
+                    ),
                     save_debug_markdown=settings.ocr_save_debug_markdown,
                     extractor_base_url=settings.ocr_extractor_base_url,
                     extractor_api_key=settings.ocr_extractor_api_key,
@@ -197,7 +240,7 @@ def extract_document(self, document_id: str):
                         continue
                     try:
                         fields, extract_ms = asyncio.run(
-                            two_layer._run_extraction_layer(markdown, doc_type)
+                            two_layer._run_extraction_layer(markdown, doc_type, customer_hint)
                         )
                         validated = validate_extracted_fields(fields, doc_type)
                         page_fields.append(validated)
@@ -314,6 +357,11 @@ def extract_document(self, document_id: str):
                     timeout=settings.ocr_timeout,
                     max_retries=settings.ocr_max_retries,
                     extractor_num_ctx=settings.ocr_extractor_num_ctx,
+                    extractor_num_predict=_estimate_num_predict(
+                        doc_type,
+                        settings.ocr_extractor_num_ctx,
+                        settings.ocr_extractor_num_predict,
+                    ),
                     save_debug_markdown=settings.ocr_save_debug_markdown,
                     extractor_base_url=settings.ocr_extractor_base_url,
                     extractor_api_key=settings.ocr_extractor_api_key,
@@ -322,7 +370,7 @@ def extract_document(self, document_id: str):
                 markdown_text = raw_texts[0]  # Single text from digital extraction
                 try:
                     extracted_data, extract_ms = asyncio.run(
-                        two_layer._run_extraction_layer(markdown_text, doc_type)
+                        two_layer._run_extraction_layer(markdown_text, doc_type, customer_hint)
                     )
                     validated = validate_extracted_fields(extracted_data, doc_type)
                     extracted_data = validated
@@ -363,7 +411,8 @@ def extract_document(self, document_id: str):
             primary_ref = extracted_data.get(primary_field)
             po_ref = extracted_data.get("po_reference")
             doc_date = parser.parse_date(extracted_data.get(date_field))
-            total_amt = extracted_data.get("total_amount")
+            # For CUSTOMER_PO, grand_total is the primary amount field
+            total_amt = extracted_data.get("total_amount") or extracted_data.get("grand_total")
 
             # Clean comma-formatted amounts before float conversion
             def clean_amount(val):
@@ -384,13 +433,6 @@ def extract_document(self, document_id: str):
                     cleaned = clean_amount(extracted_data[amt_field])
                     if cleaned is not None:
                         extracted_data[amt_field] = cleaned
-
-            # If items_description is a list, join to string
-            items_desc = extracted_data.get("items_description")
-            if isinstance(items_desc, list):
-                extracted_data["items_description"] = "; ".join(
-                    str(item) for item in items_desc if item
-                )
 
             # Phase 6: Invoice math and business rule validation
             validation_result = validate_invoice_math(extracted_data, doc_type)
