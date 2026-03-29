@@ -239,6 +239,116 @@ EXTRACTION_SCHEMAS = {
 }
 
 
+# ── Per-vendor invoice extraction templates ───────────────────────────────────
+# Keys are case-insensitive substrings of the vendor name.
+# Values are vendor-specific layout hints injected into the extraction prompt.
+# Auto-detected from the first 500 chars of the document when no hint is given.
+# Add a new entry whenever a new vendor template is encountered.
+
+VENDOR_INVOICE_TEMPLATES: dict[str, str] = {
+
+    "REDINGTON": """
+VENDOR-SPECIFIC LAYOUT — REDINGTON LIMITED:
+
+HEADER (page 1 of the invoice):
+- invoice_number    : value after "Invoice :" label (e.g. "C190224826"). NOT "Our Order :".
+- invoice_date      : value after "Invoice date :" label (e.g. "12.01.2026").
+                      NOTE: "Date :" (without "Invoice") is the ORDER PLACEMENT date — ignore it.
+- vendor_name       : always "REDINGTON LIMITED".
+- customer_order_no : value after "Our Order :" — Redington's own numeric order reference.
+- po_reference      : value after "Your Ref. :" — our PO reference (starts with "1PTR").
+
+ITEMS TABLE — MERGED CELL FORMAT:
+The PDF has multiple rows per item, but the text parser collapses all items into a SINGLE
+table row where each column cell contains ALL items concatenated together. You must parse
+each cell and align items by their position.
+
+CRITICAL — IGNORE BOILERPLATE TEXT IN CELLS:
+The cells also contain fragments of a disclaimer note that appears next to the table.
+These fragments start with phrases like "NOTE:", "Interest rate against", "Certified that",
+"Please scan the QR code", or contain phone numbers, legal text, or URLs.
+COMPLETELY IGNORE any text from "NOTE:" onwards within any cell. It is NOT item data.
+Phone number fragments like "480000", "44", "044" appearing in cells are NOT prices or qtys.
+
+HOW TO COUNT ITEMS:
+  Count the number of "[decimal] EA" patterns in the UNIT PRICE cell (ignoring NOTE text).
+  Each "[decimal] EA" = one product item. One trailing decimal without "EA" = freight line.
+  Examples:
+    "194400.00 EA 231000.00 EA 388.80 NOTE:..."  → 2 product items + 1 freight
+    "4563.22 EA 150.00 se.14 of this..."         → 1 product item  + 1 freight
+
+UNIT PRICE cell (most reliable column — parse this first to count items):
+  The only valid prices are decimal numbers (with optional comma thousands separator)
+  that are followed immediately by "EA", or the final decimal number before any NOTE text.
+  Pattern: "[price1] EA [price2] EA ... [freight_price] [NOTE text to ignore]"
+  unit_price for item N = the N-th decimal number before an "EA" in this cell.
+  freight unit_price    = the decimal number after the last "EA" and before any NOTE text.
+  Example: "194400.00 EA 231000.00 EA 388.80"  → item1=194400.00, item2=231000.00, freight=388.80
+  Example: "4,563.22 EA 150.00 se.14..."       → item1=4563.22, freight=150.00
+  RULE: Remove commas from prices (4,563.22 → 4563.22). Phone numbers like 480000 are NOT prices.
+
+ITEM CODE/DESCRIPTION cell:
+  Product item codes are SHORT (6–10 char) UPPERCASE letter+digit tokens, e.g. FORTSH7047, FOSSHW0427.
+  Any short all-uppercase alphanumeric token appearing mid-cell is a NEW ITEM CODE —
+  it is NOT part of the previous item's description.
+  After each item code: product description, then optional serial numbers (e.g. "NDKDL1U,NDLEFAU").
+  Freight lines: labeled "Freight Charge" or "Outstation Freight", no item code (part_no=null).
+  Example cell: "FORTSH7047 FG-120G-HW-APP FG-120G FORTSD0935 FC-10-F120G-284-02-60 SUPPORT Freight Charg..."
+    → Item1: part_no="FORTSH7047", description="FG-120G-HW-APP FG-120G"
+    → Item2: part_no="FORTSD0935", description="FC-10-F120G-284-02-60 SUPPORT FC-10-F120G-284-02-60"
+    → Freight: part_no=null, description="Freight Charge"
+
+HSN/SAC cell:
+  Contains one HSN code per product item and one SAC code for freight, separated by spaces.
+  Example: "851769 998713 996749" → item1_hsn="851769", item2_hsn="998713", freight_hsn="996749"
+  Ignore any non-numeric fragments mixed in (e.g. "ht(SAC", "rdue payments").
+
+QUANTITY cell:
+  Contains one decimal number per product item (NOT freight), then NOTE text to ignore.
+  Example: "1.000 1.000 NOTE:..." → item1_qty=1.0, item2_qty=1.0
+  Example: "2.000 entioned in..."  → item1_qty=2.0
+  freight qty = null always.
+
+TOTAL cell:
+  Each product item contributes TWO consecutive numbers: [pre-tax subtotal] [after-tax subtotal].
+  Freight contributes ONE number at the end (after-tax freight total).
+  "Vol Wt", "Total Wt" text is from the WEIGHT column — completely ignore it.
+  Use the FIRST of the two values for each product as total_price; freight's single value as its total_price.
+  Example: "194400.00 229392.00 231000.00 272580.00 Vol Wt 458.78"
+    → item1_total=194400.00, item2_total=231000.00, freight_total=458.78
+  Example: "9126.44 10769.20 Vol Wt 177.00"
+    → item1_total=9126.44, freight_total=177.00
+
+FOOTER (after items table, before "TERMS AND CONDITIONS"):
+- taxable_amount : labeled "Total before Tax" — number, no commas (e.g. 425788.80)
+- tax_amount     : labeled "Tax Total" — SGST+CGST already combined (e.g. 76641.98)
+- total_amount   : labeled "Invoice Total" — number, no commas (e.g. 502430.78)
+
+STOP reading items at the "NOTE:" line. Ignore all "TERMS AND CONDITIONS OF SALE" pages.
+""",
+
+}
+
+
+def _match_vendor_template(hint: str, markdown_text: str = "") -> str | None:
+    """Return vendor-specific extraction hints for VENDOR_INVOICE/VENDOR_DC.
+
+    Tries explicit hint first. Falls back to auto-detecting vendor name from
+    the first 500 characters of the document text.
+    """
+    if hint:
+        hint_upper = hint.upper()
+        for key, template in VENDOR_INVOICE_TEMPLATES.items():
+            if key.upper() in hint_upper:
+                return template
+    if markdown_text:
+        preview = markdown_text[:500].upper()
+        for key, template in VENDOR_INVOICE_TEMPLATES.items():
+            if key.upper() in preview:
+                return template
+    return None
+
+
 # ── Per-customer delivery table schemas ──────────────────────────────────────
 # Keys are case-insensitive substrings of the customer name (po.customer.name).
 # Values are column names in the EXACT left-to-right order they appear in the
@@ -246,10 +356,12 @@ EXTRACTION_SCHEMAS = {
 # Add a new entry whenever a new customer template is encountered.
 
 CUSTOMER_DELIVERY_SCHEMAS: dict[str, list[str]] = {
+    # Column order matches the summary delivery table on page 1 of the Shriram Finance PO.
+    # (The detailed table on later pages shows Region first, but GLM-OCR reads the summary first.)
     "SHRIRAM FINANCE": [
-        "region", "unit", "branch", "gstin_no", "asset_description",
-        "qty", "employee_code", "employee_name", "contact_person",
-        "contact_no", "delivery_address",
+        "qty", "unit", "branch", "region", "gstin_no", "contact_no",
+        "employee_code", "employee_name", "contact_person",
+        "delivery_address", "asset_description",
     ],
 }
 
@@ -280,6 +392,13 @@ def build_extraction_prompt(doc_type: str, markdown_text: str, customer_hint: st
 
     anti_confusion = ANTI_CONFUSION_RULES.get(doc_type, "")
 
+    # Inject vendor-specific layout hints for VENDOR_INVOICE
+    # Auto-detects vendor from document text when no explicit hint is given
+    if doc_type in ("VENDOR_INVOICE", "VENDOR_DC"):
+        vendor_template = _match_vendor_template(customer_hint, markdown_text)
+        if vendor_template:
+            anti_confusion = anti_confusion + vendor_template
+
     # Override delivery_locations rule 10 when we know the customer's exact column layout
     if doc_type == "CUSTOMER_PO" and customer_hint:
         customer_cols = _match_customer_schema(customer_hint)
@@ -295,7 +414,13 @@ def build_extraction_prompt(doc_type: str, markdown_text: str, customer_hint: st
                 f"    This customer's table has EXACTLY these {len(customer_cols)} columns in this left-to-right order: {col_display}\n"
                 f"    Each data row becomes one object with exactly those keys in that order.\n"
                 f"    Map each cell strictly to its column — do NOT shift or merge values between columns.\n"
-                f"    Numeric columns (qty): numbers without commas. If no delivery table found, return [].",
+                f"    Numeric columns (qty): numbers without commas. If no delivery table found, return [].\n"
+                f"    FIELD TYPE HINTS (use these to self-correct if OCR merged adjacent cells):\n"
+                f"      gstin_no = 15-character GSTIN code (e.g. '36AAACS7018R1ZU'). NEVER a short number.\n"
+                f"      employee_code = short numeric ID (e.g. '13171'). NEVER a person's name.\n"
+                f"      employee_name / contact_person = person's full name (e.g. 'PHANIKRISHNA V'). NEVER a phone number.\n"
+                f"      contact_no = 10-digit phone number. NEVER a name.\n"
+                f"      branch = branch name or region code (e.g. 'HYDERABAD ZONE'). If a GSTIN-looking value appears here, move it to gstin_no instead.",
             )
 
     return f"""You are a business document data extraction assistant.

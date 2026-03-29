@@ -213,8 +213,16 @@ async def verify_metadata(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Update extracted data
-    meta.extracted_data = body.extracted_data
+    # Update extracted data — preserve existing array fields (order_items,
+    # delivery_locations, etc.) that the ReviewModal intentionally omits from
+    # its editedData payload to avoid string-coercing them.
+    ARRAY_PRESERVE_KEYS = {"order_items", "delivery_locations"}
+    merged = dict(body.extracted_data)
+    if meta.extracted_data:
+        for key in ARRAY_PRESERVE_KEYS:
+            if key not in merged and key in meta.extracted_data:
+                merged[key] = meta.extracted_data[key]
+    meta.extracted_data = merged
 
     # Re-derive key fields
     doc_type = meta.document_type.value if hasattr(meta.document_type, "value") else str(meta.document_type)

@@ -1,14 +1,17 @@
 from uuid import UUID
 from datetime import date
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response as FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.schemas.purchase_order import (
     POCreate, POUpdate, POResponse, POListResponse, ChainStatusResponse,
 )
+from app.schemas.po_profile import POProfileResponse
 from app.schemas.document import DocumentResponse, DocumentListResponse
 from app.services import po_service
+from app.services import export_service
 
 router = APIRouter()
 
@@ -105,6 +108,32 @@ async def get_chain_status(
     return await po_service.get_chain_status(db, id)
 
 
+@router.get("/{id}/profile", response_model=POProfileResponse)
+async def get_po_profile(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    return await po_service.get_po_profile(db, id)
+
+
+@router.get("/{id}/export")
+async def export_po_excel(
+    id: UUID,
+    mode: str = Query("separate"),
+    db: AsyncSession = Depends(get_db),
+):
+    excel_bytes = await export_service.export_po_to_excel(db, id, mode=mode)
+    profile = await po_service.get_po_profile(db, id)
+    safe_number = profile.po_number.replace("/", "-").replace(" ", "_")
+    suffix = "_consolidated" if mode == "single" else ""
+    filename = f"PO_{safe_number}{suffix}_{date.today().isoformat()}.xlsx"
+    return FileResponse(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 # === Document upload nested under PO ===
 
 from fastapi import UploadFile, File, Form, HTTPException
@@ -185,6 +214,9 @@ def _build_doc_response(doc) -> DocumentResponse:
     )
     if doc.purchase_order:
         resp.po_number = doc.purchase_order.po_number
+        resp.po_so_number = doc.purchase_order.so_number
+        if doc.purchase_order.customer:
+            resp.customer_name = doc.purchase_order.customer.name
     if doc.doc_metadata:
         resp.metadata = ExtractionResponse.model_validate(doc.doc_metadata)
     return resp

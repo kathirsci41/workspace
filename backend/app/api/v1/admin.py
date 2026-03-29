@@ -9,6 +9,7 @@ from app.database import get_db
 from app.config import settings
 from app.models import Document, DocumentStatus, DocumentMetadata, MetadataStatus, Customer, PurchaseOrder
 from app.services.extraction.two_layer_client import check_models_available
+from celery_app import celery_app
 
 router = APIRouter()
 
@@ -166,7 +167,6 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
 async def get_queue_status():
     """Celery worker and queue depth — all inspect calls run in parallel."""
     try:
-        from celery_app import celery_app
         import concurrent.futures
 
         def _inspect_all():

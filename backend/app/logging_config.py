@@ -22,6 +22,7 @@ Usage:
 import io
 import logging
 import logging.config
+import logging.handlers
 import sys
 from pathlib import Path
 
@@ -34,6 +35,10 @@ class _UTF8StreamHandler(logging.StreamHandler):
     Fixes UnicodeEncodeError on Windows where the default console uses cp1252
     and cannot encode characters like arrows, accented letters, or Devanagari
     script that may appear in extracted document text.
+
+    Also handles ValueError('I/O operation on closed file') which occurs in
+    uvicorn subprocesses when our wrapper holds a stale reference to the old
+    sys.stdout.buffer after the process's stdout is replaced or closed.
     """
 
     def __init__(self):
@@ -44,6 +49,39 @@ class _UTF8StreamHandler(logging.StreamHandler):
             line_buffering=True,
         )
         super().__init__(stream)
+
+    def emit(self, record):
+        try:
+            if not getattr(self.stream, "closed", False):
+                super().emit(record)
+        except (ValueError, OSError):
+            pass
+
+    def handleError(self, record):
+        # Called by StreamHandler.emit() when a write fails.
+        # Suppress closed-stream errors that occur in the uvicorn/async lifecycle.
+        # Re-raise everything else so real problems are still visible.
+        t, _, _ = sys.exc_info()
+        if t in (ValueError, OSError):
+            return
+        super().handleError(record)
+
+class _SafeTimedRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
+    """TimedRotatingFileHandler that silently ignores PermissionError during rotation.
+
+    On Windows, all Celery worker subprocesses import celery_app.py and each
+    creates its own TimedRotatingFileHandler. When the date changes they all
+    try to rename celery.log → celery.log.<date> simultaneously. Only the first
+    succeeds; the rest get WinError 32. Catching the error here prevents the
+    noisy '--- Logging error ---' spam in the terminal.
+    """
+
+    def rotate(self, source, dest):
+        try:
+            super().rotate(source, dest)
+        except PermissionError:
+            pass  # Another worker process already rotated the file — that's fine
+
 
 LOGS_DIR = _PROJECT_ROOT / "logs"
 
@@ -95,12 +133,13 @@ _LOGGER_MAP = {
 
 def _make_file_handler(name: str) -> dict:
     return {
-        "class": "logging.handlers.TimedRotatingFileHandler",
+        "class": "app.logging_config._SafeTimedRotatingFileHandler",
         "formatter": "detailed",
         "filename": str(LOGS_DIR / f"{name}.log"),
         "when": "midnight",
         "backupCount": 30,
         "encoding": "utf-8",
+        "delay": True,
         "level": "DEBUG",
     }
 

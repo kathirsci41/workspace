@@ -32,9 +32,33 @@ class Settings(BaseSettings):
     ocr_extractor_num_ctx: int = 4096
     ocr_extractor_num_predict: int = 4096
     ocr_save_debug_markdown: bool = False
+    ocr_debug_markdown_dir: str = "debug_markdown"
     # Extractor cloud override — if set, Layer 2 calls this URL instead of ocr_base_url
     ocr_extractor_base_url: str = ""   # empty = use local ocr_base_url
     ocr_extractor_api_key: str = ""    # empty = no auth header
+
+    # ── Provider abstraction layer ────────────────────────────────────────────
+    # Set layer1_provider to activate new-style config.
+    # Leave empty to use legacy ocr_* settings (zero disruption).
+    layer1_provider: str = ""   # "ollama" | "datalab" | "openai_compat" | "digital"
+    layer2_provider: str = ""   # "ollama" | "openai_compat"
+
+    # Datalab (Layer 1) — https://documentation.datalab.to/
+    datalab_api_key: str = ""
+    datalab_base_url: str = "https://api.datalab.to"
+    datalab_timeout: int = 300
+    datalab_poll_interval: int = 3
+
+    # OpenAI-compatible — vLLM, LM Studio, Groq, OpenAI, or any /v1/chat/completions endpoint
+    openai_compat_base_url: str = ""
+    openai_compat_api_key: str = ""
+    openai_compat_layer1_model: str = ""   # vision model for Layer 1 OCR
+    openai_compat_layer2_model: str = ""   # text model for Layer 2 extraction
+    openai_compat_max_tokens: int = 4096
+    openai_compat_timeout: int = 120
+
+    # OCR context window (shared by legacy and new Ollama provider)
+    ocr_num_ctx: int = 16384
 
     # CORS
     cors_origins: List[str] = ["http://localhost:5174"]

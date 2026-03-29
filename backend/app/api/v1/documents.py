@@ -13,6 +13,7 @@ from app.models.purchase_order import PurchaseOrder
 from app.schemas.document import DocumentResponse, DocumentUploadResponse, DocumentListResponse
 from app.schemas.extraction import ExtractionResponse
 from app.services import document_service
+from app.services.storage_service import NASUnavailableError
 
 router = APIRouter()
 
@@ -157,7 +158,12 @@ async def preview_document(
     id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    file_data, mime_type, original_filename = await document_service.get_preview_data(db, id)
+    try:
+        file_data, mime_type, original_filename = await document_service.get_preview_data(db, id)
+    except NASUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
     return StreamingResponse(
         io.BytesIO(file_data),
         media_type=mime_type,
@@ -170,7 +176,12 @@ async def download_document(
     id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    file_data, mime_type, original_filename = await document_service.get_preview_data(db, id)
+    try:
+        file_data, mime_type, original_filename = await document_service.get_preview_data(db, id)
+    except NASUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
     return StreamingResponse(
         io.BytesIO(file_data),
         media_type=mime_type,

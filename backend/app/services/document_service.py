@@ -147,7 +147,7 @@ async def list_documents_for_po(db: AsyncSession, po_id: UUID) -> list[Document]
         select(Document)
         .options(
             selectinload(Document.doc_metadata),
-            selectinload(Document.purchase_order),
+            selectinload(Document.purchase_order).selectinload(PurchaseOrder.customer),
         )
         .where(Document.po_id == po_id)
         .order_by(Document.document_type)

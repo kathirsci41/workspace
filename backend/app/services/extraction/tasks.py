@@ -22,7 +22,7 @@ from app.services.extraction.prompts import (
 )
 from app.services.extraction.field_validator import validate_extracted_fields
 from app.services.extraction.invoice_validator import validate_invoice_math, ValidationResult
-from app.services.extraction.two_layer_client import TwoLayerClient, check_models_available
+from app.services.extraction.pipeline import build_pipeline_from_config
 from app.services.extraction.scan_preprocessor import preprocess_scan
 from app.services.extraction.hybrid_router import HybridRouter, ExtractionRoute
 from app.services.extraction.digital_extractor import DigitalExtractor
@@ -69,8 +69,16 @@ def extract_document(self, document_id: str):
             logger.error(f"Document {document_id} not found")
             return {"error": "not_found"}
 
-        # 2. Pre-flight: verify required models are available before starting
-        _preflight_error = _check_models_preflight(doc)
+        # 2. Build pipeline and verify providers are reachable before starting
+        # Catch config errors (bad provider name, missing API key, etc.) so the
+        # document moves to PENDING_MODEL instead of being silently stuck in UPLOADED.
+        pipeline = None
+        try:
+            pipeline = build_pipeline_from_config(settings)
+            _preflight_error = asyncio.run(pipeline.health_check())
+        except Exception as _build_err:
+            _preflight_error = f"Pipeline config error: {_build_err}"
+
         if _preflight_error:
             logger.warning(
                 f"[ModelCheck] Holding doc {document_id} — {_preflight_error}"
@@ -93,6 +101,8 @@ def extract_document(self, document_id: str):
                 db.add(meta)
             db.commit()
             return {"status": "pending_model", "reason": _preflight_error}
+
+        assert pipeline is not None  # _preflight_error branch always returns above
 
         # 3. Update status to EXTRACTING
         doc.status = DocumentStatus.EXTRACTING
@@ -124,282 +134,142 @@ def extract_document(self, document_id: str):
                         f"customer={customer_hint!r}"
                     )
 
-            # 6. Digital fast path check — skip OCR for digital PDFs
+            # 6. Digital fast path — skip image conversion for digital-native PDFs
             raw_texts = []
             total_time_ms = 0
-            use_two_layer = settings.ocr_two_layer_enabled
+            markdown_pages = []  # (markdown, elapsed_ms, page_label) for scanned path
 
             if route == ExtractionRoute.DIGITAL:
-                # Digital fast path — no OCR needed
-                digital_extractor = DigitalExtractor()
-                digital_result = digital_extractor.extract(
-                    storage_path, max_pages=settings.ocr_max_pages
-                )
-                if digital_result.is_digital and digital_result.word_blocks:
-                    # Check for hybrid PDFs: pages with no text layer need OCR
-                    PAGE_MIN_CHARS = 50
-                    sparse_pages = [
-                        p for p in digital_result.pages
-                        if len(p["text"].strip()) < PAGE_MIN_CHARS
-                    ]
-                    if sparse_pages:
-                        logger.info(
-                            f"Hybrid PDF: {len(sparse_pages)}/{len(digital_result.pages)} "
-                            f"pages have <{PAGE_MIN_CHARS} chars — routing to full OCR"
-                        )
-                        route = ExtractionRoute.SCANNED
-                    else:
-                        # Fully digital — skip all OCR
-                        raw_texts = [digital_result.full_text]
-                        logger.info(
-                            f"Digital extraction: {len(digital_result.word_blocks)} words, no GPU used"
-                        )
+                digital_result = asyncio.run(pipeline.try_digital(storage_path))
+                if digital_result.markdown and len(digital_result.markdown.strip()) > 50:
+                    raw_texts = [digital_result.markdown]
+                    logger.info(
+                        f"Digital extraction: {len(digital_result.markdown)} chars, no GPU used"
+                    )
                 else:
-                    logger.warning("Digital route returned no content — falling back to OCR")
+                    logger.warning(
+                        "Digital route returned no/sparse content — falling back to OCR"
+                    )
                     route = ExtractionRoute.SCANNED
 
-            # 7. Convert PDF → images (only if not handled by digital fast path)
-            images = None
+            # 7. Convert PDF → images (only if digital fast path didn't yield text)
             if not raw_texts:
                 converter = PDFConverter(
                     dpi=settings.ocr_pdf_dpi,
                     max_pages=settings.ocr_max_pages,
                 )
-                images = converter.convert_to_images(storage_path)
-                logger.info(f"Converted {len(images)} pages for doc {document_id}")
+                images_list = converter.convert_to_images(storage_path)
+                logger.info(f"Converted {len(images_list)} pages for doc {document_id}")
 
-            # 8. OCR each page — choose single-layer or two-layer pipeline
-            if use_two_layer and images is not None:
-                # ── Two-layer pipeline ────────────────────────────────────
-                logger.info(
-                    f"Using TWO-LAYER pipeline for doc {document_id} "
-                    f"({settings.ocr_custom_model} + {settings.ocr_extractor_model})"
-                )
-                two_layer = TwoLayerClient(
-                    base_url=settings.ocr_base_url,
-                    ocr_model=settings.ocr_custom_model,
-                    extractor_model=settings.ocr_extractor_model,
-                    timeout=settings.ocr_timeout,
-                    max_retries=settings.ocr_max_retries,
-                    extractor_num_ctx=settings.ocr_extractor_num_ctx,
-                    extractor_num_predict=_estimate_num_predict(
-                        doc_type,
-                        settings.ocr_extractor_num_ctx,
-                        settings.ocr_extractor_num_predict,
-                    ),
-                    save_debug_markdown=settings.ocr_save_debug_markdown,
-                    extractor_base_url=settings.ocr_extractor_base_url,
-                    extractor_api_key=settings.ocr_extractor_api_key,
-                )
-
-                markdown_pages = []  # (markdown, ocr_ms, page_label)
-
-                # ── Phase 1: OCR all pages (GLM-OCR stays loaded) ────────
-                for i, img in enumerate(images):
+                # ── Phase 1: OCR all pages ────────────────────────────────
+                for i, img in enumerate(images_list):
                     page_label = f"doc{document_id}_p{i + 1}"
                     logger.info(
-                        f"Two-layer OCR {i + 1}/{len(images)} for doc {document_id}"
+                        f"OCR page {i + 1}/{len(images_list)} for doc {document_id}"
                     )
-                    # Apply OpenCV pre-processing for scanned documents
                     if route == ExtractionRoute.SCANNED:
                         img = preprocess_scan(img)
                     try:
-                        markdown, ocr_ms = asyncio.run(
-                            two_layer._run_ocr_layer(img, doc_type)
+                        ocr_result = asyncio.run(
+                            pipeline.run_ocr(img, doc_type, page_label)
                         )
-                        if two_layer.save_debug_markdown and page_label:
-                            two_layer._save_markdown(markdown, page_label, doc_type)
-                        raw_texts.append(markdown)
-                        markdown_pages.append((markdown, ocr_ms, page_label))
+                        raw_texts.append(ocr_result.markdown)
+                        markdown_pages.append(
+                            (ocr_result.markdown, ocr_result.elapsed_ms, page_label)
+                        )
                     except Exception as page_err:
-                        logger.warning(
-                            f"Two-layer OCR page {i + 1} failed: {page_err}"
-                        )
-                        # Connection/URL errors won't resolve on next pages — fail fast
+                        logger.warning(f"OCR page {i + 1} failed: {page_err}")
                         _err_msg = str(page_err)
                         if "unreachable" in _err_msg or "offline" in _err_msg:
                             raise
                         raw_texts.append("")
                         markdown_pages.append(("", 0, page_label))
 
-                # Release OCR model once (all pages done), then load extractor
-                asyncio.run(two_layer.release_model(two_layer.ocr_model))
-                # Only wait for local Ollama if Layer 2 is also local
+                # Release OCR model VRAM, wait for readiness before Layer 2
+                asyncio.run(pipeline.release_vram())
                 if not settings.ocr_extractor_base_url:
                     time.sleep(5)
-                    asyncio.run(two_layer.wait_until_ready())
+                    asyncio.run(pipeline.wait_until_ready())
 
-                # ── Phase 2: Extract from all pages (Qwen2.5 loads once) ─
-                page_fields = []
-                for markdown, ocr_ms, page_label in markdown_pages:
-                    if not markdown or len(markdown.strip()) < 20:
-                        logger.warning(
-                            f"[TwoLayer] Empty/short text for {page_label}, skipping"
-                        )
-                        page_fields.append({})
-                        continue
+            # 8. Extract structured fields from markdown
+            if pipeline.layer2 is not None:
+                if markdown_pages:
+                    # Scanned/image path: extract each page separately, then merge
+                    page_fields = []
+                    for markdown, ocr_ms, page_label in markdown_pages:
+                        if not markdown or len(markdown.strip()) < 20:
+                            logger.warning(
+                                f"[Pipeline] Empty/short text for {page_label}, skipping"
+                            )
+                            page_fields.append({})
+                            continue
+                        try:
+                            validated = asyncio.run(
+                                pipeline.run_extraction(markdown, doc_type, customer_hint)
+                            )
+                            page_fields.append(validated)
+                            total_time_ms += ocr_ms
+                            filled = len([
+                                v for k, v in validated.items()
+                                if v is not None and not str(k).startswith("_")
+                            ])
+                            logger.info(
+                                f"[Pipeline] {doc_type} {page_label} | "
+                                f"OCR: {ocr_ms}ms | Fields: {filled}"
+                            )
+                        except Exception as page_err:
+                            logger.warning(
+                                f"Extraction {page_label} failed: {page_err}"
+                            )
+                            _err_msg = str(page_err)
+                            if "unreachable" in _err_msg or "offline" in _err_msg:
+                                raise
+                            page_fields.append({})
+                else:
+                    # Digital path: extract from full text in one call
                     try:
-                        fields, extract_ms = asyncio.run(
-                            two_layer._run_extraction_layer(markdown, doc_type, customer_hint)
+                        validated = asyncio.run(
+                            pipeline.run_extraction(raw_texts[0], doc_type, customer_hint)
                         )
-                        validated = validate_extracted_fields(fields, doc_type)
-                        page_fields.append(validated)
-                        total_time_ms += ocr_ms + extract_ms
-                        filled = len([
-                            v for k, v in validated.items()
-                            if v is not None and not str(k).startswith("_")
-                        ])
-                        logger.info(
-                            f"[TwoLayer] {doc_type} {page_label} | "
-                            f"OCR: {ocr_ms}ms | Extract: {extract_ms}ms | "
-                            f"Fields: {filled}"
-                        )
-                    except Exception as page_err:
+                        page_fields = [validated]
+                    except Exception as dig_err:
                         logger.warning(
-                            f"Two-layer extraction {page_label} failed: {page_err}"
+                            "Digital extraction failed: %s", dig_err, exc_info=True
                         )
-                        _err_msg = str(page_err)
-                        if "unreachable" in _err_msg or "offline" in _err_msg:
-                            raise
-                        page_fields.append({})
+                        # Fallback: try to parse the raw text directly
+                        _parser = ResponseParser()
+                        _fallback = _parser.parse_and_merge(raw_texts, doc_type)
+                        page_fields = [validate_extracted_fields(_fallback, doc_type)]
 
-                # Merge page fields (first non-null wins, same as ResponseParser)
+                # Merge pages (first non-null wins, same as ResponseParser)
                 extracted_data = {}
                 for pf in page_fields:
                     for key, value in pf.items():
                         if key.startswith("_"):
-                            # Preserve validation metadata from last page
                             extracted_data[key] = value
                         elif key not in extracted_data or extracted_data[key] is None:
                             extracted_data[key] = value
 
-                # Guard: raise if no real fields extracted from any page
                 real_fields = {
-                    k: v for k, v in extracted_data.items()
-                    if not k.startswith("_")
+                    k: v for k, v in extracted_data.items() if not k.startswith("_")
                 }
                 if not real_fields:
                     raise RuntimeError(
                         "Extraction service returned no data — "
                         "all pages failed or were empty"
                     )
-
-                # Use two-layer schema for confidence calculation
-                schema_fields = list(
-                    EXTRACTION_SCHEMAS.get(doc_type, {}).keys()
-                )
-                model_version = (
-                    f"{settings.ocr_custom_model}+{settings.ocr_extractor_model}"
-                )
-            elif not use_two_layer and images is not None:
-                # ── Single-layer pipeline ─────────────────────────────────
-                prompt = build_prompt(doc_type)
-
-                ocr = OCRClient(
-                    base_url=settings.ocr_base_url,
-                    model=settings.ocr_model_name,
-                    timeout=settings.ocr_timeout,
-                    max_retries=settings.ocr_max_retries,
-                )
-
-                for i, img in enumerate(images):
-                    logger.info(
-                        f"OCR page {i + 1}/{len(images)} for doc {document_id}"
-                    )
-
-                    # Apply OpenCV pre-processing for scanned documents
-                    if route == ExtractionRoute.SCANNED:
-                        img = preprocess_scan(img)
-
-                    if i > 0:
-                        asyncio.run(ocr.release_model())
-                        time.sleep(10)
-                        asyncio.run(ocr.wait_until_ready())
-
-                    try:
-                        result = asyncio.run(ocr.extract_from_image(img, prompt))
-                        raw_texts.append(result["text"])
-                        total_time_ms += result["processing_time_ms"]
-                    except Exception as page_err:
-                        logger.warning(
-                            f"Single-layer page {i + 1} failed, skipping: {page_err}"
-                        )
-                        raw_texts.append("")
-
-                # 7. Parse + merge
-                parser = ResponseParser()
-                extracted_data = parser.parse_and_merge(raw_texts, doc_type)
-
-                # Apply field validation to single-layer results too
-                extracted_data = validate_extracted_fields(
-                    extracted_data, doc_type
-                )
-
+            else:
+                # Single-layer path (legacy OCRClient): ResponseParser handles merging
+                _parser = ResponseParser()
+                extracted_data = _parser.parse_and_merge(raw_texts, doc_type)
+                extracted_data = validate_extracted_fields(extracted_data, doc_type)
                 if not extracted_data:
                     raise RuntimeError(
-                        "Extraction produced no data — "
-                        "all pages returned empty output"
+                        "Extraction produced no data — all pages returned empty output"
                     )
 
-                schema_fields = list(
-                    EXTRACTION_PROMPTS[doc_type]["schema"].keys()
-                )
-                model_version = settings.ocr_model_name
-            elif raw_texts and images is None:
-                # ── Digital fast path: Run Layer 2 extraction ─────────────
-                logger.info(
-                    f"Running Layer 2 extraction for digital doc {document_id}"
-                )
-                two_layer = TwoLayerClient(
-                    base_url=settings.ocr_base_url,
-                    ocr_model=settings.ocr_custom_model,
-                    extractor_model=settings.ocr_extractor_model,
-                    timeout=settings.ocr_timeout,
-                    max_retries=settings.ocr_max_retries,
-                    extractor_num_ctx=settings.ocr_extractor_num_ctx,
-                    extractor_num_predict=_estimate_num_predict(
-                        doc_type,
-                        settings.ocr_extractor_num_ctx,
-                        settings.ocr_extractor_num_predict,
-                    ),
-                    save_debug_markdown=settings.ocr_save_debug_markdown,
-                    extractor_base_url=settings.ocr_extractor_base_url,
-                    extractor_api_key=settings.ocr_extractor_api_key,
-                )
-
-                markdown_text = raw_texts[0]  # Single text from digital extraction
-                try:
-                    extracted_data, extract_ms = asyncio.run(
-                        two_layer._run_extraction_layer(markdown_text, doc_type, customer_hint)
-                    )
-                    validated = validate_extracted_fields(extracted_data, doc_type)
-                    extracted_data = validated
-                    total_time_ms += extract_ms
-
-                    # Guard: raise if no real fields extracted (same as scanned path)
-                    real_fields = {k: v for k, v in extracted_data.items() if not k.startswith("_")}
-                    if not real_fields:
-                        raise RuntimeError(
-                            "Extraction produced no data for this document. "
-                            "Try re-extracting or use Manual Entry."
-                        )
-                    logger.info(
-                        f"[Digital Layer 2] {doc_type} | Extract: {extract_ms}ms | "
-                        f"Fields: {len([v for k, v in validated.items() if v is not None])}"
-                    )
-                except Exception as e:
-                    logger.warning("Digital Layer 2 extraction failed: %s", e, exc_info=True)
-                    # Fallback: try to parse the raw text directly
-                    parser = ResponseParser()
-                    extracted_data = parser.parse_and_merge(raw_texts, doc_type)
-                    extracted_data = validate_extracted_fields(extracted_data, doc_type)
-
-                schema_fields = list(
-                    EXTRACTION_SCHEMAS.get(doc_type, {}).keys()
-                )
-                model_version = (
-                    f"digital+{settings.ocr_extractor_model}"
-                )
+            schema_fields = list(EXTRACTION_SCHEMAS.get(doc_type, {}).keys())
+            model_version = pipeline.model_version
 
             # 9. Confidence
             parser = ResponseParser()
@@ -541,14 +411,11 @@ def extract_document(self, document_id: str):
                 try:
                     if extracted_data:
                         meta.extracted_data = extracted_data
-                        if use_two_layer:
-                            schema_fields = list(EXTRACTION_SCHEMAS.get(doc_type, {}).keys())
-                        else:
-                            schema_fields = list(EXTRACTION_PROMPTS[doc_type]["schema"].keys())
+                        schema_fields = list(EXTRACTION_SCHEMAS.get(doc_type, {}).keys())
                         meta.confidence_score = parser.calculate_confidence(
                             extracted_data, schema_fields
                         )
-                        meta.model_version = settings.ocr_model_name
+                        meta.model_version = pipeline.model_version
                 except Exception:
                     pass  # Don't let partial-save crash the error handler
             else:
@@ -575,49 +442,6 @@ def extract_document(self, document_id: str):
             except self.MaxRetriesExceededError:
                 logger.error("Max retries exceeded for %s", document_id, exc_info=True)
                 return {"status": "failed", "error": _err_str}
-
-
-def _check_models_preflight(doc) -> str:
-    """Run model availability checks before extraction begins.
-
-    Returns an empty string when all required models are available.
-    Returns a human-readable error string when models are missing or the
-    endpoint is unreachable — the caller should set the document to
-    PENDING_MODEL with this string as last_error.
-
-    Logic:
-      two_layer_enabled + scanned → check ocr_custom_model on ocr_base_url
-                                     + check ocr_extractor_model on extractor_url
-                                       (skipped when ocr_extractor_api_key is set
-                                        because cloud APIs don't expose /api/tags)
-      two_layer_enabled + digital → check ocr_extractor_model only
-      single_layer               → check ocr_model_name on ocr_base_url
-    """
-    # Collect (endpoint_url → [models]) — same URL is merged automatically
-    models_by_endpoint: dict = {}
-
-    if settings.ocr_two_layer_enabled:
-        ocr_url = settings.ocr_base_url
-        if ocr_url not in models_by_endpoint:
-            models_by_endpoint[ocr_url] = []
-        models_by_endpoint[ocr_url].append(settings.ocr_custom_model)
-
-        if not settings.ocr_extractor_api_key:
-            ext_url = settings.ocr_extractor_base_url or settings.ocr_base_url
-            if ext_url not in models_by_endpoint:
-                models_by_endpoint[ext_url] = []
-            models_by_endpoint[ext_url].append(settings.ocr_extractor_model)
-    else:
-        ocr_url = settings.ocr_base_url
-        models_by_endpoint[ocr_url] = [settings.ocr_model_name]
-
-    problems = []
-    for url, models in models_by_endpoint.items():
-        ok, missing = asyncio.run(check_models_available(url, models))
-        if not ok:
-            problems.append(f"endpoint {url} missing: {missing}")
-
-    return "; ".join(problems)
 
 
 def _update_chain_sync(db, po_id):
