@@ -59,6 +59,9 @@ docker-compose.override.yml
 nul
 backend/nul
 
+# Git worktrees
+.worktrees/
+
 # AI assistant / editor config (local only)
 .claude/
 
