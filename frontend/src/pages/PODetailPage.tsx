@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Loader2, Trash2, PenLine, Check, X, AlertTriangle, BarChart2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Trash2, PenLine, Check, X, AlertTriangle, BarChart2, Download } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePurchaseOrder, useChainStatus, useDeletePO, useUpdatePO } from '@/hooks/usePurchaseOrders';
+import { exportPOAsExcel } from '@/api/purchaseOrders';
 import { useReExtract, useCreateManualEntry } from '@/hooks/useExtraction';
 import { useDeleteDocument } from '@/hooks/useDocuments';
 import ChainStatusBar from '@/components/ChainStatusBar';
@@ -42,6 +43,19 @@ export default function PODetailPage() {
   const [reExtractConfirm, setReExtractConfirm] = useState<string | null>(null); // docId
   const [deleteDocConfirm, setDeleteDocConfirm] = useState<string | null>(null); // docId
   const [deletePOConfirm, setDeletePOConfirm]   = useState(false);
+
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportPOAsExcel(id!, po!.po_number, 'separate');
+    } catch {
+      showToast('Export failed. Please try again.', 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Track previous extracting state to detect completion
   const prevExtractingRef = useRef(false);
@@ -210,6 +224,15 @@ export default function PODetailPage() {
           >
             <BarChart2 size={14} /> View Profile
           </Link>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            title="Export PO data to Excel"
+            className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            <Download size={14} className={exporting ? 'animate-bounce' : ''} />
+            {exporting ? 'Exporting…' : 'Export'}
+          </button>
           <button
             onClick={handleDeletePO}
             disabled={deletePOMutation.isPending}
