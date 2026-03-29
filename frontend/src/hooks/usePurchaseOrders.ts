@@ -7,6 +7,7 @@ import {
   deletePO,
   getChainStatus,
   getDocumentsForPO,
+  getPOProfile,
 } from '@/api/purchaseOrders';
 import type { PurchaseOrder } from '@/types';
 
@@ -85,5 +86,14 @@ export function useDocumentsForPO(poId: string) {
     queryKey: ['documents', poId],
     queryFn: () => getDocumentsForPO(poId),
     enabled: !!poId,
+  });
+}
+
+export function usePOProfile(poId: string, enabled: boolean = true) {
+  return useQuery({
+    queryKey: ['poProfile', poId],
+    queryFn: () => getPOProfile(poId),
+    enabled: !!poId && enabled,
+    staleTime: 30_000,
   });
 }

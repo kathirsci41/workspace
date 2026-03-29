@@ -7,6 +7,7 @@ import PODetailPage from './pages/PODetailPage';
 import SearchPage from './pages/SearchPage';
 import DocumentsPage from './pages/DocumentsPage';
 import AdminPage from './pages/AdminPage';
+import { POProfilePage } from './pages/POProfilePage';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/customers" element={<CustomersPage />} />
           <Route path="/purchase-orders" element={<POListPage />} />
+          <Route path="/purchase-orders/:id/profile" element={<POProfilePage />} />
           <Route path="/purchase-orders/:id" element={<PODetailPage />} />
           <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/search" element={<SearchPage />} />

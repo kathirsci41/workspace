@@ -1,5 +1,5 @@
 import client from './client';
-import type { PurchaseOrder, PaginatedResponse, ChainStatus, Document } from '@/types';
+import type { PurchaseOrder, PaginatedResponse, ChainStatus, Document, POProfile } from '@/types';
 
 export async function getPurchaseOrders(
   page = 1,
@@ -62,4 +62,30 @@ export async function getDocumentsForPO(poId: string): Promise<Document[]> {
     `/api/v1/purchase-orders/${poId}/documents`
   );
   return data.items ?? data;
+}
+
+export async function getPOProfile(poId: string): Promise<POProfile> {
+  const { data } = await client.get(`/api/v1/purchase-orders/${poId}/profile`);
+  return data;
+}
+
+export async function exportPOAsExcel(
+  poId: string,
+  poNumber: string,
+  mode: 'single' | 'separate' = 'separate'
+): Promise<void> {
+  const response = await client.get(
+    `/api/v1/purchase-orders/${poId}/export?mode=${mode}`,
+    { responseType: 'blob' }
+  );
+  const suffix = mode === 'single' ? '_consolidated' : '';
+  const today = new Date().toISOString().split('T')[0];
+  const url = window.URL.createObjectURL(response.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `PO_${poNumber}${suffix}_${today}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
 }

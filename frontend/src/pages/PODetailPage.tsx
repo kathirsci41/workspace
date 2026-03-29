@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Trash2, PenLine, Check, X, AlertTriangle } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, Loader2, Trash2, PenLine, Check, X, AlertTriangle, BarChart2 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePurchaseOrder, useChainStatus, useDeletePO, useUpdatePO } from '@/hooks/usePurchaseOrders';
@@ -204,6 +204,12 @@ export default function PODetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <Link
+            to={`/purchase-orders/${id}/profile`}
+            className="flex items-center gap-1.5 text-sm text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50"
+          >
+            <BarChart2 size={14} /> View Profile
+          </Link>
           <button
             onClick={handleDeletePO}
             disabled={deletePOMutation.isPending}

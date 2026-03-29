@@ -198,3 +198,59 @@ export const DOC_TYPE_SHORT: Record<DocumentType, string> = {
   COMPANY_DC: 'C.DC',
   COMPANY_INVOICE: 'C.Inv',
 };
+
+// PO Profile types
+
+export interface POProfileDocument {
+  document_id: string;
+  status: string;
+  filename: string | null;
+  original_filename: string | null;
+  primary_ref_no: string | null;
+  po_ref_no: string | null;
+  doc_date: string | null;
+  total_amount: number | null;
+  confidence_score: number | null;
+  field_confidences: Record<string, number> | null;
+  extraction_route: string | null;
+  extracted_data: Record<string, unknown> | null;
+  verified_at: string | null;
+  uploaded_at: string | null;
+}
+
+export interface POProfileDocumentSlot {
+  document_type: string;
+  status: string;  // "empty" | most-advanced status across all documents
+  documents: POProfileDocument[];
+}
+
+export interface POProfileDiscrepancy {
+  type: string;
+  doc_type: string;
+  message: string;
+  severity: 'error' | 'warning';
+}
+
+export interface POProfileTimelineEvent {
+  event_type: string;
+  doc_type: string;
+  timestamp: string;
+  detail: string | null;
+}
+
+export interface POProfile {
+  po_id: string;
+  po_number: string;
+  customer_name: string;
+  customer_sky_id: string;
+  so_number: string | null;
+  po_date: string | null;
+  total_amount: number | null;
+  status: string;
+  chain_completeness: number;
+  created_at: string;
+  slots: POProfileDocumentSlot[];
+  timeline: POProfileTimelineEvent[];
+  discrepancies: POProfileDiscrepancy[];
+  cross_references: Record<string, string[]>;
+}

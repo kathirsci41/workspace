@@ -256,16 +256,19 @@ Replaced stale v0.1 artifacts with accurate v2.3.0 content:
 ### Performance — Latency Fixes
 
 **Admin page:**
+
 - `health_check`: parallelised 4 checks via `asyncio.gather()` + Redis cache (30s TTL)
 - `get_stats`: 8 sequential queries → single `COUNT(CASE ...)` query
 - `get_queue`: Celery inspect via `ThreadPoolExecutor(max_workers=3)`
 
 **Frontend polling (AdminPage):**
+
 - All fetches accept `AbortSignal`, cancelled on unmount
 - Intervals raised: active 10s→30s, queue 15s→30s, health/stats→60s
 - Smart poll: active documents only fetched when queue shows work
 
 **DB index:**
+
 - Added `idx_document_status` on `documents.status` (Alembic migration `c5d3e9f2a1b8`)
 
 ---
@@ -282,6 +285,7 @@ Replaced stale v0.1 artifacts with accurate v2.3.0 content:
 - Updated `frontend/src/pages/PODetailPage.tsx` — migrated local toast state to `useToast()`; covers EXTRACTION_FAILED, PENDING_MODEL, mixed, complete, verify, save, re-extract, manual entry
 
 **Toast scenarios covered:**
+
 | Trigger | Type | Message |
 | --- | --- | --- |
 | Extraction complete | success | "Extraction complete — documents are ready to review." |
@@ -310,12 +314,120 @@ Replaced stale v0.1 artifacts with accurate v2.3.0 content:
 
 ---
 
+---
+
+## 2026-03-23
+
+### Branch Strategy Finalised
+
+| Branch | Role |
+| --- | --- |
+| `master` | Stable production baseline |
+| `staging` | Demo-ready — frozen at DPP-2.4.0 tag |
+| `development` | Active development — next version |
+
+- `staging` branch created from `DPP-2.4.0` tag and pushed to GitHub
+- `development` branch created for next version work
+- README updated to v2.4.0 (ports, model names, features, branch table)
+
+### Planned — PO Profile Page (development branch)
+
+**Feature:** Consolidated read-only profile view for a Purchase Order.
+
+**Problem:** No single page shows all extracted data across all 6 document types. Operators must open each Review modal individually to see any extracted field.
+
+**Solution:** New page at `/purchase-orders/:id/profile` showing:
+
+- Header: PO number, customer, SO number, chain %, status, dates
+- Per-document sections (6 slots): all extracted fields in a key-value grid, status badge, confidence %, Preview + Download links
+- Discrepancy panel: SO mismatches, missing po_reference flags, cross-reference map
+- Order timeline: uploaded → extracted → verified events per document
+
+**Files:** 14 files (4 create, 10 modify) — no DB migrations, no new models
+
+**Entry point:** "View Profile" button added to PODetailPage header
+
+---
+
+## 2026-03-24
+
+### PO Profile Page — Implemented (development branch)
+
+#### Backend
+
+- Created `backend/app/schemas/po_profile.py` — `POProfileDocumentSlot`, `POProfileDiscrepancy`, `POProfileTimelineEvent`, `POProfileResponse`
+- Added `get_po_profile()` to `backend/app/services/po_service.py` — reuses `get_po()` eager-load, zero extra DB queries
+  - Builds 6 slots in chain order, "empty" status when no document
+  - Discrepancy checks: SO_MISMATCH (error), MISSING_PO_REF and PO_REF_MISMATCH (warning)
+  - Timeline: uploaded / extracted / verified / rejected events across all documents, sorted ascending
+  - Cross-reference map: `po_ref_no` values grouped by doc type
+- Added `GET /api/v1/purchase-orders/{id}/profile` route to `purchase_orders.py` — declared before `/{po_id}/documents` to prevent URL collision
+
+#### Frontend
+
+- Added 4 TypeScript interfaces to `frontend/src/types/index.ts`: `POProfileDocumentSlot`, `POProfileDiscrepancy`, `POProfileTimelineEvent`, `POProfile`
+- Added `getPOProfile()` to `frontend/src/api/purchaseOrders.ts`
+- Added `usePOProfile()` hook to `frontend/src/hooks/usePurchaseOrders.ts` — lazy fetch with `staleTime: 30_000`
+- Created `frontend/src/components/ProfileDocumentSection.tsx` — card with left accent border, field grid, per-field confidence colours, Preview + Download links, empty slot placeholder
+- Created `frontend/src/components/ProfileTimeline.tsx` — vertical dot-line timeline, colour-coded dots per event type
+- Created `frontend/src/components/ProfileDiscrepancyPanel.tsx` — all-clear green banner or error/warning rows, cross-reference table
+- Created `frontend/src/pages/POProfilePage.tsx` — single-column layout, header card (PO details + ChainStatusBar), discrepancy panel, 6 document sections, timeline
+- Added route `/purchase-orders/:id/profile` to `frontend/src/App.tsx` (before `/:id` route)
+- Added "View Profile" button to `PODetailPage` header (alongside Delete PO)
+
+#### Documentation
+
+- Updated `docs/CHANGELOG.md` — added DPP-2.5.0 entry
+
+---
+
+## 2026-03-25
+
+### Startup & Process Fixes
+
+- **Duplicate Python process root cause** — Windows venv `python.exe` is a launcher stub (274 KB, imports only `KERNEL32.dll`); it spawns the actual interpreter via `pyvenv.cfg → home` and waits. Normal Windows venv behavior, not a bug.
+- **`start.ps1` rewritten** — replaced `Start-Job` with `Start-Process powershell -NoExit -Command` to open Backend, Celery, Frontend, Docker each in a dedicated terminal window
+- **`start.ps1` parse error fixed** — em dash characters (U+2014) in string literals caused PowerShell 5.1 `MissingArgument` parse error; replaced all 4 em dashes with ASCII hyphens
+
+### Logging Fixes
+
+- **`_UTF8StreamHandler.handleError()` override** — `StreamHandler.emit()` catches `ValueError` internally and calls `handleError()` which printed `--- Logging error ---` tracebacks; fixed by overriding `handleError()` to suppress `ValueError`/`OSError`
+- **`--- Logging error ---` spam on `/admin/queue` fixed** — lazy `from celery_app import celery_app` inside route handler triggered `setup_logging("celery")` mid-request on first call; moved import to module level
+
+### Dependency Fix
+
+- **`pdfplumber` added to `requirements.txt`** — was imported in `digital_extractor.py` but missing; installed `pdfplumber==0.11.9`
+
+### Layer 2 Extraction — Model & Config
+
+**Problem:** `qwen2.5:7b` consistently timed out (HTTP 524, Cloudflare 100s limit) on RunPod for 7-page documents
+
+**Root cause in `_estimate_num_predict`:** formula `ceiling = num_ctx - 2048` produced `num_predict=6144` at `num_ctx=8192` → too slow; at `num_ctx=4096` → only 2048 tokens left for input → document truncated → 2 fields, 0% confidence
+
+**Fix sequence:**
+
+| Step | Change | Result |
+| --- | --- | --- |
+| 1 | `num_ctx=4096` | Still 524 → then truncated JSON at 88s |
+| 2 | Fixed formula (always return `floor`), restored `num_ctx=8192` | JSON truncated mid-array (2048 tokens insufficient output) |
+| 3 | Pulled `qwen2.5:3b` (1.9 GB) on RunPod; `num_predict=3000` | **HTTP 200, 17s, 60% confidence** ✓ |
+| 4 | `num_predict=4096` | More headroom for large arrays |
+
+**Files changed:** `backend/app/services/extraction/tasks.py`, `.env`
+
+### Model Research
+
+- Compared `phi4-mini:3.8b`, `llama3.2:3b`, `gemma3:4b`, `mistral:7b` for Layer 2
+- Researched user-provided: `dots.mocr` (3B, single-pass OCR + extraction, vLLM), `olmOCR-2-7B` (SOTA OCR only, Allen AI)
+- **Recommendation:** Test `phi4-mini:3.8b` next; consider `dots.mocr` long-term (replaces both layers)
+
+---
+
 ## Pending / Next
 
+- Test `phi4-mini:3.8b` on RunPod — compare field coverage vs `qwen2.5:3b`
 - Fix Technical PDD (`PDD.md`) — 5 identified issues (version, section numbering, file formats, glossary, port)
-- Create `docs/CHANGELOG.md` and backfill all PDD changes from 2026-03-18 onwards
-- Collapsible sidebar (default icon-only, expand on demand)
-- Full end-to-end extraction test with real documents
 - SO Number cross-document validation — frontend prompt after CUSTOMER_PO verify
 - Multi-user authentication and RBAC
 - .Net ERP integration
+- Long-term: evaluate `dots.mocr` (3B) as single-pass replacement for both OCR layers

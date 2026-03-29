@@ -54,11 +54,15 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
   // Snapshot of original extracted values for diffing corrections
   const originalSnapshot = useRef<Record<string, string>>({});
 
+  // Array fields that must never be included in formData — they can only come from extraction
+  const ARRAY_FIELDS = new Set(['order_items', 'delivery_locations']);
+
   useEffect(() => {
     if (metadata?.extracted_data && Object.keys(metadata.extracted_data).length > 0) {
       const initial: Record<string, string> = {};
       for (const [key, value] of Object.entries(metadata.extracted_data)) {
         if (key.startsWith('_') || key.startsWith('custom_')) continue;
+        if (ARRAY_FIELDS.has(key)) continue;  // Keep arrays out of formData — they must not be overwritten by string coercion
         initial[key] = value != null ? String(value) : '';
       }
       // Always include operator_notes (from existing data or empty)
@@ -142,6 +146,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
     const editedData: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(formData)) {
       if (key.startsWith('_')) continue;
+      if (ARRAY_FIELDS.has(key)) continue;  // Never overwrite extracted arrays with stringified versions
       if (value === '') {
         editedData[key] = null;
       } else if (
@@ -248,9 +253,9 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
   const removeCustomField = (id: string) =>
     setCustomFields((f) => f.filter((cf) => cf.id !== id));
 
-  // ── Field ordering and labels — unchanged from original ──────────
+  // ── Field ordering and labels ─────────────────────────────────────
   const FIELD_ORDER: Record<string, string[]> = {
-    CUSTOMER_PO:     ['po_number', 'bsif_name', 'po_date'],
+    CUSTOMER_PO:     ['po_number', 'bsif_name', 'po_date', 'quotation_no', 'quotation_date', 'grand_total', 'delivery_details', 'terms_and_conditions'],
     COMPANY_PO:      ['po_number', 'po_date', 'mode_of_bill', 'vendor_name'],
     VENDOR_DC:       ['dc_number', 'dc_date', 'po_reference', 'vendor_name', 'items_description', 'quantity', 'vehicle_number', 'receiver_name'],
     VENDOR_INVOICE:  ['invoice_number', 'customer_order_no', 'po_reference'],
@@ -259,8 +264,13 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
   };
 
   const FIELD_LABELS: Record<string, string> = {
-    bsif_name:         'Company Name',
-    po_date:           'PO Date',
+    bsif_name:             'Customer Name',
+    po_date:               'PO Date',
+    quotation_no:          'Quotation No',
+    quotation_date:        'Quotation Date',
+    grand_total:           'Grand Total',
+    delivery_details:      'Delivery Details',
+    terms_and_conditions:  'Terms & Conditions',
     mode_of_bill:      'Mode of Bill',
     dc_number:         'DC No',
     dc_date:           'DC Date',
@@ -512,7 +522,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
               )}
 
               {/* ── Form fields ──────────────────────────────────── */}
-              {sortedFormKeys(Object.keys(formData)).map((key) => {
+              {sortedFormKeys(Object.keys(formData).filter((k) => !ARRAY_FIELDS.has(k))).map((key) => {
                 const value = formData[key];
                 const conf  = getFieldConfidence(key);
                 const isChanged = value !== (originalSnapshot.current[key] ?? '');
@@ -522,11 +532,6 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
                     <label className="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">
                       <span>
                         {formatLabel(key)}
-                        {template?.field_descriptions?.[key] && (
-                          <span className="ml-1 text-gray-400 font-normal">
-                            — {template.field_descriptions[key]}
-                          </span>
-                        )}
                         {/* Changed indicator */}
                         {isChanged && (
                           <span className="ml-1.5 text-blue-500 font-semibold" title="Modified">

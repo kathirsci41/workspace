@@ -209,7 +209,7 @@ DPP 2.2.0/
 | GET | `/api/v1/customers/{id}` | Customer detail |
 | PATCH | `/api/v1/customers/{id}` | Update customer |
 | GET | `/api/v1/customers/{id}/purchase-orders` | Customer's PO list |
-
+| 
 ### Purchase Orders
 
 | Method | Endpoint | Description |

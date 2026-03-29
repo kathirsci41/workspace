@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import { usePOProfile } from '@/hooks/usePurchaseOrders';
 import { exportPOAsExcel } from '@/api/purchaseOrders';
+import { useToast } from '@/context/ToastContext';
 import { ProfileDocumentSection } from '@/components/ProfileDocumentSection';
 import { ProfileTimeline } from '@/components/ProfileTimeline';
 import { ProfileDiscrepancyPanel } from '@/components/ProfileDiscrepancyPanel';
@@ -31,12 +32,15 @@ export function POProfilePage() {
   const { id } = useParams<{ id: string }>();
   const { data: profile, isLoading, isError } = usePOProfile(id!);
   const [exporting, setExporting] = useState(false);
+  const showToast = useToast();
 
   const handleExport = async () => {
     if (!profile) return;
     setExporting(true);
     try {
       await exportPOAsExcel(id!, profile.po_number, 'separate');
+    } catch {
+      showToast('Export failed. Please try again.', 'error');
     } finally {
       setExporting(false);
     }
