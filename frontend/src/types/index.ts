@@ -12,6 +12,7 @@ export type DocumentStatus =
   | 'UPLOADED'
   | 'EXTRACTING'
   | 'PENDING_REVIEW'
+  | 'PENDING_MODEL'
   | 'VERIFIED'
   | 'EXTRACTION_FAILED'
   | 'REJECTED';
