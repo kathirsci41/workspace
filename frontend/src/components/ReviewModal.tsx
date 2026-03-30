@@ -14,6 +14,7 @@ import { useUpdatePO } from '@/hooks/usePurchaseOrders';
 import { getPreviewUrl } from '@/api/documents';
 import PDFViewer from '@/components/PDFViewer';
 import clsx from 'clsx';
+import { OrderItemsTable, type OrderItemRow } from '@/components/OrderItemsTable';
 
 interface Props {
   documentId: string;
@@ -26,6 +27,24 @@ interface Props {
 // Confidence thresholds for field-level colouring
 const CONF_HIGH   = 0.85;
 const CONF_MEDIUM = 0.60;
+
+// Columns per document type for the order_items table
+const ORDER_ITEMS_COLUMNS: Record<string, string[]> = {
+  CUSTOMER_PO:     ['sr_no', 'description', 'qty', 'unit_price', 'total_price'],
+  COMPANY_PO:      ['sr_no', 'part_no', 'description', 'hsn_code', 'qty', 'uom', 'unit_price', 'total_price', 'serial_numbers'],
+  VENDOR_DC:       ['sr_no', 'part_no', 'description', 'hsn_code', 'qty', 'uom', 'unit_price', 'total_price', 'serial_numbers'],
+  VENDOR_INVOICE:  ['sr_no', 'part_no', 'description', 'hsn_code', 'qty', 'uom', 'unit_price', 'total_price', 'serial_numbers'],
+  COMPANY_DC:      ['sr_no', 'part_no', 'description', 'hsn_code', 'qty', 'uom', 'unit_price', 'total_price', 'serial_numbers'],
+  COMPANY_INVOICE: ['sr_no', 'part_no', 'description', 'hsn_code', 'qty', 'uom', 'unit_price', 'total_price', 'serial_numbers'],
+};
+
+// Normalise an array row to Record<string, string> (handles nulls and numbers from extraction)
+function normalizeRow(row: unknown): OrderItemRow {
+  if (!row || typeof row !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(row as Record<string, unknown>).map(([k, v]) => [k, v != null ? String(v) : ''])
+  );
+}
 
 export default function ReviewModal({ documentId, onClose, onVerified, mode = 'review', onSaved }: Props) {
   const { data: metadata, isLoading } = useMetadata(documentId);
@@ -53,6 +72,8 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
 
   // Snapshot of original extracted values for diffing corrections
   const originalSnapshot = useRef<Record<string, string>>({});
+  const [tableRows, setTableRows]         = useState<OrderItemRow[]>([]);
+  const originalTableRows                 = useRef<OrderItemRow[]>([]);
 
   // Array fields that must never be included in formData — they can only come from extraction
   const ARRAY_FIELDS = new Set(['order_items', 'delivery_locations']);
@@ -77,6 +98,10 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       const snap: Record<string, string> = { ...initial };
       for (const { label, value } of existingCustom) snap[`custom_${label}`] = value;
       originalSnapshot.current = snap;
+      const rawItems = metadata.extracted_data['order_items'];
+      const items = Array.isArray(rawItems) ? rawItems.map(normalizeRow) : [];
+      setTableRows(items);
+      originalTableRows.current = items;
       setIsManualMode(
         metadata.model_version === 'manual' ||
         Object.values(metadata.extracted_data).every((v) => v === null || v === '')
@@ -90,6 +115,8 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       setFormData(initial);
       setCustomFields([]);
       originalSnapshot.current = { ...initial };
+      setTableRows([]);
+      originalTableRows.current = [];
       setIsManualMode(true);
     }
   }, [metadata, template]);
@@ -168,6 +195,22 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       if (label.trim()) editedData[`custom_${label.trim()}`] = value;
     }
 
+    // Include edited order_items — convert empty strings to null, numeric fields to numbers
+    const numericCols = new Set(['qty', 'unit_price', 'total_price']);
+    editedData['order_items'] = tableRows.map((row) => {
+      const result: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(row)) {
+        if (v === '') {
+          result[k] = null;
+        } else if (numericCols.has(k) && !isNaN(Number(v))) {
+          result[k] = Number(v);
+        } else {
+          result[k] = v;
+        }
+      }
+      return result;
+    });
+
     setSoMismatchMsg(null);
     verifyMutation.mutate(
       { documentId, editedData },
@@ -219,7 +262,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
   };
 
   const handleSave = () => {
-    const corrections = Object.entries(formData)
+    const corrections: { field: string; corrected_value: string | null | unknown[] }[] = Object.entries(formData)
       .filter(([key]) => !key.startsWith('_'))
       .filter(([key, val]) => val !== (originalSnapshot.current[key] ?? ''))
       .map(([key, val]) => ({ field: key, corrected_value: val || null }));
@@ -230,6 +273,11 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       const key = `custom_${label.trim()}`;
       if (value !== (originalSnapshot.current[key] ?? ''))
         corrections.push({ field: key, corrected_value: value || null });
+    }
+
+    // Include order_items change in corrections audit log
+    if (JSON.stringify(tableRows) !== JSON.stringify(originalTableRows.current)) {
+      corrections.push({ field: 'order_items', corrected_value: tableRows as unknown[] });
     }
 
     if (corrections.length === 0) {
@@ -593,6 +641,49 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
                   No extraction data or template available. Try re-extracting the document.
                 </p>
               )}
+
+              {/* ── Order Items Table ─────────────────────────────── */}
+              {(() => {
+                const docType = metadata?.document_type ?? '';
+                const columns = ORDER_ITEMS_COLUMNS[docType];
+                if (!columns) return null;
+                const tableChanged = JSON.stringify(tableRows) !== JSON.stringify(originalTableRows.current);
+                return (
+                  <div className="pt-3 mt-1 border-t border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-500">Line Items</span>
+                      {tableChanged && (
+                        <span className="text-xs text-blue-500 font-semibold" title="Modified">✎ Modified</span>
+                      )}
+                    </div>
+                    <OrderItemsTable
+                      columns={columns}
+                      rows={tableRows}
+                      onChange={setTableRows}
+                    />
+                  </div>
+                );
+              })()}
+
+              {/* ── Delivery Locations (read-only, CUSTOMER_PO only) ── */}
+              {(() => {
+                const raw = metadata?.extracted_data?.['delivery_locations'];
+                if (!Array.isArray(raw) || raw.length === 0) return null;
+                const locations = raw.map(normalizeRow);
+                const cols = Object.keys(locations[0]);
+                if (cols.length === 0) return null;
+                return (
+                  <div className="pt-3 mt-1 border-t border-gray-100">
+                    <span className="text-xs font-medium text-gray-500 block mb-2">Delivery Locations</span>
+                    <OrderItemsTable
+                      columns={cols}
+                      rows={locations}
+                      onChange={() => {}}
+                      readOnly
+                    />
+                  </div>
+                );
+              })()}
 
               {/* ── Operator Remarks — always visible ─────────────── */}
               {'operator_notes' in formData && (
