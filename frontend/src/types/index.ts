@@ -143,7 +143,7 @@ export interface ChainStatus {
 // ── NEW: correction payload sent to POST /corrections ────────────
 export interface FieldCorrection {
   field: string;
-  corrected_value: string | null | unknown[];
+  corrected_value: string | null;
 }
 
 export interface SearchResult {

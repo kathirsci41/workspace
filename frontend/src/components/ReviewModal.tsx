@@ -262,7 +262,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
   };
 
   const handleSave = () => {
-    const corrections: { field: string; corrected_value: string | null | unknown[] }[] = Object.entries(formData)
+    const corrections: { field: string; corrected_value: string | null }[] = Object.entries(formData)
       .filter(([key]) => !key.startsWith('_'))
       .filter(([key, val]) => val !== (originalSnapshot.current[key] ?? ''))
       .map(([key, val]) => ({ field: key, corrected_value: val || null }));
@@ -277,7 +277,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
 
     // Include order_items change in corrections audit log
     if (JSON.stringify(tableRows) !== JSON.stringify(originalTableRows.current)) {
-      corrections.push({ field: 'order_items', corrected_value: tableRows as unknown[] });
+      corrections.push({ field: 'order_items', corrected_value: JSON.stringify(tableRows) });
     }
 
     if (corrections.length === 0) {
