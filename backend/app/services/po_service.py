@@ -18,6 +18,7 @@ from app.schemas.po_profile import (
     POProfileTimelineEvent,
     POProfileResponse,
     VendorGroup,
+    FieldComparison,
 )
 from app.services.storage_service import StorageService
 from app.config import settings
@@ -572,6 +573,120 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
                 if profile_doc.po_ref_no not in refs:
                     refs.append(profile_doc.po_ref_no)
 
+    # ── Chain field comparison engine ──────────────────────────────────────────
+    def _extracted(doc_type: DocumentType, field: str) -> str | None:
+        """Return extracted_data[field] from the primary (most-recent) doc of this type."""
+        doc_list = docs_by_type.get(doc_type, [])
+        if not doc_list:
+            return None
+        meta = doc_list[0].doc_metadata
+        if not meta or not meta.extracted_data:
+            return None
+        val = meta.extracted_data.get(field)
+        return str(val).strip() if val is not None else None
+
+    def _amount_match(a: str | None, b: str | None, tolerance: float = 0.01) -> bool | None:
+        """Compare two amount strings with a relative tolerance."""
+        if a is None or b is None:
+            return None
+        try:
+            fa, fb = float(a), float(b)
+        except (ValueError, TypeError):
+            return None
+        if fa == 0 and fb == 0:
+            return True
+        if fa == 0 or fb == 0:
+            return abs(fa - fb) < 1.0
+        return abs(fa - fb) / max(abs(fa), abs(fb)) <= tolerance
+
+    def _str_match(a: str | None, b: str | None) -> bool | None:
+        """Case-insensitive exact match."""
+        if a is None or b is None:
+            return None
+        return a.lower() == b.lower()
+
+    def _cmp(
+        label: str,
+        src_type: DocumentType,
+        src_field: str,
+        cmp_type: DocumentType,
+        cmp_field: str,
+        is_amount: bool = False,
+        note: str | None = None,
+    ) -> FieldComparison:
+        src_val = _extracted(src_type, src_field)
+        cmp_val = _extracted(cmp_type, cmp_field)
+        if is_amount:
+            matched = _amount_match(src_val, cmp_val)
+        else:
+            matched = _str_match(src_val, cmp_val)
+        return FieldComparison(
+            field_label=label,
+            source_doc=src_type.value,
+            source_value=src_val,
+            compared_doc=cmp_type.value,
+            compared_value=cmp_val,
+            match=matched,
+            note=note,
+        )
+
+    field_comparisons: list[FieldComparison] = []
+
+    # Amount cross-checks
+    field_comparisons.append(_cmp(
+        "Grand Total",
+        DocumentType.CUSTOMER_PO, "grand_total",
+        DocumentType.COMPANY_INVOICE, "total_amount",
+        is_amount=True, note="tolerance ±1%",
+    ))
+    field_comparisons.append(_cmp(
+        "Vendor PO Amount",
+        DocumentType.COMPANY_PO, "total_amount",
+        DocumentType.VENDOR_INVOICE, "total_amount",
+        is_amount=True, note="tolerance ±1%",
+    ))
+
+    # Delivery address consistency
+    field_comparisons.append(_cmp(
+        "Delivery Address (Company PO → Vendor DC)",
+        DocumentType.COMPANY_PO, "delivery_address",
+        DocumentType.VENDOR_DC, "delivery_address",
+    ))
+    field_comparisons.append(_cmp(
+        "Delivery Address (Company PO → Company DC)",
+        DocumentType.COMPANY_PO, "delivery_address",
+        DocumentType.COMPANY_DC, "delivery_address",
+    ))
+
+    # SO number consistency between our outgoing documents
+    field_comparisons.append(_cmp(
+        "SO Number (Company DC → Company Invoice)",
+        DocumentType.COMPANY_DC, "so_number",
+        DocumentType.COMPANY_INVOICE, "so_number",
+    ))
+
+    # DC reference on invoice matches actual DC number
+    field_comparisons.append(_cmp(
+        "DC Reference on Invoice",
+        DocumentType.COMPANY_DC, "dc_number",
+        DocumentType.COMPANY_INVOICE, "dc_reference",
+    ))
+
+    # Vendor name consistency
+    field_comparisons.append(_cmp(
+        "Vendor Name (Company PO → Vendor Invoice)",
+        DocumentType.COMPANY_PO, "vendor_name",
+        DocumentType.VENDOR_INVOICE, "vendor_name",
+    ))
+    field_comparisons.append(_cmp(
+        "Vendor Name (Company PO → Vendor DC)",
+        DocumentType.COMPANY_PO, "vendor_name",
+        DocumentType.VENDOR_DC, "vendor_name",
+    ))
+
+    # Strip comparisons where both sides are None (no docs uploaded yet — no useful info)
+    field_comparisons = [fc for fc in field_comparisons if not (fc.source_value is None and fc.compared_value is None)]
+
     # Build per-vendor groups (procurement only — stock has no vendor docs)
     vendor_groups: list[VendorGroup] = []
     if po.fulfillment_type != FulfillmentType.STOCK:
@@ -636,4 +751,5 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
         discrepancies=discrepancies,
         cross_references=cross_references,
         vendor_groups=vendor_groups,
+        field_comparisons=field_comparisons,
     )

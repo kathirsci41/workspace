@@ -8,6 +8,7 @@ import { useToast } from '@/context/ToastContext';
 import { ProfileDocumentSection } from '@/components/ProfileDocumentSection';
 import { ProfileTimeline } from '@/components/ProfileTimeline';
 import { ProfileDiscrepancyPanel } from '@/components/ProfileDiscrepancyPanel';
+import { ProfileFieldComparison } from '@/components/ProfileFieldComparison';
 import ChainStatusBar from '@/components/ChainStatusBar';
 import type { POProfile, ChainSlot } from '@/types';
 
@@ -148,6 +149,9 @@ export function POProfilePage() {
         discrepancies={profile.discrepancies}
         crossReferences={profile.cross_references}
       />
+
+      {/* Cross-document field comparisons */}
+      <ProfileFieldComparison comparisons={profile.field_comparisons ?? []} />
 
       {/* Vendor breakdown (procurement only, when at least one COMPANY_PO uploaded) */}
       {profile.vendor_groups && profile.vendor_groups.length > 0 && (

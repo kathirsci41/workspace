@@ -240,6 +240,16 @@ export interface POProfileTimelineEvent {
   detail: string | null;
 }
 
+export interface FieldComparison {
+  field_label: string;
+  source_doc: string;
+  source_value: string | null;
+  compared_doc: string;
+  compared_value: string | null;
+  match: boolean | null;
+  note: string | null;
+}
+
 export interface VendorGroup {
   vendor_po_ref: string;
   vendor_name: string | null;
@@ -264,4 +274,5 @@ export interface POProfile {
   discrepancies: POProfileDiscrepancy[];
   cross_references: Record<string, string[]>;
   vendor_groups: VendorGroup[];
+  field_comparisons: FieldComparison[];
 }
