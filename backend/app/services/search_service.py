@@ -1,7 +1,7 @@
 """Global search service across customers, POs, and document references."""
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, or_, func, cast, Text
 from app.models import (
     Customer, PurchaseOrder, Document, DocumentMetadata,
     ReferenceIndex,
@@ -102,6 +102,36 @@ async def global_search(
                 "confidence": None,
             })
 
+    # 4. Search DocumentMetadata delivery_address (JSONB text field)
+    addr_stmt = (
+        select(Document, DocumentMetadata, PurchaseOrder, Customer)
+        .join(DocumentMetadata, DocumentMetadata.document_id == Document.id)
+        .join(PurchaseOrder, Document.po_id == PurchaseOrder.id)
+        .join(Customer, PurchaseOrder.customer_id == Customer.id)
+        .where(
+            cast(DocumentMetadata.extracted_data["delivery_address"], Text).ilike(pattern)
+        )
+    )
+    addr_result = await db.execute(addr_stmt)
+    for doc, meta, po, cust in addr_result.all():
+        if doc.id not in seen_ids:
+            seen_ids.add(doc.id)
+            doc_type_label = doc.document_type.value.replace("_", " ").title()
+            delivery_address = (
+                meta.extracted_data.get("delivery_address") if meta.extracted_data else None
+            )
+            results.append({
+                "result_type": "document",
+                "id": doc.id,
+                "ref_number": meta.primary_ref_no or "",
+                "display_name": f"{doc_type_label} → {delivery_address or 'Address match'}",
+                "document_type": doc.document_type.value,
+                "po_number": po.po_number,
+                "po_id": str(po.id),
+                "customer_name": cust.name,
+                "confidence": meta.confidence_score if meta else None,
+            })
+
     # Sort: exact match first, then starts-with, then contains
     q_lower = query.lower()
 
@@ -173,6 +203,7 @@ async def advanced_search(
     po_no: str | None = None,
     so_no: str | None = None,
     customer_name: str | None = None,
+    delivery_address: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
     document_type: str | None = None,
@@ -235,6 +266,11 @@ async def advanced_search(
             stmt = stmt.where(DocumentMetadata.doc_date >= date_from)
         if date_to:
             stmt = stmt.where(DocumentMetadata.doc_date <= date_to)
+        if delivery_address:
+            stmt = stmt.where(
+                cast(DocumentMetadata.extracted_data["delivery_address"], Text)
+                .ilike(f"%{delivery_address}%")
+            )
 
         ref_result = await db.execute(stmt)
         for ref, doc, meta, po, cust in ref_result.all():
@@ -252,7 +288,7 @@ async def advanced_search(
                     "customer_name": cust.name,
                     "confidence": meta.confidence_score if meta else None,
                 })
-    elif customer_name or date_from or date_to or document_type:
+    elif customer_name or date_from or date_to or document_type or delivery_address:
         # Search via metadata without ref filters
         stmt = (
             select(
@@ -277,6 +313,11 @@ async def advanced_search(
             stmt = stmt.where(DocumentMetadata.doc_date >= date_from)
         if date_to:
             stmt = stmt.where(DocumentMetadata.doc_date <= date_to)
+        if delivery_address:
+            stmt = stmt.where(
+                cast(DocumentMetadata.extracted_data["delivery_address"], Text)
+                .ilike(f"%{delivery_address}%")
+            )
 
         doc_result = await db.execute(stmt)
         for doc, meta, po, cust in doc_result.all():
@@ -307,7 +348,7 @@ async def advanced_search(
         "query": "|".join(
             filter(
                 None,
-                [invoice_no, dc_no, po_no, so_no, customer_name],
+                [invoice_no, dc_no, po_no, so_no, customer_name, delivery_address],
             )
         ),
     }
