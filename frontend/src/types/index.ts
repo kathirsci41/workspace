@@ -61,6 +61,7 @@ export interface PurchaseOrder {
   chain_completeness: number;
   so_number: string | null;
   notes: string | null;
+  fulfillment_type: 'procurement' | 'stock';
   created_at: string;
   updated_at: string;
 }
@@ -249,6 +250,7 @@ export interface POProfile {
   total_amount: number | null;
   status: string;
   chain_completeness: number;
+  fulfillment_type: 'procurement' | 'stock';
   created_at: string;
   slots: POProfileDocumentSlot[];
   timeline: POProfileTimelineEvent[];

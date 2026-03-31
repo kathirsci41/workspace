@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Download, Loader2 } from 'lucide-react';
-import { usePOProfile } from '@/hooks/usePurchaseOrders';
+import { useQueryClient } from '@tanstack/react-query';
+import { usePOProfile, useUpdatePO } from '@/hooks/usePurchaseOrders';
 import { exportPOAsExcel } from '@/api/purchaseOrders';
 import { useToast } from '@/context/ToastContext';
 import { ProfileDocumentSection } from '@/components/ProfileDocumentSection';
@@ -33,6 +34,8 @@ export function POProfilePage() {
   const { data: profile, isLoading, isError } = usePOProfile(id!);
   const [exporting, setExporting] = useState(false);
   const showToast = useToast();
+  const queryClient = useQueryClient();
+  const updatePO = useUpdatePO();
 
   const handleExport = async () => {
     if (!profile) return;
@@ -104,6 +107,36 @@ export function POProfilePage() {
           {profile.so_number && <div><span className="text-gray-400">SO Number</span> &nbsp;{profile.so_number}</div>}
           {profile.po_date && <div><span className="text-gray-400">PO Date</span> &nbsp;{new Date(profile.po_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>}
           {profile.total_amount != null && <div><span className="text-gray-400">Amount</span> &nbsp;₹{profile.total_amount.toLocaleString('en-IN')}</div>}
+        </div>
+
+        {/* Fulfillment type toggle */}
+        <div className="flex items-center gap-3 pt-0.5">
+          <span className="text-xs text-gray-400">Fulfillment</span>
+          <button
+            onClick={() => {
+              const next = profile.fulfillment_type === 'stock' ? 'procurement' : 'stock';
+              updatePO.mutate(
+                { id: id!, body: { fulfillment_type: next } },
+                {
+                  onSuccess: () => {
+                    queryClient.invalidateQueries({ queryKey: ['poProfile', id] });
+                    showToast(`Switched to ${next === 'stock' ? 'stock-based' : 'procurement'} fulfillment.`, 'success');
+                  },
+                }
+              );
+            }}
+            disabled={updatePO.isPending}
+            className={`text-xs px-2.5 py-0.5 rounded-full font-medium border transition-colors ${
+              profile.fulfillment_type === 'stock'
+                ? 'bg-purple-100 text-purple-700 border-purple-300 hover:bg-purple-200'
+                : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'
+            }`}
+          >
+            {profile.fulfillment_type === 'stock' ? 'Stock-based' : 'Procurement'}
+          </button>
+          {profile.fulfillment_type === 'stock' && (
+            <span className="text-xs text-gray-400">— vendor documents not required</span>
+          )}
         </div>
 
         <ChainStatusBar chain={chain} />

@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload, joinedload
 from fastapi import HTTPException
 
 from app.models.customer import Customer
-from app.models.purchase_order import PurchaseOrder, POStatus
+from app.models.purchase_order import PurchaseOrder, POStatus, FulfillmentType
 from app.models.document import Document, DocumentType, DocumentStatus
 from app.models.document_metadata import DocumentMetadata
 from app.models.reference_index import ReferenceIndex
@@ -259,7 +259,14 @@ async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse
     chain: dict[str, list[ChainSlot]] = {}
     slots_filled = 0
 
-    for doc_type in CHAIN_DOC_TYPES:
+    VENDOR_DOC_TYPES = {DocumentType.COMPANY_PO, DocumentType.VENDOR_DC, DocumentType.VENDOR_INVOICE}
+
+    if po.fulfillment_type == FulfillmentType.STOCK:
+        active_chain = [dt for dt in CHAIN_DOC_TYPES if dt not in VENDOR_DOC_TYPES]
+    else:
+        active_chain = CHAIN_DOC_TYPES
+
+    for doc_type in active_chain:
         # Find ALL documents of this type for this PO
         result = await db.execute(
             select(Document)
@@ -300,7 +307,7 @@ async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse
         else:
             chain[doc_type.value] = []
 
-    completeness = round((slots_filled / 6) * 100, 1)
+    completeness = round((slots_filled / len(active_chain)) * 100, 1)
 
     return ChainStatusResponse(
         po_id=po.id,
@@ -335,14 +342,26 @@ async def delete_po(db: AsyncSession, po_id: UUID) -> None:
 
 async def update_chain_completeness(db: AsyncSession, po_id: UUID) -> float:
     """Recalculate chain completeness for a PO."""
+    # Fetch PO to determine fulfillment type
+    po_row = (await db.execute(
+        select(PurchaseOrder).where(PurchaseOrder.id == po_id)
+    )).scalar_one_or_none()
+
+    VENDOR_DOC_TYPES = {DocumentType.COMPANY_PO, DocumentType.VENDOR_DC, DocumentType.VENDOR_INVOICE}
+    if po_row and po_row.fulfillment_type == FulfillmentType.STOCK:
+        active_chain = [dt for dt in CHAIN_DOC_TYPES if dt not in VENDOR_DOC_TYPES]
+    else:
+        active_chain = CHAIN_DOC_TYPES
+
     count_result = await db.execute(
         select(func.count(distinct(Document.document_type))).where(
             Document.po_id == po_id,
+            Document.document_type.in_(active_chain),
             Document.status.notin_([DocumentStatus.EXTRACTION_FAILED, DocumentStatus.REJECTED]),
         )
     )
     count = count_result.scalar() or 0
-    completeness = round((count / 6) * 100, 1)
+    completeness = round((count / len(active_chain)) * 100, 1)
 
     # Determine status
     if completeness == 0:
@@ -555,6 +574,7 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
         total_amount=float(po.total_amount) if po.total_amount else None,
         status=po.status.value,
         chain_completeness=po.chain_completeness or 0.0,
+        fulfillment_type=po.fulfillment_type.value if po.fulfillment_type else "procurement",
         created_at=po.created_at,
         slots=slots,
         timeline=timeline,

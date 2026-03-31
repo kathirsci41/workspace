@@ -66,6 +66,7 @@ class POProfileResponse(BaseModel):
     total_amount: float | None
     status: str
     chain_completeness: float
+    fulfillment_type: str = "procurement"
     created_at: datetime
     slots: list[POProfileDocumentSlot]
     timeline: list[POProfileTimelineEvent]

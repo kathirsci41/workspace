@@ -19,6 +19,7 @@ class POUpdate(BaseModel):
     notes: Optional[str] = None
     status: Optional[str] = None
     so_number: Optional[str] = None
+    fulfillment_type: Optional[str] = None
 
 
 class POResponse(BaseModel):
@@ -32,6 +33,7 @@ class POResponse(BaseModel):
     chain_completeness: float
     notes: Optional[str] = None
     so_number: Optional[str] = None
+    fulfillment_type: Optional[str] = "procurement"
     created_at: datetime
     updated_at: datetime
     customer_name: str = ""
