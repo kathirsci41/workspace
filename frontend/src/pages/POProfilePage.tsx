@@ -120,6 +120,7 @@ export function POProfilePage() {
                 {
                   onSuccess: () => {
                     queryClient.invalidateQueries({ queryKey: ['poProfile', id] });
+                    queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
                     showToast(`Switched to ${next === 'stock' ? 'stock-based' : 'procurement'} fulfillment.`, 'success');
                   },
                 }

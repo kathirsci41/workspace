@@ -19,8 +19,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create enum type outside transaction (PostgreSQL cannot add enum values inside a transaction)
-    op.execute("CREATE TYPE fulfillmenttype AS ENUM ('procurement', 'stock')")
+    # Create enum type idempotently (safe to re-run if type already exists)
+    op.execute("""
+    DO $$ BEGIN
+        CREATE TYPE fulfillmenttype AS ENUM ('procurement', 'stock');
+    EXCEPTION WHEN duplicate_object THEN null;
+    END $$;
+""")
     op.add_column(
         'purchase_orders',
         sa.Column(
@@ -34,4 +39,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_column('purchase_orders', 'fulfillment_type')
-    op.execute("DROP TYPE fulfillmenttype")
+    op.execute("""
+    DO $$ BEGIN
+        DROP TYPE fulfillmenttype;
+    EXCEPTION WHEN undefined_object THEN null;
+    END $$;
+""")

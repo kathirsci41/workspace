@@ -453,9 +453,16 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
     for doc_list in docs_by_type.values():
         doc_list.sort(key=lambda d: d.created_at, reverse=True)
 
-    # Build 6 slots in chain order — each slot may hold multiple documents
+    # Determine active chain based on fulfillment type
+    VENDOR_DOC_TYPES = {DocumentType.COMPANY_PO, DocumentType.VENDOR_DC, DocumentType.VENDOR_INVOICE}
+    if po.fulfillment_type == FulfillmentType.STOCK:
+        active_chain = [dt for dt in CHAIN_DOC_TYPES if dt not in VENDOR_DOC_TYPES]
+    else:
+        active_chain = CHAIN_DOC_TYPES
+
+    # Build slots in chain order — each slot may hold multiple documents
     slots: list[POProfileDocumentSlot] = []
-    for doc_type in CHAIN_DOC_TYPES:
+    for doc_type in active_chain:
         doc_list = docs_by_type.get(doc_type, [])
         if not doc_list:
             slots.append(POProfileDocumentSlot(
