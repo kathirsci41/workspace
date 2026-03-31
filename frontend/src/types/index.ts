@@ -240,6 +240,13 @@ export interface POProfileTimelineEvent {
   detail: string | null;
 }
 
+export interface VendorGroup {
+  vendor_po_ref: string;
+  vendor_name: string | null;
+  completeness_pct: number;
+  slots: POProfileDocumentSlot[];
+}
+
 export interface POProfile {
   po_id: string;
   po_number: string;
@@ -256,4 +263,5 @@ export interface POProfile {
   timeline: POProfileTimelineEvent[];
   discrepancies: POProfileDiscrepancy[];
   cross_references: Record<string, string[]>;
+  vendor_groups: VendorGroup[];
 }

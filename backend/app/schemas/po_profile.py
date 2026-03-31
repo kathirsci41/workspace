@@ -54,6 +54,14 @@ class POProfileTimelineEvent(BaseModel):
     detail: str | None = None
 
 
+class VendorGroup(BaseModel):
+    """Completeness view for one vendor within a procurement PO."""
+    vendor_po_ref: str                   # primary_ref_no of the COMPANY_PO doc
+    vendor_name: str | None = None       # extracted_data['vendor_name'] from COMPANY_PO
+    completeness_pct: float              # filled vendor slots / 3 × 100
+    slots: list[POProfileDocumentSlot]   # COMPANY_PO, VENDOR_DC, VENDOR_INVOICE
+
+
 class POProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -72,3 +80,4 @@ class POProfileResponse(BaseModel):
     timeline: list[POProfileTimelineEvent]
     discrepancies: list[POProfileDiscrepancy]
     cross_references: dict[str, list[str]]
+    vendor_groups: list[VendorGroup] = []

@@ -149,6 +149,54 @@ export function POProfilePage() {
         crossReferences={profile.cross_references}
       />
 
+      {/* Vendor breakdown (procurement only, when at least one COMPANY_PO uploaded) */}
+      {profile.vendor_groups && profile.vendor_groups.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Vendor Breakdown
+          </h3>
+          {profile.vendor_groups.map((group) => {
+            const pct = group.completeness_pct;
+            const barColour =
+              pct === 100 ? 'bg-green-500' :
+              pct >= 67  ? 'bg-amber-400' :
+              pct >= 33  ? 'bg-orange-400' : 'bg-red-400';
+            return (
+              <div key={group.vendor_po_ref} className="border border-gray-100 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-sm font-medium text-gray-800 truncate">
+                      {group.vendor_name ?? group.vendor_po_ref}
+                    </span>
+                    {group.vendor_name && (
+                      <span className="text-xs text-gray-400 shrink-0">{group.vendor_po_ref}</span>
+                    )}
+                  </div>
+                  <span className="text-xs font-semibold text-gray-600 shrink-0">{pct}%</span>
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-1.5">
+                  <div className={`${barColour} h-1.5 rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {group.slots.map((slot) => {
+                    const dotColour =
+                      slot.status === 'VERIFIED'      ? 'bg-green-500' :
+                      slot.status === 'PENDING_REVIEW'? 'bg-amber-400' :
+                      slot.status === 'empty'         ? 'bg-gray-300'  : 'bg-blue-400';
+                    return (
+                      <span key={slot.document_type} className="inline-flex items-center gap-1 text-xs text-gray-500">
+                        <span className={`w-2 h-2 rounded-full ${dotColour}`} />
+                        {slot.document_type.replace(/_/g, ' ')}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Document sections */}
       {profile.slots.map((slot) => (
         <ProfileDocumentSection key={slot.document_type} slot={slot} poId={id!} />

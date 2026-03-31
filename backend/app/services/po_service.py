@@ -17,6 +17,7 @@ from app.schemas.po_profile import (
     POProfileDiscrepancy,
     POProfileTimelineEvent,
     POProfileResponse,
+    VendorGroup,
 )
 from app.services.storage_service import StorageService
 from app.config import settings
@@ -571,6 +572,53 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
                 if profile_doc.po_ref_no not in refs:
                     refs.append(profile_doc.po_ref_no)
 
+    # Build per-vendor groups (procurement only — stock has no vendor docs)
+    vendor_groups: list[VendorGroup] = []
+    if po.fulfillment_type != FulfillmentType.STOCK:
+        for company_po_doc in docs_by_type.get(DocumentType.COMPANY_PO, []):
+            meta = company_po_doc.doc_metadata
+            vendor_po_ref = meta.primary_ref_no if meta else None
+            if not vendor_po_ref:
+                continue
+
+            vendor_name = (
+                meta.extracted_data.get("vendor_name")
+                if meta and meta.extracted_data
+                else None
+            )
+
+            linked_vdc = [
+                d for d in docs_by_type.get(DocumentType.VENDOR_DC, [])
+                if d.doc_metadata and d.doc_metadata.po_ref_no == vendor_po_ref
+            ]
+            linked_vinv = [
+                d for d in docs_by_type.get(DocumentType.VENDOR_INVOICE, [])
+                if d.doc_metadata and d.doc_metadata.po_ref_no == vendor_po_ref
+            ]
+
+            def _make_slot(dt: DocumentType, doc_list: list[Document]) -> POProfileDocumentSlot:
+                if not doc_list:
+                    return POProfileDocumentSlot(document_type=dt.value, status="empty", documents=[])
+                return POProfileDocumentSlot(
+                    document_type=dt.value,
+                    status=_derive_slot_status(doc_list),
+                    documents=[_build_profile_document(d) for d in doc_list],
+                )
+
+            group_slots = [
+                _make_slot(DocumentType.COMPANY_PO, [company_po_doc]),
+                _make_slot(DocumentType.VENDOR_DC, linked_vdc),
+                _make_slot(DocumentType.VENDOR_INVOICE, linked_vinv),
+            ]
+            filled = sum(1 for s in group_slots if s.status != "empty")
+
+            vendor_groups.append(VendorGroup(
+                vendor_po_ref=vendor_po_ref,
+                vendor_name=vendor_name,
+                completeness_pct=round(filled / 3 * 100, 1),
+                slots=group_slots,
+            ))
+
     return POProfileResponse(
         po_id=po.id,
         po_number=po.po_number,
@@ -587,4 +635,5 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
         timeline=timeline,
         discrepancies=discrepancies,
         cross_references=cross_references,
+        vendor_groups=vendor_groups,
     )
