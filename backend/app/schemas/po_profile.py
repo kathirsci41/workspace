@@ -54,6 +54,25 @@ class POProfileTimelineEvent(BaseModel):
     detail: str | None = None
 
 
+class FieldComparison(BaseModel):
+    """One cross-document field comparison result."""
+    field_label: str             # Human-readable: "Delivery Address", "Grand Total", etc.
+    source_doc: str              # Document type that holds the canonical value
+    source_value: str | None     # Value from source_doc
+    compared_doc: str            # Document type being compared against
+    compared_value: str | None   # Value from compared_doc
+    match: bool | None           # None = cannot compare (one side missing)
+    note: str | None = None      # Extra context, e.g. "tolerance ±1%"
+
+
+class VendorGroup(BaseModel):
+    """Completeness view for one vendor within a procurement PO."""
+    vendor_po_ref: str                   # primary_ref_no of the COMPANY_PO doc
+    vendor_name: str | None = None       # extracted_data['vendor_name'] from COMPANY_PO
+    completeness_pct: float              # filled vendor slots / 3 × 100
+    slots: list[POProfileDocumentSlot]   # COMPANY_PO, VENDOR_DC, VENDOR_INVOICE
+
+
 class POProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -66,8 +85,11 @@ class POProfileResponse(BaseModel):
     total_amount: float | None
     status: str
     chain_completeness: float
+    fulfillment_type: str = "procurement"
     created_at: datetime
     slots: list[POProfileDocumentSlot]
     timeline: list[POProfileTimelineEvent]
     discrepancies: list[POProfileDiscrepancy]
     cross_references: dict[str, list[str]]
+    vendor_groups: list[VendorGroup] = []
+    field_comparisons: list[FieldComparison] = []

@@ -64,6 +64,11 @@ def _apply_header(ws, row: int, columns: list[str]) -> None:
     ws.freeze_panes = ws.cell(row=row + 1, column=1)
 
 
+def _primary_doc(slot):
+    """Return the first (most-recent) POProfileDocument from a slot, or None."""
+    return slot.documents[0] if slot.documents else None
+
+
 def _autofit(ws) -> None:
     for col in ws.columns:
         max_len = 0
@@ -118,20 +123,21 @@ def _build_document_chain(wb: Workbook, profile) -> None:
     _apply_header(ws, 1, columns)
 
     for r_idx, slot in enumerate(profile.slots, 2):
+        doc = _primary_doc(slot)
         confidence = ""
-        if slot.confidence_score is not None:
-            score = slot.confidence_score
+        if doc and doc.confidence_score is not None:
+            score = doc.confidence_score
             confidence = f"{round(score if score > 1 else score * 100)}%"
 
         ws.cell(row=r_idx, column=1, value=slot.document_type.replace("_", " ").title())
         ws.cell(row=r_idx, column=2, value=slot.status)
-        ws.cell(row=r_idx, column=3, value=slot.primary_ref_no or "—")
-        ws.cell(row=r_idx, column=4, value=str(slot.doc_date) if slot.doc_date else "—")
-        ws.cell(row=r_idx, column=5, value=f"{slot.total_amount:,.2f}" if slot.total_amount else "—")
+        ws.cell(row=r_idx, column=3, value=(doc.primary_ref_no if doc else None) or "—")
+        ws.cell(row=r_idx, column=4, value=str(doc.doc_date) if doc and doc.doc_date else "—")
+        ws.cell(row=r_idx, column=5, value=f"{doc.total_amount:,.2f}" if doc and doc.total_amount else "—")
         ws.cell(row=r_idx, column=6, value=confidence or "—")
-        ws.cell(row=r_idx, column=7, value=slot.extraction_route or "—")
-        ws.cell(row=r_idx, column=8, value=slot.verified_at.strftime("%Y-%m-%d %H:%M") if slot.verified_at else "—")
-        ws.cell(row=r_idx, column=9, value=slot.uploaded_at.strftime("%Y-%m-%d %H:%M") if slot.uploaded_at else "—")
+        ws.cell(row=r_idx, column=7, value=(doc.extraction_route if doc else None) or "—")
+        ws.cell(row=r_idx, column=8, value=doc.verified_at.strftime("%Y-%m-%d %H:%M") if doc and doc.verified_at else "—")
+        ws.cell(row=r_idx, column=9, value=doc.uploaded_at.strftime("%Y-%m-%d %H:%M") if doc and doc.uploaded_at else "—")
 
     _autofit(ws)
 
@@ -142,7 +148,8 @@ def _build_extracted_fields(wb: Workbook, profile) -> None:
 
     current_row = 2
     for slot in profile.slots:
-        if not slot.extracted_data:
+        doc = _primary_doc(slot)
+        if not doc or not doc.extracted_data:
             continue
 
         label = slot.document_type.replace("_", " ").title()
@@ -153,7 +160,7 @@ def _build_extracted_fields(wb: Workbook, profile) -> None:
                        end_row=current_row, end_column=3)
         current_row += 1
 
-        for key, value in slot.extracted_data.items():
+        for key, value in doc.extracted_data.items():
             if key.startswith("_") or isinstance(value, (list, dict)):
                 continue
             ws.cell(row=current_row, column=1, value="")
@@ -176,8 +183,9 @@ def _build_order_items(wb: Workbook, profile) -> None:
 
     items = []
     for slot in profile.slots:
-        if slot.document_type == "CUSTOMER_PO" and slot.extracted_data:
-            items = slot.extracted_data.get("order_items") or []
+        doc = _primary_doc(slot)
+        if slot.document_type == "CUSTOMER_PO" and doc and doc.extracted_data:
+            items = doc.extracted_data.get("order_items") or []
             break
 
     if not items:
@@ -206,8 +214,9 @@ def _build_delivery_locations(wb: Workbook, profile) -> None:
 
     locations = []
     for slot in profile.slots:
-        if slot.document_type == "CUSTOMER_PO" and slot.extracted_data:
-            locations = slot.extracted_data.get("delivery_locations") or []
+        doc = _primary_doc(slot)
+        if slot.document_type == "CUSTOMER_PO" and doc and doc.extracted_data:
+            locations = doc.extracted_data.get("delivery_locations") or []
             break
 
     if not locations:
@@ -344,20 +353,21 @@ def _build_consolidated(wb: Workbook, profile) -> None:
     r += 1
 
     for slot in profile.slots:
+        doc = _primary_doc(slot)
         confidence = ""
-        if slot.confidence_score is not None:
-            score = slot.confidence_score
+        if doc and doc.confidence_score is not None:
+            score = doc.confidence_score
             confidence = f"{round(score if score > 1 else score * 100)}%"
 
         ws.cell(row=r, column=1, value=slot.document_type.replace("_", " ").title())
         ws.cell(row=r, column=2, value=slot.status)
-        ws.cell(row=r, column=3, value=slot.primary_ref_no or "—")
-        ws.cell(row=r, column=4, value=str(slot.doc_date) if slot.doc_date else "—")
-        ws.cell(row=r, column=5, value=f"{slot.total_amount:,.2f}" if slot.total_amount else "—")
+        ws.cell(row=r, column=3, value=(doc.primary_ref_no if doc else None) or "—")
+        ws.cell(row=r, column=4, value=str(doc.doc_date) if doc and doc.doc_date else "—")
+        ws.cell(row=r, column=5, value=f"{doc.total_amount:,.2f}" if doc and doc.total_amount else "—")
         ws.cell(row=r, column=6, value=confidence or "—")
-        ws.cell(row=r, column=7, value=slot.extraction_route or "—")
-        ws.cell(row=r, column=8, value=slot.verified_at.strftime("%Y-%m-%d %H:%M") if slot.verified_at else "—")
-        ws.cell(row=r, column=9, value=slot.uploaded_at.strftime("%Y-%m-%d %H:%M") if slot.uploaded_at else "—")
+        ws.cell(row=r, column=7, value=(doc.extraction_route if doc else None) or "—")
+        ws.cell(row=r, column=8, value=doc.verified_at.strftime("%Y-%m-%d %H:%M") if doc and doc.verified_at else "—")
+        ws.cell(row=r, column=9, value=doc.uploaded_at.strftime("%Y-%m-%d %H:%M") if doc and doc.uploaded_at else "—")
         r += 1
     r += 1
 
@@ -366,7 +376,8 @@ def _build_consolidated(wb: Workbook, profile) -> None:
     r += 1
 
     for slot in profile.slots:
-        if not slot.extracted_data:
+        doc = _primary_doc(slot)
+        if not doc or not doc.extracted_data:
             continue
 
         # Doc type sub-header
@@ -378,7 +389,7 @@ def _build_consolidated(wb: Workbook, profile) -> None:
                        end_row=r, end_column=_CONSOLIDATED_COLS)
         r += 1
 
-        for key, value in slot.extracted_data.items():
+        for key, value in doc.extracted_data.items():
             if key.startswith("_") or isinstance(value, (list, dict)):
                 continue
             ws.cell(row=r, column=1, value=_label(key)).font = Font(bold=True)
@@ -396,8 +407,9 @@ def _build_consolidated(wb: Workbook, profile) -> None:
 
     items = []
     for slot in profile.slots:
-        if slot.document_type == "CUSTOMER_PO" and slot.extracted_data:
-            items = slot.extracted_data.get("order_items") or []
+        doc = _primary_doc(slot)
+        if slot.document_type == "CUSTOMER_PO" and doc and doc.extracted_data:
+            items = doc.extracted_data.get("order_items") or []
             break
 
     if items:
@@ -423,8 +435,9 @@ def _build_consolidated(wb: Workbook, profile) -> None:
 
     locations = []
     for slot in profile.slots:
-        if slot.document_type == "CUSTOMER_PO" and slot.extracted_data:
-            locations = slot.extracted_data.get("delivery_locations") or []
+        doc = _primary_doc(slot)
+        if slot.document_type == "CUSTOMER_PO" and doc and doc.extracted_data:
+            locations = doc.extracted_data.get("delivery_locations") or []
             break
 
     if locations:
@@ -468,6 +481,82 @@ def _build_consolidated(wb: Workbook, profile) -> None:
             r += 1
     else:
         ws.cell(row=r, column=1, value="No events recorded yet")
+        r += 1
+    r += 1
+
+    # ── Section 7: Field Comparisons ─────────────────────────────────────────
+    field_comparisons = getattr(profile, "field_comparisons", [])
+    if field_comparisons:
+        _section_header(ws, r, "CROSS-DOCUMENT FIELD COMPARISONS")
+        r += 1
+        _consolidated_header_row(ws, r, ["Field", "Source Doc", "Source Value",
+                                          "Compared Doc", "Compared Value", "Match", "Note"])
+        r += 1
+        for fc in field_comparisons:
+            match_label = "✓ MATCH" if fc.match is True else ("✗ MISMATCH" if fc.match is False else "— pending")
+            ws.cell(row=r, column=1, value=fc.field_label)
+            ws.cell(row=r, column=2, value=fc.source_doc.replace("_", " ").title())
+            ws.cell(row=r, column=3, value=fc.source_value or "—")
+            ws.cell(row=r, column=4, value=fc.compared_doc.replace("_", " ").title())
+            ws.cell(row=r, column=5, value=fc.compared_value or "—")
+            match_cell = ws.cell(row=r, column=6, value=match_label)
+            if fc.match is False:
+                match_cell.font = Font(bold=True, color="C00000")
+            elif fc.match is True:
+                match_cell.font = Font(color="375623")
+            ws.cell(row=r, column=7, value=fc.note or "")
+            r += 1
+
+
+def _build_field_comparisons(wb: Workbook, profile) -> None:
+    """Sheet: cross-document field comparison results."""
+    if not getattr(profile, "field_comparisons", None):
+        return
+
+    ws = wb.create_sheet("Field Comparisons")
+    columns = ["Field", "Source Doc", "Source Value", "Compared Doc", "Compared Value", "Match", "Note"]
+    _apply_header(ws, 1, columns)
+
+    for r_idx, fc in enumerate(profile.field_comparisons, 2):
+        match_label = "✓ MATCH" if fc.match is True else ("✗ MISMATCH" if fc.match is False else "— pending")
+        ws.cell(row=r_idx, column=1, value=fc.field_label)
+        ws.cell(row=r_idx, column=2, value=fc.source_doc.replace("_", " ").title())
+        ws.cell(row=r_idx, column=3, value=fc.source_value or "—")
+        ws.cell(row=r_idx, column=4, value=fc.compared_doc.replace("_", " ").title())
+        ws.cell(row=r_idx, column=5, value=fc.compared_value or "—")
+        match_cell = ws.cell(row=r_idx, column=6, value=match_label)
+        if fc.match is False:
+            match_cell.font = Font(bold=True, color="C00000")
+        elif fc.match is True:
+            match_cell.font = Font(color="375623")
+        ws.cell(row=r_idx, column=7, value=fc.note or "")
+
+    _autofit(ws)
+
+
+def _build_vendor_groups(wb: Workbook, profile) -> None:
+    """Sheet: per-vendor completeness breakdown."""
+    vendor_groups = getattr(profile, "vendor_groups", None)
+    if not vendor_groups:
+        return
+
+    ws = wb.create_sheet("Vendor Groups")
+    columns = ["Vendor", "Vendor PO Ref", "Completeness %", "Doc Type", "Status", "Primary Ref No"]
+    _apply_header(ws, 1, columns)
+
+    r_idx = 2
+    for group in vendor_groups:
+        for slot in group.slots:
+            doc = _primary_doc(slot)
+            ws.cell(row=r_idx, column=1, value=group.vendor_name or "—")
+            ws.cell(row=r_idx, column=2, value=group.vendor_po_ref)
+            ws.cell(row=r_idx, column=3, value=f"{group.completeness_pct:.1f}%")
+            ws.cell(row=r_idx, column=4, value=slot.document_type.replace("_", " ").title())
+            ws.cell(row=r_idx, column=5, value=slot.status)
+            ws.cell(row=r_idx, column=6, value=(doc.primary_ref_no if doc else None) or "—")
+            r_idx += 1
+
+    _autofit(ws)
 
 
 # ── Public entry point ─────────────────────────────────────────────────────────
@@ -489,6 +578,8 @@ async def export_po_to_excel(db: AsyncSession, po_id: UUID,
         _build_delivery_locations(wb, profile)
         _build_timeline(wb, profile)
         _build_discrepancies(wb, profile)
+        _build_field_comparisons(wb, profile)
+        _build_vendor_groups(wb, profile)
 
     buf = io.BytesIO()
     wb.save(buf)

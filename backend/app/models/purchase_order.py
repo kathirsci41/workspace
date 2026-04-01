@@ -21,6 +21,11 @@ class POStatus(str, enum.Enum):
     CANCELLED = "CANCELLED"
 
 
+class FulfillmentType(str, enum.Enum):
+    PROCUREMENT = "procurement"
+    STOCK = "stock"
+
+
 class PurchaseOrder(TimestampMixin, Base):
     __tablename__ = "purchase_orders"
 
@@ -43,6 +48,12 @@ class PurchaseOrder(TimestampMixin, Base):
     chain_completeness: Mapped[float] = mapped_column(Float, default=0.0)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     so_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    fulfillment_type: Mapped[FulfillmentType] = mapped_column(
+        Enum(FulfillmentType, name="fulfillmenttype"),
+        default=FulfillmentType.PROCUREMENT,
+        nullable=False,
+        server_default="procurement",
+    )
 
     # Relationships
     customer: Mapped["Customer"] = relationship(

@@ -69,6 +69,7 @@ export function useUpdatePO() {
       queryClient.invalidateQueries({ queryKey: ['purchaseOrder', id] });
       queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] });
       queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
+      queryClient.invalidateQueries({ queryKey: ['poProfile', id] });
     },
   });
 }

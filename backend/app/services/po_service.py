@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload, joinedload
 from fastapi import HTTPException
 
 from app.models.customer import Customer
-from app.models.purchase_order import PurchaseOrder, POStatus
+from app.models.purchase_order import PurchaseOrder, POStatus, FulfillmentType
 from app.models.document import Document, DocumentType, DocumentStatus
 from app.models.document_metadata import DocumentMetadata
 from app.models.reference_index import ReferenceIndex
@@ -17,6 +17,8 @@ from app.schemas.po_profile import (
     POProfileDiscrepancy,
     POProfileTimelineEvent,
     POProfileResponse,
+    VendorGroup,
+    FieldComparison,
 )
 from app.services.storage_service import StorageService
 from app.config import settings
@@ -259,7 +261,14 @@ async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse
     chain: dict[str, list[ChainSlot]] = {}
     slots_filled = 0
 
-    for doc_type in CHAIN_DOC_TYPES:
+    VENDOR_DOC_TYPES = {DocumentType.COMPANY_PO, DocumentType.VENDOR_DC, DocumentType.VENDOR_INVOICE}
+
+    if po.fulfillment_type == FulfillmentType.STOCK:
+        active_chain = [dt for dt in CHAIN_DOC_TYPES if dt not in VENDOR_DOC_TYPES]
+    else:
+        active_chain = CHAIN_DOC_TYPES
+
+    for doc_type in active_chain:
         # Find ALL documents of this type for this PO
         result = await db.execute(
             select(Document)
@@ -300,7 +309,7 @@ async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse
         else:
             chain[doc_type.value] = []
 
-    completeness = round((slots_filled / 6) * 100, 1)
+    completeness = round((slots_filled / len(active_chain)) * 100, 1)
 
     return ChainStatusResponse(
         po_id=po.id,
@@ -335,14 +344,26 @@ async def delete_po(db: AsyncSession, po_id: UUID) -> None:
 
 async def update_chain_completeness(db: AsyncSession, po_id: UUID) -> float:
     """Recalculate chain completeness for a PO."""
+    # Fetch PO to determine fulfillment type
+    po_row = (await db.execute(
+        select(PurchaseOrder).where(PurchaseOrder.id == po_id)
+    )).scalar_one_or_none()
+
+    VENDOR_DOC_TYPES = {DocumentType.COMPANY_PO, DocumentType.VENDOR_DC, DocumentType.VENDOR_INVOICE}
+    if po_row and po_row.fulfillment_type == FulfillmentType.STOCK:
+        active_chain = [dt for dt in CHAIN_DOC_TYPES if dt not in VENDOR_DOC_TYPES]
+    else:
+        active_chain = CHAIN_DOC_TYPES
+
     count_result = await db.execute(
         select(func.count(distinct(Document.document_type))).where(
             Document.po_id == po_id,
+            Document.document_type.in_(active_chain),
             Document.status.notin_([DocumentStatus.EXTRACTION_FAILED, DocumentStatus.REJECTED]),
         )
     )
     count = count_result.scalar() or 0
-    completeness = round((count / 6) * 100, 1)
+    completeness = round((count / len(active_chain)) * 100, 1)
 
     # Determine status
     if completeness == 0:
@@ -434,9 +455,16 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
     for doc_list in docs_by_type.values():
         doc_list.sort(key=lambda d: d.created_at, reverse=True)
 
-    # Build 6 slots in chain order — each slot may hold multiple documents
+    # Determine active chain based on fulfillment type
+    VENDOR_DOC_TYPES = {DocumentType.COMPANY_PO, DocumentType.VENDOR_DC, DocumentType.VENDOR_INVOICE}
+    if po.fulfillment_type == FulfillmentType.STOCK:
+        active_chain = [dt for dt in CHAIN_DOC_TYPES if dt not in VENDOR_DOC_TYPES]
+    else:
+        active_chain = CHAIN_DOC_TYPES
+
+    # Build slots in chain order — each slot may hold multiple documents
     slots: list[POProfileDocumentSlot] = []
-    for doc_type in CHAIN_DOC_TYPES:
+    for doc_type in active_chain:
         doc_list = docs_by_type.get(doc_type, [])
         if not doc_list:
             slots.append(POProfileDocumentSlot(
@@ -545,6 +573,167 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
                 if profile_doc.po_ref_no not in refs:
                     refs.append(profile_doc.po_ref_no)
 
+    # ── Chain field comparison engine ──────────────────────────────────────────
+    def _extracted(doc_type: DocumentType, field: str) -> str | None:
+        """Return extracted_data[field] from the primary (most-recent) doc of this type."""
+        doc_list = docs_by_type.get(doc_type, [])
+        if not doc_list:
+            return None
+        meta = doc_list[0].doc_metadata
+        if not meta or not meta.extracted_data:
+            return None
+        val = meta.extracted_data.get(field)
+        return str(val).strip() if val is not None else None
+
+    def _amount_match(a: str | None, b: str | None, tolerance: float = 0.01) -> bool | None:
+        """Compare two amount strings with a relative tolerance."""
+        if a is None or b is None:
+            return None
+        try:
+            fa, fb = float(a), float(b)
+        except (ValueError, TypeError):
+            return None
+        if fa == 0 and fb == 0:
+            return True
+        if fa == 0 or fb == 0:
+            return abs(fa - fb) < 1.0
+        return abs(fa - fb) / max(abs(fa), abs(fb)) <= tolerance
+
+    def _str_match(a: str | None, b: str | None) -> bool | None:
+        """Case-insensitive exact match."""
+        if a is None or b is None:
+            return None
+        return a.lower() == b.lower()
+
+    def _cmp(
+        label: str,
+        src_type: DocumentType,
+        src_field: str,
+        cmp_type: DocumentType,
+        cmp_field: str,
+        is_amount: bool = False,
+        note: str | None = None,
+    ) -> FieldComparison:
+        src_val = _extracted(src_type, src_field)
+        cmp_val = _extracted(cmp_type, cmp_field)
+        if is_amount:
+            matched = _amount_match(src_val, cmp_val)
+        else:
+            matched = _str_match(src_val, cmp_val)
+        return FieldComparison(
+            field_label=label,
+            source_doc=src_type.value,
+            source_value=src_val,
+            compared_doc=cmp_type.value,
+            compared_value=cmp_val,
+            match=matched,
+            note=note,
+        )
+
+    field_comparisons: list[FieldComparison] = []
+
+    # Amount cross-checks
+    field_comparisons.append(_cmp(
+        "Grand Total",
+        DocumentType.CUSTOMER_PO, "grand_total",
+        DocumentType.COMPANY_INVOICE, "total_amount",
+        is_amount=True, note="tolerance ±1%",
+    ))
+    field_comparisons.append(_cmp(
+        "Vendor PO Amount",
+        DocumentType.COMPANY_PO, "total_amount",
+        DocumentType.VENDOR_INVOICE, "total_amount",
+        is_amount=True, note="tolerance ±1%",
+    ))
+
+    # Delivery address consistency
+    field_comparisons.append(_cmp(
+        "Delivery Address (Company PO → Vendor DC)",
+        DocumentType.COMPANY_PO, "delivery_address",
+        DocumentType.VENDOR_DC, "delivery_address",
+    ))
+    field_comparisons.append(_cmp(
+        "Delivery Address (Company PO → Company DC)",
+        DocumentType.COMPANY_PO, "delivery_address",
+        DocumentType.COMPANY_DC, "delivery_address",
+    ))
+
+    # SO number consistency between our outgoing documents
+    field_comparisons.append(_cmp(
+        "SO Number (Company DC → Company Invoice)",
+        DocumentType.COMPANY_DC, "so_number",
+        DocumentType.COMPANY_INVOICE, "so_number",
+    ))
+
+    # DC reference on invoice matches actual DC number
+    field_comparisons.append(_cmp(
+        "DC Reference on Invoice",
+        DocumentType.COMPANY_DC, "dc_number",
+        DocumentType.COMPANY_INVOICE, "dc_reference",
+    ))
+
+    # Vendor name consistency
+    field_comparisons.append(_cmp(
+        "Vendor Name (Company PO → Vendor Invoice)",
+        DocumentType.COMPANY_PO, "vendor_name",
+        DocumentType.VENDOR_INVOICE, "vendor_name",
+    ))
+    field_comparisons.append(_cmp(
+        "Vendor Name (Company PO → Vendor DC)",
+        DocumentType.COMPANY_PO, "vendor_name",
+        DocumentType.VENDOR_DC, "vendor_name",
+    ))
+
+    # Strip comparisons where both sides are None (no docs uploaded yet — no useful info)
+    field_comparisons = [fc for fc in field_comparisons if not (fc.source_value is None and fc.compared_value is None)]
+
+    # Build per-vendor groups (procurement only — stock has no vendor docs)
+    vendor_groups: list[VendorGroup] = []
+    if po.fulfillment_type != FulfillmentType.STOCK:
+        for company_po_doc in docs_by_type.get(DocumentType.COMPANY_PO, []):
+            meta = company_po_doc.doc_metadata
+            vendor_po_ref = meta.primary_ref_no if meta else None
+            if not vendor_po_ref:
+                continue
+
+            vendor_name = (
+                meta.extracted_data.get("vendor_name")
+                if meta and meta.extracted_data
+                else None
+            )
+
+            linked_vdc = [
+                d for d in docs_by_type.get(DocumentType.VENDOR_DC, [])
+                if d.doc_metadata and d.doc_metadata.po_ref_no == vendor_po_ref
+            ]
+            linked_vinv = [
+                d for d in docs_by_type.get(DocumentType.VENDOR_INVOICE, [])
+                if d.doc_metadata and d.doc_metadata.po_ref_no == vendor_po_ref
+            ]
+
+            def _make_slot(dt: DocumentType, doc_list: list[Document]) -> POProfileDocumentSlot:
+                if not doc_list:
+                    return POProfileDocumentSlot(document_type=dt.value, status="empty", documents=[])
+                return POProfileDocumentSlot(
+                    document_type=dt.value,
+                    status=_derive_slot_status(doc_list),
+                    documents=[_build_profile_document(d) for d in doc_list],
+                )
+
+            group_slots = [
+                _make_slot(DocumentType.COMPANY_PO, [company_po_doc]),
+                _make_slot(DocumentType.VENDOR_DC, linked_vdc),
+                _make_slot(DocumentType.VENDOR_INVOICE, linked_vinv),
+            ]
+            filled = sum(1 for s in group_slots if s.status != "empty")
+
+            vendor_groups.append(VendorGroup(
+                vendor_po_ref=vendor_po_ref,
+                vendor_name=vendor_name,
+                completeness_pct=round(filled / 3 * 100, 1),
+                slots=group_slots,
+            ))
+
     return POProfileResponse(
         po_id=po.id,
         po_number=po.po_number,
@@ -555,9 +744,12 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
         total_amount=float(po.total_amount) if po.total_amount else None,
         status=po.status.value,
         chain_completeness=po.chain_completeness or 0.0,
+        fulfillment_type=po.fulfillment_type.value if po.fulfillment_type else "procurement",
         created_at=po.created_at,
         slots=slots,
         timeline=timeline,
         discrepancies=discrepancies,
         cross_references=cross_references,
+        vendor_groups=vendor_groups,
+        field_comparisons=field_comparisons,
     )

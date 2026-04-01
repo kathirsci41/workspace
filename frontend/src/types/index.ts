@@ -61,6 +61,7 @@ export interface PurchaseOrder {
   chain_completeness: number;
   so_number: string | null;
   notes: string | null;
+  fulfillment_type: 'procurement' | 'stock';
   created_at: string;
   updated_at: string;
 }
@@ -239,6 +240,23 @@ export interface POProfileTimelineEvent {
   detail: string | null;
 }
 
+export interface FieldComparison {
+  field_label: string;
+  source_doc: string;
+  source_value: string | null;
+  compared_doc: string;
+  compared_value: string | null;
+  match: boolean | null;
+  note: string | null;
+}
+
+export interface VendorGroup {
+  vendor_po_ref: string;
+  vendor_name: string | null;
+  completeness_pct: number;
+  slots: POProfileDocumentSlot[];
+}
+
 export interface POProfile {
   po_id: string;
   po_number: string;
@@ -249,9 +267,12 @@ export interface POProfile {
   total_amount: number | null;
   status: string;
   chain_completeness: number;
+  fulfillment_type: 'procurement' | 'stock';
   created_at: string;
   slots: POProfileDocumentSlot[];
   timeline: POProfileTimelineEvent[];
   discrepancies: POProfileDiscrepancy[];
   cross_references: Record<string, string[]>;
+  vendor_groups: VendorGroup[];
+  field_comparisons: FieldComparison[];
 }
