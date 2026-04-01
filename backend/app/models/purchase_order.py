@@ -49,7 +49,8 @@ class PurchaseOrder(TimestampMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     so_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     fulfillment_type: Mapped[FulfillmentType] = mapped_column(
-        Enum(FulfillmentType, name="fulfillmenttype"),
+        Enum(FulfillmentType, name="fulfillmenttype",
+             values_callable=lambda obj: [e.value for e in obj]),
         default=FulfillmentType.PROCUREMENT,
         nullable=False,
         server_default="procurement",
