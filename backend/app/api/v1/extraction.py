@@ -17,6 +17,7 @@ from app.services.extraction.prompts import (
 )
 from app.services.extraction.response_parser import ResponseParser
 from app.services.extraction.so_validator import validate_so_number
+from app.services.po_service import CHAIN_DOC_TYPES
 import logging
 
 logger = logging.getLogger(__name__)
@@ -349,7 +350,7 @@ async def _update_chain_async(db: AsyncSession, po_id: UUID):
         )
     )
     count = count_result.scalar() or 0
-    completeness = round((count / 6) * 100, 1)
+    completeness = round((count / len(CHAIN_DOC_TYPES)) * 100, 1)
 
     po_result = await db.execute(
         select(PurchaseOrder).where(PurchaseOrder.id == po_id)

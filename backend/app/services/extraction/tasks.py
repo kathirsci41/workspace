@@ -28,6 +28,7 @@ from app.services.extraction.hybrid_router import HybridRouter, ExtractionRoute
 from app.services.extraction.digital_extractor import DigitalExtractor
 from app.services.extraction.glm_ocr_prompts import EXTRACTION_SCHEMAS
 from app.services.extraction.so_validator import validate_so_number
+from app.services.po_service import CHAIN_DOC_TYPES
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,121 @@ def _estimate_num_predict(doc_type: str, num_ctx: int, floor: int) -> int:
     return floor
 
 
+class _PipelineNotReady(Exception):
+    """Raised inside _run_pipeline_async when the health check fails.
+
+    The sync task body catches this and moves the document to PENDING_MODEL
+    without counting it as an extraction failure.
+    """
+
+
+async def _run_pipeline_async(
+    pipeline,
+    route,
+    storage_path: str,
+    doc_type: str,
+    customer_hint: str,
+    settings,
+    preflight_error: str | None = None,
+):
+    """Run all async pipeline steps in a single event loop.
+
+    Begins with a health check (unless *preflight_error* is already set).
+    Raises _PipelineNotReady when the model is unavailable so the caller can
+    move the document to PENDING_MODEL without retrying.
+
+    Returns (raw_texts, markdown_pages, page_fields, total_time_ms).
+    page_fields is None when pipeline.layer2 is None (legacy single-layer path).
+    Raises on unrecoverable errors (unreachable provider, all pages empty).
+    """
+    from app.services.extraction.hybrid_router import ExtractionRoute
+    from app.services.extraction.pdf_converter import PDFConverter
+    from app.services.extraction.scan_preprocessor import preprocess_scan
+    import time as _time
+
+    # Health check — fold into this coroutine so there is only one event-loop entry point
+    if preflight_error is None:
+        try:
+            preflight_error = await pipeline.health_check()
+        except Exception as _hc_err:
+            preflight_error = f"Pipeline config error: {_hc_err}"
+
+    if preflight_error:
+        raise _PipelineNotReady(preflight_error)
+
+    raw_texts = []
+    total_time_ms = 0
+    markdown_pages = []
+
+    # Digital fast path
+    if route == ExtractionRoute.DIGITAL:
+        digital_result = await pipeline.try_digital(storage_path)
+        if digital_result.markdown and len(digital_result.markdown.strip()) > 50:
+            raw_texts = [digital_result.markdown]
+            logger.info(f"Digital extraction: {len(digital_result.markdown)} chars, no GPU used")
+        else:
+            logger.warning("Digital route returned no/sparse content — falling back to OCR")
+            route = ExtractionRoute.SCANNED
+
+    # OCR path
+    if not raw_texts:
+        converter = PDFConverter(
+            dpi=settings.ocr_pdf_dpi,
+            max_pages=settings.ocr_max_pages,
+        )
+        images_list = converter.convert_to_images(storage_path)
+        logger.info(f"Converted {len(images_list)} pages")
+
+        for i, img in enumerate(images_list):
+            page_label = f"p{i + 1}"
+            logger.info(f"OCR page {i + 1}/{len(images_list)}")
+            if route == ExtractionRoute.SCANNED:
+                img = preprocess_scan(img)
+            try:
+                ocr_result = await pipeline.run_ocr(img, doc_type, page_label)
+                raw_texts.append(ocr_result.markdown)
+                markdown_pages.append((ocr_result.markdown, ocr_result.elapsed_ms, page_label))
+            except Exception as page_err:
+                err_msg = str(page_err)
+                if "unreachable" in err_msg or "offline" in err_msg:
+                    raise
+                raw_texts.append("")
+                markdown_pages.append(("", 0, page_label))
+
+        await pipeline.release_vram()
+        if not settings.ocr_extractor_base_url:
+            _time.sleep(5)
+            await pipeline.wait_until_ready()
+
+    # Layer 2 extraction
+    if pipeline.layer2 is None:
+        return raw_texts, markdown_pages, None, total_time_ms
+
+    page_fields = []
+    if markdown_pages:
+        for markdown, ocr_ms, page_label in markdown_pages:
+            if not markdown or len(markdown.strip()) < 20:
+                logger.warning(f"[Pipeline] Empty/short text for {page_label}, skipping")
+                page_fields.append({})
+                continue
+            try:
+                validated = await pipeline.run_extraction(markdown, doc_type, customer_hint)
+                page_fields.append(validated)
+                total_time_ms += ocr_ms
+                filled = len([v for k, v in validated.items() if v is not None and not str(k).startswith("_")])
+                logger.info(f"[Pipeline] {doc_type} {page_label} | OCR: {ocr_ms}ms | Fields: {filled}")
+            except Exception as page_err:
+                err_msg = str(page_err)
+                if "unreachable" in err_msg or "offline" in err_msg:
+                    raise
+                page_fields.append({})
+    else:
+        validated = await pipeline.run_extraction(raw_texts[0], doc_type, customer_hint)
+        page_fields = [validated]
+
+    return raw_texts, markdown_pages, page_fields, total_time_ms
+
+
 @celery_app.task(bind=True, max_retries=1, default_retry_delay=10)
 def extract_document(self, document_id: str):
     """Run OCR extraction on an uploaded document."""
@@ -69,40 +185,16 @@ def extract_document(self, document_id: str):
             logger.error(f"Document {document_id} not found")
             return {"error": "not_found"}
 
-        # 2. Build pipeline and verify providers are reachable before starting
+        # 2. Build pipeline — health check is deferred into _run_pipeline_async
+        # to keep the event loop consolidated into a single entry point.
         # Catch config errors (bad provider name, missing API key, etc.) so the
         # document moves to PENDING_MODEL instead of being silently stuck in UPLOADED.
         pipeline = None
+        _preflight_error = None
         try:
             pipeline = build_pipeline_from_config(settings)
-            _preflight_error = asyncio.run(pipeline.health_check())
         except Exception as _build_err:
             _preflight_error = f"Pipeline config error: {_build_err}"
-
-        if _preflight_error:
-            logger.warning(
-                f"[ModelCheck] Holding doc {document_id} — {_preflight_error}"
-            )
-            doc.status = DocumentStatus.PENDING_MODEL
-            meta = db.query(DocumentMetadata).filter(
-                DocumentMetadata.document_id == doc.id
-            ).first()
-            if meta:
-                meta.last_error = _preflight_error
-                meta.extraction_attempts += 1
-            else:
-                meta = DocumentMetadata(
-                    document_id=doc.id,
-                    document_type=doc.document_type,
-                    extraction_attempts=1,
-                    last_error=_preflight_error,
-                    status=MetadataStatus.PENDING,
-                )
-                db.add(meta)
-            db.commit()
-            return {"status": "pending_model", "reason": _preflight_error}
-
-        assert pipeline is not None  # _preflight_error branch always returns above
 
         # 3. Update status to EXTRACTING
         doc.status = DocumentStatus.EXTRACTING
@@ -134,114 +226,49 @@ def extract_document(self, document_id: str):
                         f"customer={customer_hint!r}"
                     )
 
-            # 6. Digital fast path — skip image conversion for digital-native PDFs
-            raw_texts = []
-            total_time_ms = 0
-            markdown_pages = []  # (markdown, elapsed_ms, page_label) for scanned path
-
-            if route == ExtractionRoute.DIGITAL:
-                digital_result = asyncio.run(pipeline.try_digital(storage_path))
-                if digital_result.markdown and len(digital_result.markdown.strip()) > 50:
-                    raw_texts = [digital_result.markdown]
-                    logger.info(
-                        f"Digital extraction: {len(digital_result.markdown)} chars, no GPU used"
+            # 6–8. Health check + OCR + extraction in a single event loop.
+            # _PipelineNotReady is raised by the coroutine when the model is
+            # unreachable; catch it here to move the doc to PENDING_MODEL.
+            try:
+                raw_texts, markdown_pages, page_fields, total_time_ms = asyncio.run(
+                    _run_pipeline_async(
+                        pipeline, route, storage_path, doc_type, customer_hint, settings,
+                        preflight_error=_preflight_error,
                     )
-                else:
-                    logger.warning(
-                        "Digital route returned no/sparse content — falling back to OCR"
-                    )
-                    route = ExtractionRoute.SCANNED
-
-            # 7. Convert PDF → images (only if digital fast path didn't yield text)
-            if not raw_texts:
-                converter = PDFConverter(
-                    dpi=settings.ocr_pdf_dpi,
-                    max_pages=settings.ocr_max_pages,
                 )
-                images_list = converter.convert_to_images(storage_path)
-                logger.info(f"Converted {len(images_list)} pages for doc {document_id}")
-
-                # ── Phase 1: OCR all pages ────────────────────────────────
-                for i, img in enumerate(images_list):
-                    page_label = f"doc{document_id}_p{i + 1}"
-                    logger.info(
-                        f"OCR page {i + 1}/{len(images_list)} for doc {document_id}"
-                    )
-                    if route == ExtractionRoute.SCANNED:
-                        img = preprocess_scan(img)
-                    try:
-                        ocr_result = asyncio.run(
-                            pipeline.run_ocr(img, doc_type, page_label)
-                        )
-                        raw_texts.append(ocr_result.markdown)
-                        markdown_pages.append(
-                            (ocr_result.markdown, ocr_result.elapsed_ms, page_label)
-                        )
-                    except Exception as page_err:
-                        logger.warning(f"OCR page {i + 1} failed: {page_err}")
-                        _err_msg = str(page_err)
-                        if "unreachable" in _err_msg or "offline" in _err_msg:
-                            raise
-                        raw_texts.append("")
-                        markdown_pages.append(("", 0, page_label))
-
-                # Release OCR model VRAM, wait for readiness before Layer 2
-                asyncio.run(pipeline.release_vram())
-                if not settings.ocr_extractor_base_url:
-                    time.sleep(5)
-                    asyncio.run(pipeline.wait_until_ready())
-
-            # 8. Extract structured fields from markdown
-            if pipeline.layer2 is not None:
-                if markdown_pages:
-                    # Scanned/image path: extract each page separately, then merge
-                    page_fields = []
-                    for markdown, ocr_ms, page_label in markdown_pages:
-                        if not markdown or len(markdown.strip()) < 20:
-                            logger.warning(
-                                f"[Pipeline] Empty/short text for {page_label}, skipping"
-                            )
-                            page_fields.append({})
-                            continue
-                        try:
-                            validated = asyncio.run(
-                                pipeline.run_extraction(markdown, doc_type, customer_hint)
-                            )
-                            page_fields.append(validated)
-                            total_time_ms += ocr_ms
-                            filled = len([
-                                v for k, v in validated.items()
-                                if v is not None and not str(k).startswith("_")
-                            ])
-                            logger.info(
-                                f"[Pipeline] {doc_type} {page_label} | "
-                                f"OCR: {ocr_ms}ms | Fields: {filled}"
-                            )
-                        except Exception as page_err:
-                            logger.warning(
-                                f"Extraction {page_label} failed: {page_err}"
-                            )
-                            _err_msg = str(page_err)
-                            if "unreachable" in _err_msg or "offline" in _err_msg:
-                                raise
-                            page_fields.append({})
+            except _PipelineNotReady as _pnr:
+                _preflight_error = str(_pnr)
+                logger.warning(f"[ModelCheck] Holding doc {document_id} — {_preflight_error}")
+                doc.status = DocumentStatus.PENDING_MODEL
+                meta = db.query(DocumentMetadata).filter(
+                    DocumentMetadata.document_id == doc.id
+                ).first()
+                if meta:
+                    meta.last_error = _preflight_error
+                    meta.extraction_attempts += 1
                 else:
-                    # Digital path: extract from full text in one call
-                    try:
-                        validated = asyncio.run(
-                            pipeline.run_extraction(raw_texts[0], doc_type, customer_hint)
-                        )
-                        page_fields = [validated]
-                    except Exception as dig_err:
-                        logger.warning(
-                            "Digital extraction failed: %s", dig_err, exc_info=True
-                        )
-                        # Fallback: try to parse the raw text directly
-                        _parser = ResponseParser()
-                        _fallback = _parser.parse_and_merge(raw_texts, doc_type)
-                        page_fields = [validate_extracted_fields(_fallback, doc_type)]
+                    meta = DocumentMetadata(
+                        document_id=doc.id,
+                        document_type=doc.document_type,
+                        extraction_attempts=1,
+                        last_error=_preflight_error,
+                        status=MetadataStatus.PENDING,
+                    )
+                    db.add(meta)
+                db.commit()
+                return {"status": "pending_model", "reason": _preflight_error}
 
-                # Merge pages (first non-null wins, same as ResponseParser)
+            if page_fields is None:
+                # Single-layer legacy path
+                _parser = ResponseParser()
+                extracted_data = _parser.parse_and_merge(raw_texts, doc_type)
+                extracted_data = validate_extracted_fields(extracted_data, doc_type)
+                if not extracted_data:
+                    raise RuntimeError(
+                        "Extraction produced no data — all pages returned empty output"
+                    )
+            else:
+                # Merge pages (first non-null wins)
                 extracted_data = {}
                 for pf in page_fields:
                     for key, value in pf.items():
@@ -250,22 +277,10 @@ def extract_document(self, document_id: str):
                         elif key not in extracted_data or extracted_data[key] is None:
                             extracted_data[key] = value
 
-                real_fields = {
-                    k: v for k, v in extracted_data.items() if not k.startswith("_")
-                }
+                real_fields = {k: v for k, v in extracted_data.items() if not k.startswith("_")}
                 if not real_fields:
                     raise RuntimeError(
-                        "Extraction service returned no data — "
-                        "all pages failed or were empty"
-                    )
-            else:
-                # Single-layer path (legacy OCRClient): ResponseParser handles merging
-                _parser = ResponseParser()
-                extracted_data = _parser.parse_and_merge(raw_texts, doc_type)
-                extracted_data = validate_extracted_fields(extracted_data, doc_type)
-                if not extracted_data:
-                    raise RuntimeError(
-                        "Extraction produced no data — all pages returned empty output"
+                        "Extraction service returned no data — all pages failed or were empty"
                     )
 
             schema_fields = list(EXTRACTION_SCHEMAS.get(doc_type, {}).keys())
@@ -455,7 +470,7 @@ def _update_chain_sync(db, po_id):
         ]),
     ).scalar() or 0
 
-    completeness = round((count / 6) * 100, 1)
+    completeness = round((count / len(CHAIN_DOC_TYPES)) * 100, 1)
 
     po = db.get(PurchaseOrder, po_id)
     if po:

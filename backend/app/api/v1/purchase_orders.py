@@ -157,7 +157,7 @@ def validate_upload_file(filename: str, content_type: str) -> None:
     Phone photos must be converted to PDF before uploading.
     """
     ext = Path(filename).suffix.lower()
-    if ext not in ALLOWED_EXTENSIONS or content_type not in ALLOWED_MIME_TYPES:
+    if ext not in ALLOWED_EXTENSIONS and content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=415,
             detail=(

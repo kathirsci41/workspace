@@ -31,6 +31,7 @@ from app.services.extraction.providers.base import (
     Layer2Provider,
     OcrResult,
 )
+from app.services.extraction.providers.base import ExtractionResult
 from app.services.extraction.providers.digital_provider import DigitalLayer1Provider
 from app.services.extraction.field_validator import validate_extracted_fields
 
