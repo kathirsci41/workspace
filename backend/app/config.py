@@ -61,10 +61,10 @@ class Settings(BaseSettings):
     ocr_num_ctx: int = 16384
 
     # CORS
-    cors_origins: List[str] = ["http://localhost:5174"]
+    cors_origins: List[str] = []
 
     # Debug
-    debug: bool = True
+    debug: bool = False
 
     model_config = {
         "env_file": str(_PROJECT_ROOT / ".env"),

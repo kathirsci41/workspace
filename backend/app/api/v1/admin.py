@@ -9,6 +9,7 @@ from app.database import get_db
 from app.config import settings
 from app.models import Document, DocumentStatus, DocumentMetadata, MetadataStatus, Customer, PurchaseOrder
 from app.services.extraction.two_layer_client import check_models_available
+from app.services.extraction.pipeline import build_pipeline_from_config
 from celery_app import celery_app
 
 router = APIRouter()
@@ -57,6 +58,11 @@ async def _check_ollama() -> str:
 
 async def _check_models() -> str:
     try:
+        if settings.layer1_provider:
+            pipeline = build_pipeline_from_config(settings)
+            err = await pipeline.health_check()
+            return "ok" if not err else f"error: {err}"
+        # Legacy path: check Ollama model list
         if settings.ocr_two_layer_enabled:
             models_to_check = [settings.ocr_custom_model, settings.ocr_extractor_model]
         else:
