@@ -89,7 +89,15 @@ function DocumentCard({ doc, docType, poId, defaultExpanded, showTypeLabel = fal
   const downloadUrl = getDownloadUrl(doc.document_id);
 
   const fields: [string, unknown][] = doc.extracted_data
-    ? Object.entries(doc.extracted_data).filter(([k]) => !k.startsWith('_'))
+    ? Object.entries(doc.extracted_data)
+        .filter(([k]) => !k.startsWith('_'))
+        .map(([k, v]): [string, unknown] => {
+          // Corrections store arrays as JSON strings — parse them back for display
+          if (typeof v === 'string' && v.trimStart().startsWith('[')) {
+            try { const p = JSON.parse(v); if (Array.isArray(p)) return [k, p]; } catch {}
+          }
+          return [k, v];
+        })
     : [];
 
   const verifiedDate = doc.verified_at

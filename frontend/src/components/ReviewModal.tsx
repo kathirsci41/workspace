@@ -28,6 +28,12 @@ interface Props {
 const CONF_HIGH   = 0.85;
 const CONF_MEDIUM = 0.60;
 
+// Columns for the delivery_locations table (CUSTOMER_PO only)
+const DELIVERY_LOCATIONS_COLUMNS = [
+  'region', 'unit', 'branch', 'gstin_no', 'asset_description',
+  'qty', 'employee_code', 'employee_name', 'contact_person', 'contact_no', 'delivery_address',
+];
+
 // Columns per document type for the order_items table
 const ORDER_ITEMS_COLUMNS: Record<string, string[]> = {
   CUSTOMER_PO:     ['sr_no', 'description', 'qty', 'unit_price', 'total_price'],
@@ -72,8 +78,10 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
 
   // Snapshot of original extracted values for diffing corrections
   const originalSnapshot = useRef<Record<string, string>>({});
-  const [tableRows, setTableRows]         = useState<OrderItemRow[]>([]);
-  const originalTableRows                 = useRef<OrderItemRow[]>([]);
+  const [tableRows, setTableRows]               = useState<OrderItemRow[]>([]);
+  const originalTableRows                       = useRef<OrderItemRow[]>([]);
+  const [deliveryRows, setDeliveryRows]         = useState<OrderItemRow[]>([]);
+  const originalDeliveryRows                    = useRef<OrderItemRow[]>([]);
 
   // Array fields that must never be included in formData — they can only come from extraction
   const ARRAY_FIELDS = new Set(['order_items', 'delivery_locations']);
@@ -99,9 +107,21 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       for (const { label, value } of existingCustom) snap[`custom_${label}`] = value;
       originalSnapshot.current = snap;
       const rawItems = metadata.extracted_data['order_items'];
-      const items = Array.isArray(rawItems) ? rawItems.map(normalizeRow) : [];
+      let parsedItems: unknown[] = Array.isArray(rawItems) ? rawItems : [];
+      if (!Array.isArray(rawItems) && typeof rawItems === 'string') {
+        try { const p = JSON.parse(rawItems); if (Array.isArray(p)) parsedItems = p; } catch {}
+      }
+      const items = parsedItems.map(normalizeRow);
       setTableRows(items);
       originalTableRows.current = items;
+      const rawDelivery = metadata.extracted_data['delivery_locations'];
+      let parsedDelivery: unknown[] = Array.isArray(rawDelivery) ? rawDelivery : [];
+      if (!Array.isArray(rawDelivery) && typeof rawDelivery === 'string') {
+        try { const p = JSON.parse(rawDelivery); if (Array.isArray(p)) parsedDelivery = p; } catch {}
+      }
+      const dRows = parsedDelivery.map(normalizeRow);
+      setDeliveryRows(dRows);
+      originalDeliveryRows.current = dRows;
       setIsManualMode(
         metadata.model_version === 'manual' ||
         Object.values(metadata.extracted_data).every((v) => v === null || v === '')
@@ -117,6 +137,8 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       originalSnapshot.current = { ...initial };
       setTableRows([]);
       originalTableRows.current = [];
+      setDeliveryRows([]);
+      originalDeliveryRows.current = [];
       setIsManualMode(true);
     }
   }, [metadata, template]);
@@ -210,6 +232,13 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       }
       return result;
     });
+
+    // Include edited delivery_locations (CUSTOMER_PO)
+    if (metadata?.document_type === 'CUSTOMER_PO') {
+      editedData['delivery_locations'] = deliveryRows.map((row) =>
+        Object.fromEntries(Object.entries(row).map(([k, v]) => [k, v === '' ? null : v]))
+      );
+    }
 
     setSoMismatchMsg(null);
     verifyMutation.mutate(
@@ -665,25 +694,22 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
                 );
               })()}
 
-              {/* ── Delivery Locations (read-only, CUSTOMER_PO only) ── */}
-              {(() => {
-                const raw = metadata?.extracted_data?.['delivery_locations'];
-                if (!Array.isArray(raw) || raw.length === 0) return null;
-                const locations = raw.map(normalizeRow);
-                const cols = Object.keys(locations[0]);
-                if (cols.length === 0) return null;
-                return (
-                  <div className="pt-3 mt-1 border-t border-gray-100">
-                    <span className="text-xs font-medium text-gray-500 block mb-2">Delivery Locations</span>
-                    <OrderItemsTable
-                      columns={cols}
-                      rows={locations}
-                      onChange={() => {}}
-                      readOnly
-                    />
+              {/* ── Delivery Locations (editable, CUSTOMER_PO only) ── */}
+              {metadata?.document_type === 'CUSTOMER_PO' && (
+                <div className="pt-3 mt-1 border-t border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-gray-500">Delivery Locations</span>
+                    {JSON.stringify(deliveryRows) !== JSON.stringify(originalDeliveryRows.current) && (
+                      <span className="text-xs text-blue-500 font-semibold" title="Modified">✎ Modified</span>
+                    )}
                   </div>
-                );
-              })()}
+                  <OrderItemsTable
+                    columns={DELIVERY_LOCATIONS_COLUMNS}
+                    rows={deliveryRows}
+                    onChange={setDeliveryRows}
+                  />
+                </div>
+              )}
 
               {/* ── Operator Remarks — always visible ─────────────── */}
               {'operator_notes' in formData && (
