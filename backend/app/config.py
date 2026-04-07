@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     # Storage
     nas_base_path: str = "/nas/documents"
 
+    # Company info (used for GST auto-detection)
+    company_state: str = ""  # e.g. "Tamil Nadu" — set in .env for GST IGST/CGST detection
+
     # OCR
     ocr_base_url: str = "http://localhost:11434"
     ocr_model_name: str = "glm-ocr"
@@ -36,6 +39,11 @@ class Settings(BaseSettings):
     # Extractor cloud override — if set, Layer 2 calls this URL instead of ocr_base_url
     ocr_extractor_base_url: str = ""   # empty = use local ocr_base_url
     ocr_extractor_api_key: str = ""    # empty = no auth header
+    # TLS verification for extractor HTTP calls.
+    # Set to a CA bundle path (e.g. /etc/ssl/certs/ca-certificates.crt) when the
+    # extractor endpoint uses a private/self-signed cert.  Leave empty to use the
+    # system default trust store (recommended for public endpoints).
+    ocr_extractor_ca_bundle: str | None = None
 
     # ── Provider abstraction layer ────────────────────────────────────────────
     # Set layer1_provider to activate new-style config.
