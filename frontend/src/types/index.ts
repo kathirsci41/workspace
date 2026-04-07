@@ -62,6 +62,13 @@ export interface PurchaseOrder {
   so_number: string | null;
   notes: string | null;
   fulfillment_type: 'procurement' | 'stock';
+  items_verified: boolean;
+  order_scenario: 'unknown' | 'procurement' | 'stock' | 'drop_ship' | 'service_amc';
+  gst_type: 'unknown' | 'igst' | 'cgst_sgst';
+  invoice_split: boolean;
+  manually_completed: boolean;
+  completed_at: string | null;
+  completion_note: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -130,6 +137,8 @@ export interface ChainSlot {
   uploaded_at: string | null;
   confidence: number | null;
   has_validation_errors?: boolean;
+  required?: boolean;
+  optional?: boolean;
   extraction_route?: ExtractionRoute;
   slot_message?: string | null;    // Why this slot is pending/failed
 }
@@ -222,8 +231,10 @@ export interface POProfileDocument {
 
 export interface POProfileDocumentSlot {
   document_type: string;
-  status: string;  // "empty" | most-advanced status across all documents
+  status: string;  // 'empty' | 'not_applicable' | DocumentStatus value
   documents: POProfileDocument[];
+  required: boolean;
+  optional: boolean;
 }
 
 export interface POProfileDiscrepancy {
@@ -257,6 +268,35 @@ export interface VendorGroup {
   slots: POProfileDocumentSlot[];
 }
 
+export interface ItemComparison {
+  sr_no: string | null;
+  description: string | null;
+  part_no: string | null;
+  source_doc: string;
+  source_qty: number | null;
+  compared_doc: string;
+  compared_qty: number | null;
+  qty_match: boolean | null;
+  source_price?: number | null;
+  compared_price?: number | null;
+  price_match?: boolean | null;
+}
+
+export interface ItemMatch {
+  sr_no: string | null;
+  description: string | null;
+  matched_part_no: string | null;
+  confidence: number;
+  match_type: 'exact' | 'ai' | 'unmatched';
+}
+
+export interface ParsedAddress {
+  pin_code: string | null;
+  city: string | null;
+  state: string | null;
+  full_address: string | null;
+}
+
 export interface POProfile {
   po_id: string;
   po_number: string;
@@ -267,12 +307,23 @@ export interface POProfile {
   total_amount: number | null;
   status: string;
   chain_completeness: number;
+  chain_completeness_display: string | null;  // "72.5%" | "—" when scenario unknown
   fulfillment_type: 'procurement' | 'stock';
+  order_scenario: 'unknown' | 'procurement' | 'stock' | 'drop_ship' | 'service_amc';
+  gst_type: 'unknown' | 'igst' | 'cgst_sgst';
+  invoice_split: boolean;
+  manually_completed: boolean;
+  completed_at: string | null;
+  completion_note: string | null;
   created_at: string;
   slots: POProfileDocumentSlot[];
   timeline: POProfileTimelineEvent[];
   discrepancies: POProfileDiscrepancy[];
   cross_references: Record<string, string[]>;
   vendor_groups: VendorGroup[];
+  items_verified: boolean;
   field_comparisons: FieldComparison[];
+  item_comparisons: ItemComparison[];
+  item_matches: ItemMatch[];
+  delivery_address_parsed: ParsedAddress | null;
 }

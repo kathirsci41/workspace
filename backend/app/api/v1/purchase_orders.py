@@ -5,6 +5,8 @@ from fastapi.responses import Response as FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from typing import Optional
+from pydantic import BaseModel
 from app.schemas.purchase_order import (
     POCreate, POUpdate, POResponse, POListResponse, ChainStatusResponse,
 )
@@ -85,6 +87,25 @@ async def update_po(
     db: AsyncSession = Depends(get_db),
 ):
     po = await po_service.update_po(db, id, data)
+    resp = POResponse.model_validate(po)
+    if po.customer:
+        resp.customer_name = po.customer.name
+        resp.customer_sky_id = po.customer.customer_id
+    return resp
+
+
+class CloseOrderRequest(BaseModel):
+    note: Optional[str] = None
+
+
+@router.post("/{id}/close", response_model=POResponse)
+async def close_order(
+    id: UUID,
+    body: CloseOrderRequest = CloseOrderRequest(),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually close a PO — marks order as completed. One-way operation."""
+    po = await po_service.close_order(db, id, body.note)
     resp = POResponse.model_validate(po)
     if po.customer:
         resp.customer_name = po.customer.name

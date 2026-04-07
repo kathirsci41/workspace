@@ -32,12 +32,17 @@ class POProfileDocumentSlot(BaseModel):
 
     `documents` holds all non-rejected uploads for this type, sorted most-recent
     first. The slot `status` reflects the most-advanced status across all documents.
+    `required` = counts toward chain completeness.
+    `optional`  = can be uploaded but doesn't affect completeness.
+    `status` = "not_applicable" when slot is irrelevant for this scenario.
     """
     model_config = ConfigDict(from_attributes=True)
 
     document_type: str
-    status: str  # "empty" | most-advanced DocumentStatus value across all docs
+    status: str  # "empty" | "not_applicable" | DocumentStatus value
     documents: list[POProfileDocument] = []
+    required: bool = True
+    optional: bool = False
 
 
 class POProfileDiscrepancy(BaseModel):
@@ -73,6 +78,37 @@ class VendorGroup(BaseModel):
     slots: list[POProfileDocumentSlot]   # COMPANY_PO, VENDOR_DC, VENDOR_INVOICE
 
 
+class ItemComparison(BaseModel):
+    """One row-level comparison between order_items across two documents."""
+    sr_no: str | None = None
+    description: str | None = None
+    part_no: str | None = None
+    source_doc: str
+    source_qty: float | None = None
+    compared_doc: str
+    compared_qty: float | None = None
+    qty_match: bool | None = None
+    source_price: float | None = None
+    compared_price: float | None = None
+    price_match: bool | None = None
+
+
+class ItemMatch(BaseModel):
+    """AI-assisted description → part_no link result."""
+    sr_no: str | None = None
+    description: str | None = None
+    matched_part_no: str | None = None
+    confidence: float
+    match_type: str   # 'exact' | 'ai' | 'unmatched'
+
+
+class ParsedAddress(BaseModel):
+    pin_code: str | None
+    city: str | None
+    state: str | None
+    full_address: str | None
+
+
 class POProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -86,6 +122,13 @@ class POProfileResponse(BaseModel):
     status: str
     chain_completeness: float
     fulfillment_type: str = "procurement"
+    order_scenario: str = "unknown"
+    gst_type: str = "unknown"
+    invoice_split: bool = False
+    manually_completed: bool = False
+    completed_at: datetime | None = None
+    completion_note: str | None = None
+    chain_completeness_display: str | None = None  # "72.5%" | "—" when unknown
     created_at: datetime
     slots: list[POProfileDocumentSlot]
     timeline: list[POProfileTimelineEvent]
@@ -93,3 +136,7 @@ class POProfileResponse(BaseModel):
     cross_references: dict[str, list[str]]
     vendor_groups: list[VendorGroup] = []
     field_comparisons: list[FieldComparison] = []
+    items_verified: bool = False
+    item_comparisons: list[ItemComparison] = []
+    item_matches: list[ItemMatch] = []
+    delivery_address_parsed: ParsedAddress | None = None

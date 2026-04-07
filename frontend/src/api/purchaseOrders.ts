@@ -57,6 +57,11 @@ export async function deletePO(id: string): Promise<void> {
   await client.delete(`/api/v1/purchase-orders/${id}`);
 }
 
+export async function closeOrder(id: string, note?: string): Promise<PurchaseOrder> {
+  const { data } = await client.post(`/api/v1/purchase-orders/${id}/close`, { note: note ?? null });
+  return data;
+}
+
 export async function getDocumentsForPO(poId: string): Promise<Document[]> {
   const { data } = await client.get(
     `/api/v1/purchase-orders/${poId}/documents`

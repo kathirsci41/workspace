@@ -1,22 +1,42 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Download, Loader2 } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Download, Loader2, CheckCircle2, Lock } from 'lucide-react';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { usePOProfile, useUpdatePO } from '@/hooks/usePurchaseOrders';
-import { exportPOAsExcel } from '@/api/purchaseOrders';
+import { exportPOAsExcel, closeOrder } from '@/api/purchaseOrders';
 import { useToast } from '@/context/ToastContext';
 import { ProfileDocumentSection } from '@/components/ProfileDocumentSection';
 import { ProfileTimeline } from '@/components/ProfileTimeline';
 import { ProfileDiscrepancyPanel } from '@/components/ProfileDiscrepancyPanel';
 import { ProfileFieldComparison } from '@/components/ProfileFieldComparison';
+import { ProfileItemComparison } from '@/components/ProfileItemComparison';
 import ChainStatusBar from '@/components/ChainStatusBar';
 import type { POProfile, ChainSlot } from '@/types';
 
 function buildChainFromProfile(profile: POProfile): Record<string, ChainSlot[]> {
   const result: Record<string, ChainSlot[]> = {};
   for (const slot of profile.slots) {
-    if (slot.status === 'empty' || slot.documents.length === 0) {
-      result[slot.document_type] = [];
+    if (slot.status === 'not_applicable') {
+      // Mark as single sentinel slot so ChainStatusBar can render N/A
+      result[slot.document_type] = [{
+        status: 'not_applicable',
+        document_id: null,
+        ref_no: null,
+        uploaded_at: null,
+        confidence: null,
+        required: false,
+        optional: false,
+      }];
+    } else if (slot.status === 'empty' || slot.documents.length === 0) {
+      result[slot.document_type] = [{
+        status: 'empty',
+        document_id: null,
+        ref_no: null,
+        uploaded_at: null,
+        confidence: null,
+        required: slot.required,
+        optional: slot.optional,
+      }];
     } else {
       result[slot.document_type] = slot.documents.map((doc) => ({
         status: doc.status,
@@ -24,6 +44,8 @@ function buildChainFromProfile(profile: POProfile): Record<string, ChainSlot[]> 
         ref_no: doc.primary_ref_no,
         uploaded_at: doc.uploaded_at,
         confidence: doc.confidence_score,
+        required: slot.required,
+        optional: slot.optional,
       }));
     }
   }
@@ -34,9 +56,23 @@ export function POProfilePage() {
   const { id } = useParams<{ id: string }>();
   const { data: profile, isLoading, isError } = usePOProfile(id!);
   const [exporting, setExporting] = useState(false);
+  const [showCloseDialog, setShowCloseDialog] = useState(false);
+  const [closeNote, setCloseNote] = useState('');
   const showToast = useToast();
   const queryClient = useQueryClient();
   const updatePO = useUpdatePO();
+
+  const closeOrderMutation = useMutation({
+    mutationFn: () => closeOrder(id!, closeNote.trim() || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['poProfile', id] });
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] });
+      setShowCloseDialog(false);
+      setCloseNote('');
+      showToast('Order closed successfully.', 'success');
+    },
+    onError: () => showToast('Failed to close order. Please try again.', 'error'),
+  });
 
   const handleExport = async () => {
     if (!profile) return;
@@ -91,7 +127,9 @@ export function POProfilePage() {
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColour[profile.status] ?? 'bg-gray-100 text-gray-600'}`}>
             {profile.status.replace(/_/g, ' ')}
           </span>
-          <span className="text-sm text-gray-500">{Math.round(profile.chain_completeness)}% complete</span>
+          <span className="text-sm text-gray-500">
+            {profile.chain_completeness_display ?? `${Math.min(Math.round(profile.chain_completeness), 100)}%`} complete
+          </span>
           <button
             onClick={handleExport}
             disabled={exporting}
@@ -101,6 +139,24 @@ export function POProfilePage() {
             <Download size={14} className={exporting ? 'animate-bounce' : ''} />
             {exporting ? 'Exporting…' : 'Export Excel'}
           </button>
+
+          {/* Close Order button */}
+          {!profile.manually_completed ? (
+            <button
+              onClick={() => setShowCloseDialog(true)}
+              className="inline-flex items-center gap-1.5 text-sm text-white bg-green-600 border border-green-700 px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50"
+            >
+              <Lock size={14} />
+              Close Order
+            </button>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-sm text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg">
+              <CheckCircle2 size={14} />
+              Closed {profile.completed_at
+                ? new Date(profile.completed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                : ''}
+            </span>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-xs text-gray-600">
@@ -110,35 +166,110 @@ export function POProfilePage() {
           {profile.total_amount != null && <div><span className="text-gray-400">Amount</span> &nbsp;₹{profile.total_amount.toLocaleString('en-IN')}</div>}
         </div>
 
-        {/* Fulfillment type toggle */}
-        <div className="flex items-center gap-3 pt-0.5">
-          <span className="text-xs text-gray-400">Fulfillment</span>
+        {/* Order scenario selector */}
+        <div className="flex items-center gap-3 pt-0.5 flex-wrap">
+          <span className="text-xs text-gray-400">Scenario</span>
+          {(
+            [
+              { value: 'unknown',      label: 'Unknown',      colour: 'bg-gray-100 text-gray-500 border-gray-300' },
+              { value: 'procurement',  label: 'Procurement',  colour: 'bg-blue-100 text-blue-700 border-blue-300' },
+              { value: 'stock',        label: 'Stock',        colour: 'bg-purple-100 text-purple-700 border-purple-300' },
+              { value: 'drop_ship',    label: 'Drop-ship',    colour: 'bg-amber-100 text-amber-700 border-amber-300' },
+              { value: 'service_amc',  label: 'Service/AMC',  colour: 'bg-teal-100 text-teal-700 border-teal-300' },
+            ] as const
+          ).map(({ value, label, colour }) => (
+            <button
+              key={value}
+              onClick={() => {
+                if (profile.order_scenario === value) return;
+                updatePO.mutate(
+                  { id: id!, body: { order_scenario: value } },
+                  {
+                    onSuccess: () => {
+                      queryClient.invalidateQueries({ queryKey: ['poProfile', id] });
+                      queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
+                    },
+                  }
+                );
+              }}
+              disabled={updatePO.isPending}
+              className={`text-xs px-2.5 py-0.5 rounded-full font-medium border transition-colors ${
+                profile.order_scenario === value
+                  ? colour + ' ring-1 ring-offset-1 ring-current'
+                  : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* GST type + invoice split */}
+        <div className="flex items-center gap-4 pt-0.5 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">GST</span>
+            {(['unknown', 'igst', 'cgst_sgst'] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => {
+                  if (profile.gst_type === v) return;
+                  updatePO.mutate(
+                    { id: id!, body: { gst_type: v } },
+                    { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['poProfile', id] }) }
+                  );
+                }}
+                disabled={updatePO.isPending}
+                className={`text-xs px-2 py-0.5 rounded-full font-medium border transition-colors ${
+                  profile.gst_type === v
+                    ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
+                    : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                {v === 'unknown' ? '—' : v === 'igst' ? 'IGST' : 'CGST+SGST'}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400">Invoices</span>
+            <button
+              onClick={() => {
+                updatePO.mutate(
+                  { id: id!, body: { invoice_split: !profile.invoice_split } },
+                  { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['poProfile', id] }) }
+                );
+              }}
+              disabled={updatePO.isPending}
+              className={`text-xs px-2.5 py-0.5 rounded-full font-medium border transition-colors ${
+                profile.invoice_split
+                  ? 'bg-orange-100 text-orange-700 border-orange-300'
+                  : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              {profile.invoice_split ? 'Split billing' : 'Single invoice'}
+            </button>
+          </div>
+        </div>
+
+        {/* Items verified toggle */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">Items</span>
           <button
             onClick={() => {
-              const next = profile.fulfillment_type === 'stock' ? 'procurement' : 'stock';
               updatePO.mutate(
-                { id: id!, body: { fulfillment_type: next } },
-                {
-                  onSuccess: () => {
-                    queryClient.invalidateQueries({ queryKey: ['poProfile', id] });
-                    queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
-                    showToast(`Switched to ${next === 'stock' ? 'stock-based' : 'procurement'} fulfillment.`, 'success');
-                  },
-                }
+                { id: id!, body: { items_verified: !profile.items_verified } },
+                { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['poProfile', id] }) }
               );
             }}
             disabled={updatePO.isPending}
-            className={`text-xs px-2.5 py-0.5 rounded-full font-medium border transition-colors ${
-              profile.fulfillment_type === 'stock'
-                ? 'bg-purple-100 text-purple-700 border-purple-300 hover:bg-purple-200'
-                : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200'
+            className={`flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-medium border transition-colors ${
+              profile.items_verified
+                ? 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'
+                : 'bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200'
             }`}
           >
-            {profile.fulfillment_type === 'stock' ? 'Stock-based' : 'Procurement'}
+            {profile.items_verified && <CheckCircle2 size={11} />}
+            {profile.items_verified ? 'Items Verified' : 'Mark Verified'}
           </button>
-          {profile.fulfillment_type === 'stock' && (
-            <span className="text-xs text-gray-400">— vendor documents not required</span>
-          )}
         </div>
 
         <ChainStatusBar chain={chain} />
@@ -152,6 +283,12 @@ export function POProfilePage() {
 
       {/* Cross-document field comparisons */}
       <ProfileFieldComparison comparisons={profile.field_comparisons ?? []} />
+
+      {/* Item-level qty + part number verification */}
+      <ProfileItemComparison
+        comparisons={profile.item_comparisons ?? []}
+        matches={profile.item_matches ?? []}
+      />
 
       {/* Vendor breakdown (procurement only, when at least one COMPANY_PO uploaded) */}
       {profile.vendor_groups && profile.vendor_groups.length > 0 && (
@@ -208,6 +345,66 @@ export function POProfilePage() {
 
       {/* Timeline */}
       <ProfileTimeline events={profile.timeline} />
+
+      {/* Completed-by-manual note banner */}
+      {profile.manually_completed && profile.completion_note && (
+        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-800">
+          <span className="font-medium">Completion note:</span> {profile.completion_note}
+        </div>
+      )}
+
+      {/* Close Order confirmation dialog */}
+      {showCloseDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                <Lock size={18} className="text-green-700" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Close this order?</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  This marks all goods as received and the order as complete.
+                  This action cannot be undone from the UI.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-gray-600">
+                Completion note <span className="text-gray-400">(optional)</span>
+              </label>
+              <textarea
+                value={closeNote}
+                onChange={(e) => setCloseNote(e.target.value)}
+                placeholder="e.g. All items received, vendor DC not issued"
+                rows={3}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => { setShowCloseDialog(false); setCloseNote(''); }}
+                disabled={closeOrderMutation.isPending}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => closeOrderMutation.mutate()}
+                disabled={closeOrderMutation.isPending}
+                className="px-4 py-2 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {closeOrderMutation.isPending
+                  ? <><Loader2 size={14} className="animate-spin" /> Closing…</>
+                  : <><CheckCircle2 size={14} /> Confirm Close</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

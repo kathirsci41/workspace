@@ -1,7 +1,7 @@
 import uuid
 import enum
-from datetime import date
-from sqlalchemy import String, Text, Numeric, Float, Enum, ForeignKey, Index, Date
+from datetime import date, datetime
+from sqlalchemy import String, Text, Numeric, Float, Enum, ForeignKey, Index, Date, Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from typing import List, TYPE_CHECKING
@@ -24,6 +24,20 @@ class POStatus(str, enum.Enum):
 class FulfillmentType(str, enum.Enum):
     PROCUREMENT = "procurement"
     STOCK = "stock"
+
+
+class OrderScenario(str, enum.Enum):
+    UNKNOWN = "unknown"
+    PROCUREMENT = "procurement"
+    STOCK = "stock"
+    DROP_SHIP = "drop_ship"
+    SERVICE_AMC = "service_amc"
+
+
+class GstType(str, enum.Enum):
+    UNKNOWN = "unknown"
+    IGST = "igst"
+    CGST_SGST = "cgst_sgst"
 
 
 class PurchaseOrder(TimestampMixin, Base):
@@ -55,6 +69,33 @@ class PurchaseOrder(TimestampMixin, Base):
         nullable=False,
         server_default="procurement",
     )
+    items_verified: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+    order_scenario: Mapped[OrderScenario] = mapped_column(
+        Enum(OrderScenario, name="orderscenario",
+             values_callable=lambda obj: [e.value for e in obj]),
+        default=OrderScenario.UNKNOWN,
+        nullable=False,
+        server_default="unknown",
+    )
+    gst_type: Mapped[GstType] = mapped_column(
+        Enum(GstType, name="gsttype",
+             values_callable=lambda obj: [e.value for e in obj]),
+        default=GstType.UNKNOWN,
+        nullable=False,
+        server_default="unknown",
+    )
+    invoice_split: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+    manually_completed: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    completion_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
     customer: Mapped["Customer"] = relationship(

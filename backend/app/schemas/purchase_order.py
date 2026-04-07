@@ -20,6 +20,11 @@ class POUpdate(BaseModel):
     status: Optional[str] = None
     so_number: Optional[str] = None
     fulfillment_type: Optional[Literal['procurement', 'stock']] = None
+    items_verified: Optional[bool] = None
+    order_scenario: Optional[Literal['unknown', 'procurement', 'stock', 'drop_ship', 'service_amc']] = None
+    gst_type: Optional[Literal['unknown', 'igst', 'cgst_sgst']] = None
+    invoice_split: Optional[bool] = None
+    completion_note: Optional[str] = None
 
 
 class POResponse(BaseModel):
@@ -34,6 +39,13 @@ class POResponse(BaseModel):
     notes: Optional[str] = None
     so_number: Optional[str] = None
     fulfillment_type: Optional[str] = "procurement"
+    items_verified: bool = False
+    order_scenario: str = "unknown"
+    gst_type: str = "unknown"
+    invoice_split: bool = False
+    manually_completed: bool = False
+    completed_at: Optional[datetime] = None
+    completion_note: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     customer_name: str = ""
