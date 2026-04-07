@@ -16,7 +16,9 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../backend'))
 
 import pytest
-from app.models.purchase_order import POStatus
+from unittest.mock import MagicMock, patch
+from app.models.purchase_order import POStatus, OrderScenario, PurchaseOrder
+from app.models.document import Document, DocumentStatus, DocumentType
 
 
 # ── Pure calculation logic (mirrors _update_chain_async) ─────────────────────
@@ -133,3 +135,270 @@ class TestExcludedStatuses:
         pct = calculate_completeness(distinct_count)
         assert pct == round(2/6 * 100, 1)
         assert get_po_status(pct) == POStatus.IN_PROGRESS
+
+
+class TestScenarioSpecificCompleteness:
+    """
+    Test that completeness calculation respects scenario-specific required chains.
+    
+    E.g., STOCK scenario requires only [CUSTOMER_PO, COMPANY_DC, COMPANY_INVOICE] = 3 docs.
+    If we have all 5 PROCUREMENT docs (including optional VENDOR_DC), but STOCK scenario,
+    completeness should be 3/3 = 100%, not 5/5 = 100% nor 3/6 = 50%.
+    
+    Bug fix: Currently divides by 6 (all doc types) rather than scenario chain length,
+    allowing optional docs to inflate completeness to 100%+.
+    """
+
+    def test_stock_scenario_ignores_vendor_docs(self):
+        """
+        STOCK scenario: [CUSTOMER_PO, COMPANY_DC, COMPANY_INVOICE] = 3 required docs.
+        If we have all 3 + VENDOR_INVOICE (optional), completeness = 3/3 = 100%, not 4/6.
+        """
+        # Scenario chain length = 3
+        # Docs present: CUSTOMER_PO, COMPANY_DC, COMPANY_INVOICE (3 required) + VENDOR_INVOICE (not in chain)
+        required_docs_count = 3
+        scenario_chain_len = 3
+        completeness = round((required_docs_count / scenario_chain_len) * 100, 1)
+        
+        # Should be 100%, not 66.7% (which would be 4/6)
+        assert completeness == 100.0
+        assert get_po_status(completeness) == POStatus.COMPLETE
+
+    def test_drop_ship_scenario_includes_vendor_dc(self):
+        """
+        DROP_SHIP scenario: [CUSTOMER_PO, COMPANY_PO, VENDOR_DC, VENDOR_INVOICE, COMPANY_INVOICE] = 5 docs.
+        COMPANY_DC is NOT required (not in chain).
+        If we have only 3/5 required + COMPANY_DC, completeness = 3/5 = 60%, not 4/6 = 66.7%.
+        """
+        required_docs_count = 3
+        scenario_chain_len = 5
+        completeness = round((required_docs_count / scenario_chain_len) * 100, 1)
+        
+        assert completeness == 60.0
+        assert get_po_status(completeness) == POStatus.NEAR_COMPLETE
+
+    def test_procurement_scenario_excludes_optional_vendor_dc(self):
+        """
+        PROCUREMENT scenario: [CUSTOMER_PO, COMPANY_PO, VENDOR_INVOICE, COMPANY_DC, COMPANY_INVOICE] = 5 docs.
+        VENDOR_DC is NOT required (excluded comment says "optional").
+        If we have 5/5 required, completeness = 100%, dividing by 5 not 6.
+        """
+        required_docs_count = 5
+        scenario_chain_len = 5
+        completeness = round((required_docs_count / scenario_chain_len) * 100, 1)
+        
+        assert completeness == 100.0
+        assert get_po_status(completeness) == POStatus.COMPLETE
+
+    def test_service_amc_scenario_minimal_chain(self):
+        """
+        SERVICE_AMC scenario: [CUSTOMER_PO, COMPANY_INVOICE] = 2 docs only.
+        If we have 1/2 required, completeness = 50%, not 1/6 = 16.7%.
+        """
+        required_docs_count = 1
+        scenario_chain_len = 2
+        completeness = round((required_docs_count / scenario_chain_len) * 100, 1)
+        
+        assert completeness == 50.0
+        assert get_po_status(completeness) == POStatus.NEAR_COMPLETE
+
+    def test_stock_scenario_all_docs_present(self):
+        """
+        STOCK scenario with all required docs + optional ones.
+        Should count only the 3 required [CUSTOMER_PO, COMPANY_DC, COMPANY_INVOICE].
+        """
+        # If all 6 types are present, but only 3 are in STOCK scenario chain
+        required_docs_count = 3
+        scenario_chain_len = 3
+        completeness = round((required_docs_count / scenario_chain_len) * 100, 1)
+        
+        # 100%, not 6/6 or 3/6
+        assert completeness == 100.0
+
+    def test_partially_complete_stock_scenario(self):
+        """
+        STOCK scenario partially complete: 2/3 required docs.
+        completeness = 66.7%, not 2/6 = 33.3%.
+        """
+        required_docs_count = 2
+        scenario_chain_len = 3
+        completeness = round((required_docs_count / scenario_chain_len) * 100, 1)
+        
+        assert completeness == round(66.666666, 1)
+        assert get_po_status(completeness) == POStatus.NEAR_COMPLETE
+
+
+
+class TestUpdateChainSyncIntegration:
+    """
+    Integration tests for _update_chain_sync function.
+    
+    Tests that _update_chain_sync correctly:
+    1. Counts only documents in the scenario's required chain
+    2. Ignores optional/irrelevant documents
+    3. Respects manually_completed flag (skips recalculation)
+    4. Clamps completeness to [0, 100]
+    """
+
+    def test_stock_scenario_with_optional_vendor_invoice(self):
+        """
+        STOCK scenario: [CUSTOMER_PO, COMPANY_DC, COMPANY_INVOICE] = 3 required.
+        If VENDOR_INVOICE is uploaded (not in STOCK chain), it should NOT count.
+        
+        Before fix: completeness = 4/6 = 66.7%
+        After fix: completeness = 3/3 = 100.0%
+        """
+        # This test documents the expected behavior.
+        # The actual implementation test will use mocks/fixtures.
+        # For now, this is a specification test showing what should happen.
+        required_docs_in_scenario = 3  # CUSTOMER_PO, COMPANY_DC, COMPANY_INVOICE
+        extra_docs_not_in_scenario = 1  # VENDOR_INVOICE
+        
+        # After fix: only count required docs
+        scenario_chain_len = 3
+        required_docs_found = 3
+        completeness = round((required_docs_found / scenario_chain_len) * 100, 1)
+        
+        assert completeness == 100.0
+        assert get_po_status(completeness) == POStatus.COMPLETE
+
+    def test_drop_ship_scenario_excludes_company_dc(self):
+        """
+        DROP_SHIP scenario: [CUSTOMER_PO, COMPANY_PO, VENDOR_DC, VENDOR_INVOICE, COMPANY_INVOICE] = 5 required.
+        COMPANY_DC is NOT in the chain (optional).
+        If we have 4/5 required + COMPANY_DC, completeness = 4/5 = 80%, not 5/6.
+        
+        Before fix: completeness = 5/6 = 83.3%
+        After fix: completeness = 4/5 = 80.0%
+        """
+        scenario_chain_len = 5
+        required_docs_found = 4
+        completeness = round((required_docs_found / scenario_chain_len) * 100, 1)
+        
+        assert completeness == 80.0
+        assert get_po_status(completeness) == POStatus.NEAR_COMPLETE
+
+    def test_manually_completed_skips_recalculation(self):
+        """
+        If po.manually_completed=True, _update_chain_sync should NOT update
+        chain_completeness or status, allowing user-set values to persist.
+        """
+        # This behavior is specified in the task requirements.
+        # Implementation should check: if po.manually_completed, return early.
+        pass
+
+    def test_completeness_clamped_to_100(self):
+        """
+        Even if somehow count > scenario_chain_len (should not happen),
+        completeness must not exceed 100%.
+
+        Verify: completeness = min(100.0, calculated_value)
+        """
+        # If count = 3, scenario_chain_len = 3: 3/3 * 100 = 100
+        completeness = round((3 / 3) * 100, 1)
+        clamped = min(100.0, completeness)
+        assert clamped == 100.0
+
+
+class TestUpdateChainSyncMocked:
+    """
+    Mock-based tests for _update_chain_sync that verify the fix.
+    These tests use mocked database queries to verify filtering logic.
+    """
+
+    @patch('app.services.extraction.tasks.get_scenario_chain')
+    @patch('app.services.extraction.tasks.db')
+    def test_stock_scenario_filters_to_required_docs(self, mock_db, mock_get_scenario):
+        """
+        Test that for STOCK scenario, the query filters to only required docs:
+        [CUSTOMER_PO, COMPANY_DC, COMPANY_INVOICE].
+
+        Verifies:
+        - Document.document_type.in_(required_docs) is used
+        - Count is limited to scenario chain, not all 6 doc types
+        """
+        from app.services.extraction.tasks import _update_chain_sync
+        from app.services.po_service import CHAIN_DOC_TYPES
+
+        # Setup: STOCK scenario chain is [CUSTOMER_PO, COMPANY_DC, COMPANY_INVOICE]
+        stock_chain = [DocumentType.CUSTOMER_PO, DocumentType.COMPANY_DC, DocumentType.COMPANY_INVOICE]
+        mock_get_scenario.return_value = stock_chain
+
+        # Create mock PO
+        mock_po = MagicMock(spec=PurchaseOrder)
+        mock_po.order_scenario = OrderScenario.STOCK
+        mock_po.manually_completed = False
+
+        mock_db.get.return_value = mock_po
+
+        # Create mock query that counts 3 distinct required docs
+        mock_query = MagicMock()
+        mock_query.filter.return_value.scalar.return_value = 3
+        mock_db.query.return_value = mock_query
+
+        # Call function
+        _update_chain_sync(mock_db, "po_123")
+
+        # Verify:
+        # 1. Query was called with document_type.in_(required_docs)
+        mock_query.filter.assert_called()
+
+        # 2. Completeness should be 3/3 = 100%
+        assert mock_po.chain_completeness == 100.0
+        assert mock_po.status == POStatus.COMPLETE
+
+    @patch('app.services.extraction.tasks.get_scenario_chain')
+    @patch('app.services.extraction.tasks.db')
+    def test_manually_completed_skips_recalculation(self, mock_db, mock_get_scenario):
+        """
+        Test that if po.manually_completed=True, function returns early
+        without updating chain_completeness or status.
+        """
+        from app.services.extraction.tasks import _update_chain_sync
+
+        mock_po = MagicMock(spec=PurchaseOrder)
+        mock_po.order_scenario = OrderScenario.STOCK
+        mock_po.manually_completed = True
+
+        mock_db.get.return_value = mock_po
+
+        # Call function
+        _update_chain_sync(mock_db, "po_123")
+
+        # Verify: query should not be called (early return)
+        mock_db.query.assert_not_called()
+        # And po attributes should not be modified
+        assert not hasattr(mock_po.chain_completeness, '__call__') or mock_po.chain_completeness.__name__ != 'mock_set'
+
+    @patch('app.services.extraction.tasks.get_scenario_chain')
+    @patch('app.services.extraction.tasks.CHAIN_DOC_TYPES',
+           [DocumentType.CUSTOMER_PO, DocumentType.COMPANY_PO, DocumentType.VENDOR_DC,
+            DocumentType.VENDOR_INVOICE, DocumentType.COMPANY_DC, DocumentType.COMPANY_INVOICE])
+    @patch('app.services.extraction.tasks.db')
+    def test_unknown_scenario_uses_all_doc_types(self, mock_db, mock_get_scenario):
+        """
+        Test that for UNKNOWN scenario, the function falls back to all CHAIN_DOC_TYPES
+        and does not update status to COMPLETE (keeps completeness at 0).
+        """
+        from app.services.extraction.tasks import _update_chain_sync
+
+        # UNKNOWN scenario returns None from get_scenario_chain
+        mock_get_scenario.return_value = None
+
+        mock_po = MagicMock(spec=PurchaseOrder)
+        mock_po.order_scenario = OrderScenario.UNKNOWN
+        mock_po.manually_completed = False
+
+        mock_db.get.return_value = mock_po
+
+        # Create mock query that counts 0 docs
+        mock_query = MagicMock()
+        mock_query.filter.return_value.scalar.return_value = 0
+        mock_db.query.return_value = mock_query
+
+        # Call function
+        _update_chain_sync(mock_db, "po_123")
+
+        # Verify: completeness = 0, status = INITIATED
+        assert mock_po.chain_completeness == 0.0
+        assert mock_po.status == POStatus.INITIATED

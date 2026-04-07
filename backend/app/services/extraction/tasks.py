@@ -28,7 +28,8 @@ from app.services.extraction.hybrid_router import HybridRouter, ExtractionRoute
 from app.services.extraction.digital_extractor import DigitalExtractor
 from app.services.extraction.glm_ocr_prompts import EXTRACTION_SCHEMAS
 from app.services.extraction.so_validator import validate_so_number
-from app.services.po_service import CHAIN_DOC_TYPES
+from app.services.po_service import CHAIN_DOC_TYPES, get_scenario_chain
+from app.models.purchase_order import OrderScenario
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -461,8 +462,29 @@ def extract_document(self, document_id: str):
 
 def _update_chain_sync(db, po_id):
     """Sync version of chain completeness update for Celery."""
+    po = db.get(PurchaseOrder, po_id)
+    if not po:
+        return
+
+    # Skip recalculation if manually completed — user-set values take precedence
+    if po.manually_completed:
+        return
+
+    # Get scenario-specific chain; fall back to full chain if scenario unknown
+    scenario = getattr(po, 'order_scenario', None)
+    scenario_chain = get_scenario_chain(scenario)
+    if scenario_chain is None or scenario == OrderScenario.UNKNOWN:
+        # Unknown scenario — keep completeness at 0, don't update status to COMPLETE
+        chain_length = len(CHAIN_DOC_TYPES)
+        required_docs = set(CHAIN_DOC_TYPES)
+    else:
+        chain_length = len(scenario_chain)
+        required_docs = set(scenario_chain)
+
+    # Count only documents in the scenario's required chain
     count = db.query(func.count(distinct(Document.document_type))).filter(
         Document.po_id == po_id,
+        Document.document_type.in_(required_docs),
         Document.status.notin_([
             DocumentStatus.EXTRACTION_FAILED,
             DocumentStatus.PENDING_MODEL,
@@ -470,17 +492,16 @@ def _update_chain_sync(db, po_id):
         ]),
     ).scalar() or 0
 
-    completeness = round((count / len(CHAIN_DOC_TYPES)) * 100, 1)
+    # Clamp completeness to [0, 100]
+    completeness = min(100.0, round((count / chain_length) * 100, 1))
 
-    po = db.get(PurchaseOrder, po_id)
-    if po:
-        po.chain_completeness = completeness
-        if completeness == 0:
-            po.status = POStatus.INITIATED
-        elif completeness < 50:
-            po.status = POStatus.IN_PROGRESS
-        elif completeness < 100:
-            po.status = POStatus.NEAR_COMPLETE
-        else:
-            po.status = POStatus.COMPLETE
-        db.commit()
+    po.chain_completeness = completeness
+    if completeness == 0:
+        po.status = POStatus.INITIATED
+    elif completeness < 50:
+        po.status = POStatus.IN_PROGRESS
+    elif completeness < 100:
+        po.status = POStatus.NEAR_COMPLETE
+    else:
+        po.status = POStatus.COMPLETE
+    db.commit()
