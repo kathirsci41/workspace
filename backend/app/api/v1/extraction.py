@@ -17,7 +17,8 @@ from app.services.extraction.prompts import (
 )
 from app.services.extraction.response_parser import ResponseParser
 from app.services.extraction.so_validator import validate_so_number
-from app.services.po_service import CHAIN_DOC_TYPES
+from app.services.po_service import CHAIN_DOC_TYPES, get_scenario_chain
+from app.models.purchase_order import OrderScenario
 import logging
 
 logger = logging.getLogger(__name__)
@@ -343,29 +344,51 @@ async def reject_metadata(
 
 async def _update_chain_async(db: AsyncSession, po_id: UUID):
     """Update PO chain completeness asynchronously."""
-    count_result = await db.execute(
-        select(func.count(distinct(Document.document_type))).where(
-            Document.po_id == po_id,
-            Document.status.notin_([DocumentStatus.EXTRACTION_FAILED, DocumentStatus.REJECTED]),
-        )
-    )
-    count = count_result.scalar() or 0
-    completeness = round((count / len(CHAIN_DOC_TYPES)) * 100, 1)
-
     po_result = await db.execute(
         select(PurchaseOrder).where(PurchaseOrder.id == po_id)
     )
     po = po_result.scalar_one_or_none()
-    if po:
-        po.chain_completeness = completeness
-        if completeness == 0:
-            po.status = POStatus.INITIATED
-        elif completeness < 50:
-            po.status = POStatus.IN_PROGRESS
-        elif completeness < 100:
-            po.status = POStatus.NEAR_COMPLETE
-        else:
-            po.status = POStatus.COMPLETE
+    if not po:
+        return
+
+    # Guard: skip recalculation if order was manually closed
+    if po.manually_completed:
+        return
+
+    # Use scenario-specific chain; fall back to full chain if unknown
+    scenario = getattr(po, 'order_scenario', None)
+    scenario_chain = get_scenario_chain(scenario)
+    if scenario_chain is not None and scenario != OrderScenario.UNKNOWN:
+        chain_length = len(scenario_chain)
+        required_docs = set(scenario_chain)
+    else:
+        chain_length = len(CHAIN_DOC_TYPES)
+        required_docs = set(CHAIN_DOC_TYPES)
+
+    # Count only required docs for this scenario
+    count_result = await db.execute(
+        select(func.count(distinct(Document.document_type))).where(
+            Document.po_id == po_id,
+            Document.document_type.in_(required_docs),
+            Document.status.notin_([
+                DocumentStatus.EXTRACTION_FAILED,
+                DocumentStatus.PENDING_MODEL,
+                DocumentStatus.REJECTED,
+            ]),
+        )
+    )
+    count = count_result.scalar() or 0
+    completeness = min(100.0, round((count / chain_length) * 100, 1))
+
+    po.chain_completeness = completeness
+    if completeness == 0:
+        po.status = POStatus.INITIATED
+    elif completeness < 50:
+        po.status = POStatus.IN_PROGRESS
+    elif completeness < 100:
+        po.status = POStatus.NEAR_COMPLETE
+    else:
+        po.status = POStatus.COMPLETE
 
 
 # Phase 8: Corrections Capture + Active Learning

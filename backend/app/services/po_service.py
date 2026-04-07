@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload, joinedload
 from fastapi import HTTPException
 
 from app.models.customer import Customer
-from app.models.purchase_order import PurchaseOrder, POStatus, FulfillmentType
+from app.models.purchase_order import PurchaseOrder, POStatus, FulfillmentType, OrderScenario, GstType
 from app.models.document import Document, DocumentType, DocumentStatus
 from app.models.document_metadata import DocumentMetadata
 from app.models.reference_index import ReferenceIndex
@@ -19,6 +19,9 @@ from app.schemas.po_profile import (
     POProfileResponse,
     VendorGroup,
     FieldComparison,
+    ItemComparison,
+    ItemMatch,
+    ParsedAddress,
 )
 from app.services.storage_service import StorageService
 from app.config import settings
@@ -26,6 +29,7 @@ from app.config import settings
 storage_service = StorageService(settings.nas_base_path)
 
 
+# Full 6-doc chain — kept for backward compat with any code that imports this
 CHAIN_DOC_TYPES = [
     DocumentType.CUSTOMER_PO,
     DocumentType.COMPANY_PO,
@@ -34,6 +38,73 @@ CHAIN_DOC_TYPES = [
     DocumentType.COMPANY_DC,
     DocumentType.COMPANY_INVOICE,
 ]
+
+# Required doc chain per scenario — None means indeterminate (unknown scenario)
+_SCENARIO_CHAIN: dict[OrderScenario, list[DocumentType] | None] = {
+    OrderScenario.UNKNOWN: None,
+    OrderScenario.PROCUREMENT: [
+        # VENDOR_DC excluded — some vendors don't issue separate DC
+        # It's optional (tracked if uploaded, doesn't block completeness)
+        DocumentType.CUSTOMER_PO,
+        DocumentType.COMPANY_PO,
+        DocumentType.VENDOR_INVOICE,
+        DocumentType.COMPANY_DC,
+        DocumentType.COMPANY_INVOICE,
+    ],
+    OrderScenario.STOCK: [
+        DocumentType.CUSTOMER_PO,
+        DocumentType.COMPANY_DC,
+        DocumentType.COMPANY_INVOICE,
+    ],
+    OrderScenario.DROP_SHIP: [
+        # COMPANY_DC is optional on drop-ship — not included in required chain
+        DocumentType.CUSTOMER_PO,
+        DocumentType.COMPANY_PO,
+        DocumentType.VENDOR_DC,
+        DocumentType.VENDOR_INVOICE,
+        DocumentType.COMPANY_INVOICE,
+    ],
+    OrderScenario.SERVICE_AMC: [
+        DocumentType.CUSTOMER_PO,
+        DocumentType.COMPANY_INVOICE,
+    ],
+}
+
+
+def get_scenario_chain(scenario: OrderScenario | None) -> list[DocumentType] | None:
+    """Return required doc list for this scenario. None = indeterminate."""
+    if scenario is None:
+        return None
+    return _SCENARIO_CHAIN.get(scenario)
+
+
+# Known Indian states with GST codes for auto-detection
+# Company state should be set in config; deliveries to a different state = IGST
+_KNOWN_IGST_TRIGGER_STATES = {
+    s.lower() for s in [
+        "andhra pradesh", "arunachal pradesh", "assam", "bihar", "chhattisgarh",
+        "goa", "gujarat", "haryana", "himachal pradesh", "jharkhand", "karnataka",
+        "kerala", "madhya pradesh", "maharashtra", "manipur", "meghalaya", "mizoram",
+        "nagaland", "odisha", "punjab", "rajasthan", "sikkim", "tamil nadu",
+        "telangana", "tripura", "uttar pradesh", "uttarakhand", "west bengal",
+        "delhi", "jammu and kashmir", "ladakh", "chandigarh", "puducherry",
+    ]
+}
+
+
+def detect_gst_type(delivery_state: str | None) -> GstType | None:
+    """
+    Auto-detect GST type from delivery state vs company state (from settings).
+    Returns None if detection is not possible.
+    """
+    if not delivery_state:
+        return None
+    company_state = getattr(settings, "company_state", "").lower().strip()
+    if not company_state:
+        return None
+    if delivery_state.lower().strip() == company_state:
+        return GstType.CGST_SGST
+    return GstType.IGST
 
 
 async def create_po(db: AsyncSession, data: POCreate) -> PurchaseOrder:
@@ -319,6 +390,29 @@ async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse
     )
 
 
+async def close_order(db: AsyncSession, po_id: UUID, note: str | None = None) -> PurchaseOrder:
+    """Manually close a PO — marks order as completed regardless of doc chain state.
+
+    This is a one-way operation. Once closed, the order cannot be re-opened
+    through the normal UI (admin API only).
+    """
+    from datetime import datetime, timezone
+    po = await get_po(db, po_id)
+
+    if po.manually_completed:
+        raise HTTPException(status_code=400, detail="Order is already closed.")
+
+    po.manually_completed = True
+    po.completed_at = datetime.now(timezone.utc)
+    po.completion_note = note
+    po.status = POStatus.COMPLETE
+    po.chain_completeness = 100.0
+
+    await db.commit()
+    await db.refresh(po)
+    return po
+
+
 async def delete_po(db: AsyncSession, po_id: UUID) -> None:
     """Delete a PO and all its documents, files, metadata, and reference entries."""
     po = await get_po(db, po_id)
@@ -344,26 +438,44 @@ async def delete_po(db: AsyncSession, po_id: UUID) -> None:
 
 async def update_chain_completeness(db: AsyncSession, po_id: UUID) -> float:
     """Recalculate chain completeness for a PO."""
-    # Fetch PO to determine fulfillment type
-    po_row = (await db.execute(
+    # Fetch PO to determine scenario and manually_completed flag
+    po = (await db.execute(
         select(PurchaseOrder).where(PurchaseOrder.id == po_id)
     )).scalar_one_or_none()
 
-    VENDOR_DOC_TYPES = {DocumentType.COMPANY_PO, DocumentType.VENDOR_DC, DocumentType.VENDOR_INVOICE}
-    if po_row and po_row.fulfillment_type == FulfillmentType.STOCK:
-        active_chain = [dt for dt in CHAIN_DOC_TYPES if dt not in VENDOR_DOC_TYPES]
-    else:
-        active_chain = CHAIN_DOC_TYPES
+    if not po:
+        return 0.0
 
+    # Skip recalculation if manually completed — user-set values take precedence
+    if po.manually_completed:
+        return po.chain_completeness or 0.0
+
+    # Get scenario-specific chain; fall back to full chain if scenario unknown
+    scenario = getattr(po, 'order_scenario', None)
+    scenario_chain = get_scenario_chain(scenario)
+    if scenario_chain is None or scenario == OrderScenario.UNKNOWN:
+        chain_length = len(CHAIN_DOC_TYPES)
+        required_docs = set(CHAIN_DOC_TYPES)
+    else:
+        chain_length = len(scenario_chain)
+        required_docs = set(scenario_chain)
+
+    # Count only documents in the scenario's required chain
     count_result = await db.execute(
         select(func.count(distinct(Document.document_type))).where(
             Document.po_id == po_id,
-            Document.document_type.in_(active_chain),
-            Document.status.notin_([DocumentStatus.EXTRACTION_FAILED, DocumentStatus.REJECTED]),
+            Document.document_type.in_(required_docs),
+            Document.status.notin_([
+                DocumentStatus.EXTRACTION_FAILED,
+                DocumentStatus.PENDING_MODEL,
+                DocumentStatus.REJECTED,
+            ]),
         )
     )
     count = count_result.scalar() or 0
-    completeness = round((count / len(active_chain)) * 100, 1)
+
+    # Clamp completeness to [0, 100]
+    completeness = min(100.0, round((count / chain_length) * 100, 1))
 
     # Determine status
     if completeness == 0:
@@ -375,15 +487,9 @@ async def update_chain_completeness(db: AsyncSession, po_id: UUID) -> float:
     else:
         status = POStatus.COMPLETE
 
-    # Update PO
-    po = (await db.execute(
-        select(PurchaseOrder).where(PurchaseOrder.id == po_id)
-    )).scalar_one_or_none()
-
-    if po:
-        po.chain_completeness = completeness
-        po.status = status
-        await db.commit()
+    po.chain_completeness = completeness
+    po.status = status
+    await db.commit()
 
     return completeness
 
@@ -455,28 +561,75 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
     for doc_list in docs_by_type.values():
         doc_list.sort(key=lambda d: d.created_at, reverse=True)
 
-    # Determine active chain based on fulfillment type
-    VENDOR_DOC_TYPES = {DocumentType.COMPANY_PO, DocumentType.VENDOR_DC, DocumentType.VENDOR_INVOICE}
-    if po.fulfillment_type == FulfillmentType.STOCK:
-        active_chain = [dt for dt in CHAIN_DOC_TYPES if dt not in VENDOR_DOC_TYPES]
-    else:
-        active_chain = CHAIN_DOC_TYPES
+    # Determine active chain based on order_scenario (falls back to fulfillment_type)
+    scenario = po.order_scenario if hasattr(po, 'order_scenario') else None
+    scenario_chain = get_scenario_chain(scenario)
 
-    # Build slots in chain order — each slot may hold multiple documents
+    if scenario_chain is not None:
+        # Scenario is known — use its specific chain
+        active_chain = scenario_chain
+        if scenario == OrderScenario.DROP_SHIP:
+            optional_types = {DocumentType.COMPANY_DC}
+        elif scenario == OrderScenario.PROCUREMENT:
+            optional_types = {DocumentType.VENDOR_DC}
+        else:
+            optional_types = set()
+    else:
+        # Scenario unknown — fall back to legacy fulfillment_type behaviour
+        VENDOR_DOC_TYPES = {DocumentType.COMPANY_PO, DocumentType.VENDOR_DC, DocumentType.VENDOR_INVOICE}
+        if po.fulfillment_type == FulfillmentType.STOCK:
+            active_chain = [dt for dt in CHAIN_DOC_TYPES if dt not in VENDOR_DOC_TYPES]
+        else:
+            active_chain = CHAIN_DOC_TYPES
+        optional_types = set()
+
+    # All 6 doc types — slots not in active_chain show as "not_applicable"
+    ALL_DOC_TYPES = [
+        DocumentType.CUSTOMER_PO,
+        DocumentType.COMPANY_PO,
+        DocumentType.VENDOR_DC,
+        DocumentType.VENDOR_INVOICE,
+        DocumentType.COMPANY_DC,
+        DocumentType.COMPANY_INVOICE,
+    ]
+
+    # Build slots — required slots show empty/filled, non-required show not_applicable
     slots: list[POProfileDocumentSlot] = []
-    for doc_type in active_chain:
+    for doc_type in ALL_DOC_TYPES:
         doc_list = docs_by_type.get(doc_type, [])
-        if not doc_list:
+        is_required = doc_type in active_chain
+        is_optional = doc_type in optional_types
+
+        if not is_required and not is_optional and doc_list:
+            # Doc uploaded but not required by scenario — show it anyway
+            slots.append(POProfileDocumentSlot(
+                document_type=doc_type.value,
+                status=_derive_slot_status(doc_list),
+                documents=[_build_profile_document(d) for d in doc_list],
+                required=False,
+            ))
+        elif not is_required and not is_optional:
+            slots.append(POProfileDocumentSlot(
+                document_type=doc_type.value,
+                status="not_applicable",
+                documents=[],
+                required=False,
+            ))
+        elif not doc_list:
             slots.append(POProfileDocumentSlot(
                 document_type=doc_type.value,
                 status="empty",
                 documents=[],
+                required=is_required,
+                optional=is_optional,
             ))
         else:
             slots.append(POProfileDocumentSlot(
                 document_type=doc_type.value,
                 status=_derive_slot_status(doc_list),
                 documents=[_build_profile_document(d) for d in doc_list],
+                required=is_required,
+                optional=is_optional,
             ))
 
     # Build timeline
@@ -687,6 +840,115 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
     # Strip comparisons where both sides are None (no docs uploaded yet — no useful info)
     field_comparisons = [fc for fc in field_comparisons if not (fc.source_value is None and fc.compared_value is None)]
 
+    # ── Item-level comparison engine ───────────────────────────────────────────
+    import json as _json
+
+    def _get_items(doc_type: DocumentType) -> list[dict]:
+        doc_list = docs_by_type.get(doc_type, [])
+        if not doc_list:
+            return []
+        meta = doc_list[0].doc_metadata
+        if not meta or not meta.extracted_data:
+            return []
+        raw = meta.extracted_data.get("order_items")
+        if not raw:
+            return []
+        try:
+            items = raw if isinstance(raw, list) else _json.loads(raw)
+            return items if isinstance(items, list) else []
+        except Exception:
+            return []
+
+    def _safe_float(v) -> float | None:
+        if v is None:
+            return None
+        try:
+            return float(str(v).replace(",", ""))
+        except (ValueError, TypeError):
+            return None
+
+    item_comparisons: list[ItemComparison] = []
+
+    # Qty: CUSTOMER_PO → COMPANY_DC (ordered vs delivered — most critical)
+    cpo_items = _get_items(DocumentType.CUSTOMER_PO)
+    cdc_items = _get_items(DocumentType.COMPANY_DC)
+    if cpo_items or cdc_items:
+        len_src, len_cmp = len(cpo_items), len(cdc_items)
+        # If count differs by >50%, skip positional matching — show warning row instead
+        if len_src and len_cmp and abs(len_src - len_cmp) / max(len_src, len_cmp) > 0.5:
+            item_comparisons.append(ItemComparison(
+                sr_no=None,
+                description="Item count mismatch — manual review required",
+                source_doc=DocumentType.CUSTOMER_PO.value,
+                source_qty=None,
+                compared_doc=DocumentType.COMPANY_DC.value,
+                compared_qty=None,
+                qty_match=False,
+            ))
+        else:
+            for i in range(max(len_src, len_cmp)):
+                src = cpo_items[i] if i < len_src else {}
+                cmp = cdc_items[i] if i < len_cmp else {}
+                src_qty = _safe_float(src.get("qty"))
+                cmp_qty = _safe_float(cmp.get("qty"))
+                qty_match = (src_qty == cmp_qty) if src_qty is not None and cmp_qty is not None else None
+                item_comparisons.append(ItemComparison(
+                    sr_no=str(src.get("sr_no") or cmp.get("sr_no") or (i + 1)),
+                    description=src.get("description") or cmp.get("description"),
+                    part_no=cmp.get("part_no"),
+                    source_doc=DocumentType.CUSTOMER_PO.value,
+                    source_qty=src_qty,
+                    compared_doc=DocumentType.COMPANY_DC.value,
+                    compared_qty=cmp_qty,
+                    qty_match=qty_match,
+                ))
+
+    # Part no + qty: COMPANY_PO → VENDOR_DC (procurement only — did vendor ship right parts?)
+    if po.fulfillment_type != FulfillmentType.STOCK:
+        comp_po_items = _get_items(DocumentType.COMPANY_PO)
+        vdc_items = _get_items(DocumentType.VENDOR_DC)
+        if comp_po_items or vdc_items:
+            len_src, len_cmp = len(comp_po_items), len(vdc_items)
+            if len_src and len_cmp and abs(len_src - len_cmp) / max(len_src, len_cmp) > 0.5:
+                item_comparisons.append(ItemComparison(
+                    sr_no=None,
+                    description="Item count mismatch — manual review required",
+                    source_doc=DocumentType.COMPANY_PO.value,
+                    source_qty=None,
+                    compared_doc=DocumentType.VENDOR_DC.value,
+                    compared_qty=None,
+                    qty_match=False,
+                ))
+            else:
+                for i in range(max(len_src, len_cmp)):
+                    src = comp_po_items[i] if i < len_src else {}
+                    cmp = vdc_items[i] if i < len_cmp else {}
+                    src_part = str(src.get("part_no") or "").strip().lower() or None
+                    cmp_part = str(cmp.get("part_no") or "").strip().lower() or None
+                    src_qty = _safe_float(src.get("qty"))
+                    cmp_qty = _safe_float(cmp.get("qty"))
+                    qty_match = (src_qty == cmp_qty) if src_qty is not None and cmp_qty is not None else None
+                    part_match = (src_part == cmp_part) if src_part and cmp_part else None
+                    src_price = _safe_float(src.get("unit_price"))
+                    cmp_price = _safe_float(cmp.get("unit_price"))
+                    if src_price is not None and cmp_price is not None and max(src_price, cmp_price) > 0:
+                        price_match = abs(src_price - cmp_price) <= max(src_price, cmp_price) * 0.02
+                    else:
+                        price_match = False
+                    item_comparisons.append(ItemComparison(
+                        sr_no=str(src.get("sr_no") or cmp.get("sr_no") or (i + 1)),
+                        description=src.get("description") or cmp.get("description"),
+                        part_no=src_part or cmp_part,
+                        source_doc=DocumentType.COMPANY_PO.value,
+                        source_qty=src_qty,
+                        compared_doc=DocumentType.VENDOR_DC.value,
+                        compared_qty=cmp_qty,
+                        qty_match=qty_match,
+                        source_price=src_price,
+                        compared_price=cmp_price,
+                        price_match=price_match,
+                    ))
+
     # Build per-vendor groups (procurement only — stock has no vendor docs)
     vendor_groups: list[VendorGroup] = []
     if po.fulfillment_type != FulfillmentType.STOCK:
@@ -734,6 +996,52 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
                 slots=group_slots,
             ))
 
+    # ── AI item description → part_no matching ─────────────────────────────────
+    item_matches: list[ItemMatch] = []
+    if po.fulfillment_type != FulfillmentType.STOCK:
+        _cpo_raw = _get_items(DocumentType.CUSTOMER_PO)
+        _comp_po_raw = _get_items(DocumentType.COMPANY_PO)
+        if _cpo_raw and _comp_po_raw:
+            try:
+                from app.services.item_matcher import match_items_by_description
+                import redis.asyncio as _aioredis
+                _r = _aioredis.from_url(settings.redis_url, decode_responses=True)
+                _cpo_docs = docs_by_type.get(DocumentType.CUSTOMER_PO, [])
+                _cache_key = f"{po.id}:{_cpo_docs[0].id if _cpo_docs else 'none'}"
+                _matches = await match_items_by_description(_cpo_raw, _comp_po_raw, _r, _cache_key)
+                await _r.aclose()
+                item_matches = [ItemMatch(**m) for m in _matches]
+            except Exception as _e:
+                import logging as _logging
+                _logging.getLogger(__name__).warning(f"Item matching skipped: {_e}")
+
+    # ── Structured delivery address parsing ────────────────────────────────────
+    from app.services.address_parser import parse_delivery_address
+    _addr_raw = None
+    for _dt in [DocumentType.COMPANY_DC, DocumentType.COMPANY_PO, DocumentType.VENDOR_DC]:
+        _val = _extracted(_dt, "delivery_address")
+        if _val:
+            _addr_raw = _val
+            break
+    delivery_address_parsed = (
+        ParsedAddress(**parse_delivery_address(_addr_raw)) if _addr_raw else None
+    )
+
+    # ── GST auto-detect (only if user hasn't set it manually) ─────────────────
+    resolved_gst_type = po.gst_type.value if hasattr(po, 'gst_type') else "unknown"
+    if resolved_gst_type == "unknown" and delivery_address_parsed and delivery_address_parsed.state:
+        detected = detect_gst_type(delivery_address_parsed.state)
+        if detected:
+            resolved_gst_type = detected.value
+
+    # ── Chain completeness display ─────────────────────────────────────────────
+    # When scenario is unknown, completeness is indeterminate → show "—"
+    if scenario == OrderScenario.UNKNOWN or scenario is None and not hasattr(po, 'order_scenario'):
+        chain_completeness_display = "—"
+    else:
+        _pct = min(po.chain_completeness or 0.0, 100.0)
+        chain_completeness_display = f"{_pct:.1f}%"
+
     return POProfileResponse(
         po_id=po.id,
         po_number=po.po_number,
@@ -744,7 +1052,14 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
         total_amount=float(po.total_amount) if po.total_amount else None,
         status=po.status.value,
         chain_completeness=po.chain_completeness or 0.0,
+        chain_completeness_display=chain_completeness_display,
         fulfillment_type=po.fulfillment_type.value if po.fulfillment_type else "procurement",
+        order_scenario=po.order_scenario.value if hasattr(po, 'order_scenario') and po.order_scenario else "unknown",
+        gst_type=resolved_gst_type,
+        invoice_split=po.invoice_split if hasattr(po, 'invoice_split') else False,
+        manually_completed=po.manually_completed if hasattr(po, 'manually_completed') else False,
+        completed_at=po.completed_at if hasattr(po, 'completed_at') else None,
+        completion_note=po.completion_note if hasattr(po, 'completion_note') else None,
         created_at=po.created_at,
         slots=slots,
         timeline=timeline,
@@ -752,4 +1067,8 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
         cross_references=cross_references,
         vendor_groups=vendor_groups,
         field_comparisons=field_comparisons,
+        items_verified=po.items_verified,
+        item_comparisons=item_comparisons,
+        item_matches=item_matches,
+        delivery_address_parsed=delivery_address_parsed,
     )
