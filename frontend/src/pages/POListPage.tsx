@@ -223,7 +223,7 @@ export default function POListPage() {
                   <td className="px-5 py-3 font-medium">{po.po_number}</td>
                   <td className="px-5 py-3 text-gray-600">
                     {po.customer_name
-                      ? `${po.customer_sky_id ?? ''} ${po.customer_name}`
+                      ? `${po.customer_sky_id ? `${po.customer_sky_id} ` : ''}${po.customer_name}`
                       : '—'}
                   </td>
                   <td className="px-5 py-3 text-gray-600">
@@ -236,7 +236,7 @@ export default function POListPage() {
                   </td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-gray-200 rounded-full max-w-[80px]">
+                      <div className="flex-1 h-2 bg-gray-200 rounded-full max-w-[120px]">
                         <div
                           className={clsx(
                             'h-full rounded-full',
@@ -262,7 +262,13 @@ export default function POListPage() {
             ) : (
               <tr>
                 <td colSpan={6} className="px-5 py-8 text-center text-gray-400">
-                  No purchase orders found.
+                  <p className="mb-2">No purchase orders yet.</p>
+                  <button
+                    onClick={() => setShowModal(true)}
+                    className="text-sm text-blue-600 hover:underline font-medium"
+                  >
+                    + Create your first PO
+                  </button>
                 </td>
               </tr>
             )}
