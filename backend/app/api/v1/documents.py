@@ -1,5 +1,5 @@
 from uuid import UUID
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from fastapi import APIRouter, Depends, Body, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -108,6 +108,9 @@ async def list_documents(
                 resp.customer_name = doc.purchase_order.customer.name
         if doc.doc_metadata:
             resp.metadata = ExtractionResponse.model_validate(doc.doc_metadata)
+        if doc.status == DocumentStatus.PENDING_REVIEW and doc.updated_at:
+            delta = datetime.now(timezone.utc) - doc.updated_at.replace(tzinfo=timezone.utc)
+            resp.days_pending = delta.days
         items.append(resp)
 
     return DocumentListResponse(items=items, total=total)

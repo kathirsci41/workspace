@@ -36,6 +36,7 @@ class DocumentResponse(BaseModel):
     rotation: int = 0
     created_at: datetime
     updated_at: datetime
+    days_pending: Optional[int] = None
     po_number: str = ""
     customer_name: str = ""
     po_so_number: Optional[str] = None

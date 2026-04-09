@@ -1,6 +1,7 @@
 import os
 import asyncio
 import json
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, func, select, case
@@ -155,6 +156,44 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         )
     )).one()
 
+    now = datetime.now(timezone.utc)
+    yesterday = now - timedelta(hours=24)
+    two_days_ago = now - timedelta(hours=48)
+
+    today_pos = (await db.scalar(
+        select(func.count(PurchaseOrder.id)).where(PurchaseOrder.created_at >= yesterday)
+    )) or 0
+    prev_pos = (await db.scalar(
+        select(func.count(PurchaseOrder.id)).where(
+            PurchaseOrder.created_at >= two_days_ago,
+            PurchaseOrder.created_at < yesterday,
+        )
+    )) or 0
+
+    today_docs = (await db.scalar(
+        select(func.count(Document.id)).where(Document.created_at >= yesterday)
+    )) or 0
+    prev_docs = (await db.scalar(
+        select(func.count(Document.id)).where(
+            Document.created_at >= two_days_ago,
+            Document.created_at < yesterday,
+        )
+    )) or 0
+
+    today_verified = (await db.scalar(
+        select(func.count(Document.id)).where(
+            Document.status == DocumentStatus.VERIFIED,
+            Document.updated_at >= yesterday,
+        )
+    )) or 0
+    prev_verified = (await db.scalar(
+        select(func.count(Document.id)).where(
+            Document.status == DocumentStatus.VERIFIED,
+            Document.updated_at >= two_days_ago,
+            Document.updated_at < yesterday,
+        )
+    )) or 0
+
     return {
         "total_customers":       total_customers,
         "total_purchase_orders": po_count,
@@ -166,6 +205,11 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         "extraction_failures":   doc_row.extraction_failures,
         "pending_model":         doc_row.pending_model,
         "rejected":              doc_row.rejected,
+        "stats_delta": {
+            "total_purchase_orders": today_pos - prev_pos,
+            "total_documents":       today_docs - prev_docs,
+            "verified":              today_verified - prev_verified,
+        },
     }
 
 
