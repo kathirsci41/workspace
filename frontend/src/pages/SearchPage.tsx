@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Search, Users, FileText, File, Loader2, MapPin } from 'lucide-react';
-import { useSearch, useAddressSearch } from '@/hooks/useSearch';
+import { useSearch, useAddressSearch, useAdvancedSearch } from '@/hooks/useSearch';
 import clsx from 'clsx';
 import type { SearchResult } from '@/types';
 
@@ -13,9 +13,21 @@ export default function SearchPage() {
   const [addressQuery, setAddressQuery] = useState('');
   const navigate = useNavigate();
 
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advFilters, setAdvFilters] = useState({
+    invoice_no: '', dc_no: '', po_no: '', so_no: '',
+    customer_name: '', document_type: '', date_from: '', date_to: '',
+  });
+  const [advQuery, setAdvQuery] = useState<typeof advFilters | null>(null);
+
   const query = searchParams.get('q') ?? '';
   const { data, isLoading } = useSearch(query);
   const { data: addrData, isLoading: addrLoading } = useAddressSearch(addressQuery);
+  const { data: advData, isLoading: advLoading } = useAdvancedSearch(advQuery ?? {}, advQuery !== null);
+
+  const hasAdvancedFilters = advQuery !== null;
+  const displayData = hasAdvancedFilters ? advData : data;
+  const displayLoading = hasAdvancedFilters ? advLoading : isLoading;
 
   useEffect(() => {
     setInput(searchParams.get('q') ?? '');
@@ -180,29 +192,124 @@ export default function SearchPage() {
         </div>
       </form>
 
+      {/* Advanced filters toggle */}
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+        >
+          {showAdvanced ? '▲ Hide advanced filters' : '▼ Advanced filters'}
+        </button>
+      </div>
+
+      {showAdvanced && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            {([
+              { label: 'Invoice No', key: 'invoice_no' },
+              { label: 'DC No', key: 'dc_no' },
+              { label: 'PO No', key: 'po_no' },
+              { label: 'SO No', key: 'so_no' },
+              { label: 'Customer', key: 'customer_name' },
+            ] as { label: string; key: keyof typeof advFilters }[]).map(({ label, key }) => (
+              <div key={key}>
+                <label className="block text-xs text-gray-500 mb-1">{label}</label>
+                <input
+                  type="text"
+                  value={advFilters[key]}
+                  onChange={(e) => setAdvFilters((f) => ({ ...f, [key]: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            ))}
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Document Type</label>
+              <select
+                value={advFilters.document_type}
+                onChange={(e) => setAdvFilters((f) => ({ ...f, document_type: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">All types</option>
+                <option value="CUSTOMER_PO">Customer PO</option>
+                <option value="COMPANY_PO">Company PO</option>
+                <option value="VENDOR_DC">Vendor DC</option>
+                <option value="VENDOR_INVOICE">Vendor Invoice</option>
+                <option value="COMPANY_DC">Company DC</option>
+                <option value="COMPANY_INVOICE">Company Invoice</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Date from</label>
+              <input
+                type="date"
+                value={advFilters.date_from}
+                onChange={(e) => setAdvFilters((f) => ({ ...f, date_from: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Date to</label>
+              <input
+                type="date"
+                value={advFilters.date_to}
+                onChange={(e) => setAdvFilters((f) => ({ ...f, date_to: e.target.value }))}
+                className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                const active = Object.fromEntries(
+                  Object.entries(advFilters).filter(([, v]) => v.trim() !== '')
+                );
+                if (Object.keys(active).length > 0) setAdvQuery(active as typeof advFilters);
+              }}
+              className="bg-blue-600 text-white text-sm px-4 py-1.5 rounded-lg hover:bg-blue-700"
+            >
+              Search
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAdvFilters({ invoice_no: '', dc_no: '', po_no: '', so_no: '', customer_name: '', document_type: '', date_from: '', date_to: '' });
+                setAdvQuery(null);
+              }}
+              className="text-gray-500 text-sm px-4 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-100"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Hint */}
-      {query.length > 0 && query.length < 2 && (
+      {!hasAdvancedFilters && query.length > 0 && query.length < 2 && (
         <p className="text-sm text-gray-400 text-center py-4">
           Type at least 2 characters to search.
         </p>
       )}
 
       {/* Loading */}
-      {isLoading && (
+      {displayLoading && (
         <div className="flex justify-center py-8">
           <Loader2 size={28} className="animate-spin text-gray-400" />
         </div>
       )}
 
       {/* Results */}
-      {data && !isLoading && (
+      {displayData && !displayLoading && (
         <>
           <p className="text-sm text-gray-500 mb-4">
-            Found {data.total} result{data.total !== 1 ? 's' : ''} for &ldquo;
-            {data.query}&rdquo;
+            Found {displayData.total} result{displayData.total !== 1 ? 's' : ''} for &ldquo;
+            {displayData.query}&rdquo;
           </p>
 
-          {data.results.length === 0 ? (
+          {displayData.results.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <Search size={48} className="mx-auto mb-3 opacity-50" />
               <p className="text-sm">
@@ -211,7 +318,7 @@ export default function SearchPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {data.results.map((result) => (
+              {displayData.results.map((result) => (
                 <div
                   key={`${result.result_type}-${result.id}`}
                   onClick={() => handleResultClick(result)}
