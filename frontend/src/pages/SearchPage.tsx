@@ -8,7 +8,18 @@ import type { SearchResult } from '@/types';
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [input, setInput] = useState(searchParams.get('q') ?? '');
-  const [tab, setTab] = useState<'global' | 'address'>('global');
+  const [tab, setTab] = useState<'global' | 'address'>(
+    (searchParams.get('tab') as 'global' | 'address') ?? 'global'
+  );
+
+  const handleTabChange = (newTab: 'global' | 'address') => {
+    setTab(newTab);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', newTab);
+      return next;
+    });
+  };
   const [addressInput, setAddressInput] = useState('');
   const [addressQuery, setAddressQuery] = useState('');
   const navigate = useNavigate();
@@ -54,9 +65,7 @@ export default function SearchPage() {
         navigate(`/purchase-orders/${result.id}`);
         break;
       case 'document':
-        if (result.po_id) {
-          navigate(`/purchase-orders/${result.po_id}?highlight=${result.id}`);
-        }
+        navigate(`/documents/${result.id}`);
         break;
     }
   };
@@ -81,7 +90,7 @@ export default function SearchPage() {
       {/* Tab switcher */}
       <div className="flex gap-1 mb-5 bg-gray-100 p-1 rounded-lg w-fit">
         <button
-          onClick={() => setTab('global')}
+          onClick={() => handleTabChange('global')}
           className={clsx(
             'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
             tab === 'global' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'
@@ -90,7 +99,7 @@ export default function SearchPage() {
           <Search size={14} /> Reference Search
         </button>
         <button
-          onClick={() => setTab('address')}
+          onClick={() => handleTabChange('address')}
           className={clsx(
             'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
             tab === 'address' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'
@@ -267,7 +276,14 @@ export default function SearchPage() {
                 const active = Object.fromEntries(
                   Object.entries(advFilters).filter(([, v]) => v.trim() !== '')
                 );
-                if (Object.keys(active).length > 0) setAdvQuery(active as typeof advFilters);
+                if (Object.keys(active).length > 0) {
+                  setAdvQuery(active as typeof advFilters);
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    Object.entries(active).forEach(([k, v]) => next.set(k, v));
+                    return next;
+                  });
+                }
               }}
               className="bg-blue-600 text-white text-sm px-4 py-1.5 rounded-lg hover:bg-blue-700"
             >
@@ -312,9 +328,7 @@ export default function SearchPage() {
           {displayData.results.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <Search size={48} className="mx-auto mb-3 opacity-50" />
-              <p className="text-sm">
-                No results found. Try a different search term.
-              </p>
+              <p className="text-sm">No results. Try a shorter search term or use Advanced filters.</p>
             </div>
           ) : (
             <div className="space-y-2">
