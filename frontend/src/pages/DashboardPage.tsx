@@ -212,7 +212,13 @@ export default function DashboardPage() {
                   ? 'Waiting for SO number'
                   : validationErrors[0] ?? null;
                 return (
-                  <tr key={doc.id} className="hover:bg-amber-50">
+                  <tr
+                    key={doc.id}
+                    className={clsx(
+                      'hover:bg-amber-50',
+                      (doc.days_pending ?? 0) >= 3 && 'bg-red-50'
+                    )}
+                  >
                     <td className="px-5 py-3 font-medium">
                       {DOC_TYPE_LABELS[doc.document_type] ?? doc.document_type}
                     </td>
@@ -222,6 +228,12 @@ export default function DashboardPage() {
                     <td className="px-5 py-3 text-gray-700">{doc.po_number || '—'}</td>
                     <td className="px-5 py-3 text-gray-600">{doc.customer_name || '—'}</td>
                     <td className="px-5 py-3 max-w-[240px]">
+                      {(doc.days_pending ?? 0) >= 3 && (
+                        <span className="inline-flex items-center gap-1 text-xs text-red-700 font-medium bg-red-100 px-2 py-0.5 rounded-full mr-2">
+                          <AlertTriangle size={10} />
+                          {doc.days_pending}d overdue
+                        </span>
+                      )}
                       {note && (
                         <span className="flex items-center gap-1 text-xs text-amber-700">
                           <AlertTriangle size={12} className="flex-shrink-0" />
@@ -231,10 +243,10 @@ export default function DashboardPage() {
                     </td>
                     <td className="px-5 py-3">
                       <button
-                        onClick={() => navigate(`/purchase-orders/${doc.po_id}`)}
+                        onClick={() => navigate(`/purchase-orders/${doc.po_id}?highlight=${doc.id}&review=${doc.id}`)}
                         className="text-xs font-medium text-blue-600 hover:underline"
                       >
-                        Open PO
+                        Review →
                       </button>
                     </td>
                   </tr>
@@ -242,8 +254,8 @@ export default function DashboardPage() {
               })}
               {(!pendingData?.items || pendingData.items.length === 0) && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-gray-400">
-                    No documents pending review.
+                  <td colSpan={6} className="px-5 py-8 text-center text-green-600 font-medium">
+                    ✓ No documents pending review
                   </td>
                 </tr>
               )}

@@ -128,6 +128,7 @@ export interface Document {
   metadata: DocumentMetadata | null;
   created_at: string;
   updated_at: string;
+  days_pending?: number | null;
 }
 
 export interface ChainSlot {
