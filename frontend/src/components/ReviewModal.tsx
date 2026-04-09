@@ -86,6 +86,10 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
   // Array fields that must never be included in formData — they can only come from extraction
   const ARRAY_FIELDS = new Set(['order_items', 'delivery_locations']);
 
+  // Refs to current handler functions — used by keyboard shortcut effect below
+  const handleVerifyRef = useRef<(() => void) | null>(null);
+  const handleRejectRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     if (metadata?.extracted_data && Object.keys(metadata.extracted_data).length > 0) {
       const initial: Record<string, string> = {};
@@ -323,6 +327,27 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
   const handleReject = () => {
     rejectMutation.mutate(documentId, { onSuccess: onClose });
   };
+
+  // Keep refs current so keyboard handler always calls the latest version
+  handleVerifyRef.current = handleVerify;
+  handleRejectRef.current = handleReject;
+
+  // ── Keyboard shortcuts: V = Verify, R = Reject, Esc = Close ─────────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'v' || e.key === 'V') {
+        handleVerifyRef.current?.();
+      } else if (e.key === 'r' || e.key === 'R') {
+        handleRejectRef.current?.();
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   const addCustomField = () =>
     setCustomFields((f) => [...f, { id: crypto.randomUUID(), label: '', value: '' }]);
