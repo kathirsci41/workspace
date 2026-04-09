@@ -330,6 +330,13 @@ async def reject_metadata(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
+    # Clear search index — rejected document should not appear in search results
+    await db.execute(
+        delete(ReferenceIndex).where(
+            ReferenceIndex.document_id == document_id
+        )
+    )
+
     # Set status
     meta.status = MetadataStatus.FAILED
     doc.status = DocumentStatus.REJECTED
