@@ -43,13 +43,13 @@ class TestDocumentType:
 # ════════════════════════════════════════════════════════════════════════
 
 class TestDocumentStatus:
-    def test_has_6_values(self):
-        assert len(DocumentStatus) == 6
+    def test_has_7_values(self):
+        assert len(DocumentStatus) == 7
 
     def test_all_expected_statuses(self):
         expected = {
             "UPLOADED", "EXTRACTING", "PENDING_REVIEW",
-            "VERIFIED", "REJECTED", "EXTRACTION_FAILED",
+            "VERIFIED", "REJECTED", "EXTRACTION_FAILED", "PENDING_MODEL",
         }
         actual = {s.value for s in DocumentStatus}
         assert actual == expected

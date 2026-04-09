@@ -42,21 +42,16 @@ def make_mock_doc(page_count, page_width=100, page_height=100):
 class TestInit:
     def test_default_dpi(self):
         c = PDFConverter()
-        assert c.dpi == 200
+        assert c.dpi == 300
 
     def test_default_max_pages(self):
         c = PDFConverter()
         assert c.max_pages == 10
 
-    def test_default_max_image_dim(self):
-        c = PDFConverter()
-        assert c.max_image_dim == 768
-
     def test_custom_values(self):
-        c = PDFConverter(dpi=300, max_pages=5, max_image_dim=512)
-        assert c.dpi == 300
+        c = PDFConverter(dpi=200, max_pages=5)
+        assert c.dpi == 200
         assert c.max_pages == 5
-        assert c.max_image_dim == 512
 
 
 # ── Page selection logic ─────────────────────────────────────────────────
@@ -139,30 +134,24 @@ class TestErrors:
 
 class TestImageResizing:
     @patch("app.services.extraction.pdf_converter.fitz")
-    def test_small_images_not_resized(self, mock_fitz):
+    def test_small_images_returned(self, mock_fitz):
         mock_fitz.open.return_value = make_mock_doc(1, page_width=100, page_height=100)
         mock_fitz.Matrix = MagicMock()
 
-        converter = PDFConverter(max_image_dim=768)
+        converter = PDFConverter()
         images = converter.convert_to_images("test.pdf")
         assert len(images) == 1
-
-        # Verify image dimensions are unchanged
-        img = Image.open(io.BytesIO(images[0]))
-        assert max(img.size) <= 768
+        assert images[0][:4] == b"\x89PNG"
 
     @patch("app.services.extraction.pdf_converter.fitz")
-    def test_large_images_resized(self, mock_fitz):
-        # Create a doc with large page
+    def test_large_images_returned(self, mock_fitz):
         mock_fitz.open.return_value = make_mock_doc(1, page_width=2000, page_height=1500)
         mock_fitz.Matrix = MagicMock()
 
-        converter = PDFConverter(max_image_dim=768)
+        converter = PDFConverter()
         images = converter.convert_to_images("test.pdf")
         assert len(images) == 1
-
-        img = Image.open(io.BytesIO(images[0]))
-        assert max(img.size) <= 768
+        assert images[0][:4] == b"\x89PNG"
 
 
 # ── get_page_count ───────────────────────────────────────────────────────
@@ -230,7 +219,7 @@ class TestPatchSizeAlignment:
         mock_fitz.open.return_value = make_mock_doc(1, page_width=543, page_height=768)
         mock_fitz.Matrix = MagicMock()
 
-        converter = PDFConverter(max_image_dim=768)
+        converter = PDFConverter()
         images = converter.convert_to_images("test.pdf")
         img = Image.open(io.BytesIO(images[0]))
         w, h = img.size
@@ -243,24 +232,23 @@ class TestPatchSizeAlignment:
         mock_fitz.open.return_value = make_mock_doc(1, page_width=560, page_height=784)
         mock_fitz.Matrix = MagicMock()
 
-        converter = PDFConverter(max_image_dim=784)
+        converter = PDFConverter()
         images = converter.convert_to_images("test.pdf")
         img = Image.open(io.BytesIO(images[0]))
         assert img.size == (560, 784)
 
     @patch("app.services.extraction.pdf_converter.fitz")
-    def test_large_image_aligned_after_thumbnail(self, mock_fitz):
-        """Large image thumbnailed to ≤768, then snapped to patch grid."""
+    def test_large_image_patch_aligned(self, mock_fitz):
+        """Large image dimensions are snapped to patch grid."""
         mock_fitz.open.return_value = make_mock_doc(1, page_width=2000, page_height=1500)
         mock_fitz.Matrix = MagicMock()
 
-        converter = PDFConverter(max_image_dim=768)
+        converter = PDFConverter()
         images = converter.convert_to_images("test.pdf")
         img = Image.open(io.BytesIO(images[0]))
         w, h = img.size
         assert w % PATCH_SIZE == 0
         assert h % PATCH_SIZE == 0
-        assert max(w, h) <= 768
 
     @patch("app.services.extraction.pdf_converter.fitz")
     def test_small_unaligned_image_gets_aligned(self, mock_fitz):
@@ -268,7 +256,7 @@ class TestPatchSizeAlignment:
         mock_fitz.open.return_value = make_mock_doc(1, page_width=99, page_height=101)
         mock_fitz.Matrix = MagicMock()
 
-        converter = PDFConverter(max_image_dim=768)
+        converter = PDFConverter()
         images = converter.convert_to_images("test.pdf")
         img = Image.open(io.BytesIO(images[0]))
         w, h = img.size
@@ -281,7 +269,7 @@ class TestPatchSizeAlignment:
         mock_fitz.open.return_value = make_mock_doc(1, page_width=543, page_height=768)
         mock_fitz.Matrix = MagicMock()
 
-        converter = PDFConverter(max_image_dim=768)
+        converter = PDFConverter()
         images = converter.convert_to_images("test.pdf")
         img = Image.open(io.BytesIO(images[0]))
         assert img.size == (532, 756)
@@ -292,7 +280,7 @@ class TestPatchSizeAlignment:
         mock_fitz.open.return_value = make_mock_doc(1, page_width=140, page_height=145)
         mock_fitz.Matrix = MagicMock()
 
-        converter = PDFConverter(max_image_dim=768)
+        converter = PDFConverter()
         images = converter.convert_to_images("test.pdf")
         img = Image.open(io.BytesIO(images[0]))
         w, h = img.size
