@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ArrowLeft, Loader2, Trash2, PenLine, Check, X, AlertTriangle, BarChart2, Download } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { useQueryClient } from '@tanstack/react-query';
@@ -18,6 +18,8 @@ import clsx from 'clsx';
 
 export default function PODetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const highlightDocId = searchParams.get('highlight');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const showToast = useToast();
@@ -108,6 +110,15 @@ export default function PODetailPage() {
     }, 3000);
     return () => clearInterval(interval);
   }, [hasExtracting, id, queryClient]);
+
+  // Scroll to and highlight document card when navigated from search results
+  useEffect(() => {
+    if (!highlightDocId || !chainData) return;
+    const el = document.getElementById(highlightDocId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightDocId, chainData]);
 
   if (poLoading || chainLoading) {
     return (
@@ -366,6 +377,7 @@ export default function PODetailPage() {
                           selectedDocId != null &&
                           slot.document_id === selectedDocId
                         }
+                        highlighted={slot.document_id === highlightDocId}
                         onSelect={(docId) => setSelectedDocId(docId)}
                         onUpload={() => setUploadType(docType)}
                         onReview={(docId) => setReviewDocId(docId)}

@@ -43,7 +43,7 @@ export default function SearchPage() {
         break;
       case 'document':
         if (result.po_id) {
-          navigate(`/purchase-orders/${result.po_id}`);
+          navigate(`/purchase-orders/${result.po_id}?highlight=${result.id}`);
         }
         break;
     }
