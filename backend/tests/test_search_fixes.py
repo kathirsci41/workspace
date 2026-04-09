@@ -42,3 +42,22 @@ class TestRejectClearsReferenceIndex:
             await reject_metadata(doc_id, db)
 
         assert len(deleted_doc_ids) > 0, "Expected DELETE on reference_index but none was executed"
+
+
+class TestFuzzySearchFallback:
+    """Similarity search returns results for near-matches."""
+
+    def test_sort_key_fuzzy_match_ranks_last(self):
+        """Fuzzy-only matches (no substring) should rank below contains matches."""
+        from app.services.search_service import _search_sort_key
+
+        exact    = {"ref_number": "INV-2024-001"}
+        prefix   = {"ref_number": "INV-2024-001-A"}
+        contains = {"ref_number": "REF-INV-2024-001-X"}
+        fuzzy    = {"ref_number": "INV-2024-OO1"}  # two letter-O OCR error
+
+        q = "inv-2024-001"
+        assert _search_sort_key(exact, q)    == 0
+        assert _search_sort_key(prefix, q)   == 1
+        assert _search_sort_key(contains, q) == 2
+        assert _search_sort_key(fuzzy, q)    == 3
