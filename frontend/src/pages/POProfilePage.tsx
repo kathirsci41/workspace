@@ -11,6 +11,7 @@ import { ProfileDiscrepancyPanel } from '@/components/ProfileDiscrepancyPanel';
 import { ProfileFieldComparison } from '@/components/ProfileFieldComparison';
 import { ProfileItemComparison } from '@/components/ProfileItemComparison';
 import ChainStatusBar from '@/components/ChainStatusBar';
+import Breadcrumb from '@/components/Breadcrumb';
 import type { POProfile, ChainSlot } from '@/types';
 
 function buildChainFromProfile(profile: POProfile): Record<string, ChainSlot[]> {
@@ -114,6 +115,12 @@ export function POProfilePage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
+      <Breadcrumb items={[
+        { label: 'Purchase Orders', to: '/purchase-orders' },
+        { label: profile.po_number, to: `/purchase-orders/${id}` },
+        { label: 'Profile' },
+      ]} />
+
       {/* Header */}
       <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
