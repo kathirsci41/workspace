@@ -183,6 +183,7 @@ export default function DocumentsPage() {
             <tr>
               <th className="text-left px-5 py-3 font-medium">Type</th>
               <th className="text-left px-5 py-3 font-medium">Filename</th>
+              <th className="text-left px-5 py-3 font-medium">Ref No</th>
               <th className="text-left px-5 py-3 font-medium">PO Number</th>
               <th className="text-left px-5 py-3 font-medium">Customer</th>
               <th className="text-left px-5 py-3 font-medium">Status</th>
@@ -193,7 +194,7 @@ export default function DocumentsPage() {
           <tbody className="divide-y divide-gray-100">
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-gray-400">Loading...</td>
+                <td colSpan={8} className="px-5 py-8 text-center text-gray-400">Loading...</td>
               </tr>
             ) : data?.items?.length ? (
               data.items.map((doc) => (
@@ -205,6 +206,9 @@ export default function DocumentsPage() {
                   </td>
                   <td className="px-5 py-3 text-gray-700 max-w-[200px] truncate" title={doc.original_filename ?? '—'}>
                     {doc.original_filename ?? '—'}
+                  </td>
+                  <td className="px-5 py-3 font-mono text-xs text-gray-600">
+                    {doc.metadata?.primary_ref_no ?? '—'}
                   </td>
                   <td className="px-5 py-3 font-medium text-blue-700">
                     {doc.po_number || '—'}
@@ -219,22 +223,38 @@ export default function DocumentsPage() {
                     {doc.created_at ? new Date(doc.created_at).toLocaleDateString('en-IN') : '—'}
                   </td>
                   <td className="px-5 py-3">
-                    {doc.po_id && (
-                      <button
-                        onClick={() => navigate(`/purchase-orders/${doc.po_id}`)}
-                        className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                      >
-                        <ExternalLink size={12} />
-                        Open PO
-                      </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {doc.status === 'PENDING_REVIEW' && doc.po_id && (
+                        <button
+                          onClick={() => navigate(`/purchase-orders/${doc.po_id}?highlight=${doc.id}&review=${doc.id}`)}
+                          className="flex items-center gap-1 text-xs font-medium text-amber-700 hover:text-amber-900"
+                        >
+                          Review →
+                        </button>
+                      )}
+                      {doc.po_id && (
+                        <button
+                          onClick={() => navigate(`/purchase-orders/${doc.po_id}`)}
+                          className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                        >
+                          <ExternalLink size={12} />
+                          Open PO
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-gray-400">
-                  No documents found matching the selected filters.
+                <td colSpan={8} className="px-5 py-8 text-center text-gray-400">
+                  <p className="mb-2">No documents match these filters.</p>
+                  <button
+                    onClick={resetFilters}
+                    className="text-sm text-blue-600 hover:underline font-medium"
+                  >
+                    Reset filters
+                  </button>
                 </td>
               </tr>
             )}
