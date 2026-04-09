@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Users, FileText, Clock, CheckCircle, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Users, FileText, Clock, CheckCircle, AlertTriangle, ArrowRight, Files, Plus, Upload, Timer } from 'lucide-react';
 import client from '@/api/client';
 import { usePurchaseOrders } from '@/hooks/usePurchaseOrders';
 import { useDocumentsByStatus } from '@/hooks/useDocuments';
@@ -13,6 +13,13 @@ interface Stats {
   total_documents: number;
   pending_reviews: number;
   verified: number;
+  extracting: number;
+  extraction_failures: number;
+  stats_delta?: {
+    total_purchase_orders: number;
+    total_documents: number;
+    verified: number;
+  };
 }
 
 export default function DashboardPage() {
@@ -26,6 +33,7 @@ export default function DashboardPage() {
     client.get('/api/v1/admin/stats').then((res) => setStats(res.data)).catch(() => {});
   }, []);
 
+  const delta = stats?.stats_delta;
   const cards = stats
     ? [
         {
@@ -33,18 +41,26 @@ export default function DashboardPage() {
           value: stats.total_customers,
           icon: Users,
           color: 'bg-blue-100 text-blue-600',
+          to: '/customers',
+          delta: undefined as number | undefined,
+          onClick: undefined as (() => void) | undefined,
         },
         {
           label: 'Total POs',
           value: stats.total_purchase_orders,
           icon: FileText,
           color: 'bg-green-100 text-green-600',
+          to: '/purchase-orders',
+          delta: delta?.total_purchase_orders,
+          onClick: undefined as (() => void) | undefined,
         },
         {
           label: 'Pending Reviews',
           value: stats.pending_reviews,
           icon: Clock,
           color: 'bg-amber-100 text-amber-600',
+          to: undefined as string | undefined,
+          delta: undefined as number | undefined,
           onClick: () => reviewQueueRef.current?.scrollIntoView({ behavior: 'smooth' }),
         },
         {
@@ -52,6 +68,18 @@ export default function DashboardPage() {
           value: stats.verified,
           icon: CheckCircle,
           color: 'bg-emerald-100 text-emerald-600',
+          to: '/documents?status=VERIFIED',
+          delta: delta?.verified,
+          onClick: undefined as (() => void) | undefined,
+        },
+        {
+          label: 'Total Documents',
+          value: stats.total_documents,
+          icon: Files,
+          color: 'bg-purple-100 text-purple-600',
+          to: '/documents',
+          delta: delta?.total_documents,
+          onClick: undefined as (() => void) | undefined,
         },
       ]
     : [];
@@ -61,25 +89,88 @@ export default function DashboardPage() {
       <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         {cards.map((card) => (
           <div
             key={card.label}
-            onClick={(card as any).onClick}
+            onClick={card.onClick ?? (card.to ? () => navigate(card.to!) : undefined)}
             className={clsx(
-              "bg-white rounded-lg border border-gray-200 p-5 flex items-center gap-4",
-              (card as any).onClick && "cursor-pointer hover:border-amber-400 transition-colors"
+              'bg-white rounded-lg border border-gray-200 p-5 flex items-center gap-4',
+              (card.onClick ?? card.to) && 'cursor-pointer hover:border-blue-300 transition-colors'
             )}
           >
-            <div className={clsx('p-3 rounded-lg', card.color)}>
+            <div className={clsx('p-3 rounded-lg shrink-0', card.color)}>
               <card.icon size={24} />
             </div>
             <div>
               <p className="text-sm text-gray-500">{card.label}</p>
               <p className="text-2xl font-bold">{card.value}</p>
+              {card.delta != null && card.delta !== 0 && (
+                <p className={clsx('text-xs', card.delta > 0 ? 'text-green-600' : 'text-red-500')}>
+                  {card.delta > 0 ? `↑${card.delta}` : `↓${Math.abs(card.delta)}`} since yesterday
+                </p>
+              )}
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Document status donut */}
+      {stats && (() => {
+        const total = stats.verified + stats.pending_reviews + (stats.extracting ?? 0) + (stats.extraction_failures ?? 0);
+        if (total === 0) return null;
+        const v = (stats.verified / total) * 100;
+        const p = (stats.pending_reviews / total) * 100;
+        const f = ((stats.extraction_failures ?? 0) / total) * 100;
+        const gradient = `conic-gradient(#22c55e 0% ${v}%, #f59e0b ${v}% ${v + p}%, #ef4444 ${v + p}% ${v + p + f}%, #3b82f6 ${v + p + f}% 100%)`;
+        return (
+          <div className="bg-white rounded-lg border border-gray-200 p-5 mb-6 flex items-center gap-6">
+            <div className="relative shrink-0" style={{ width: 56, height: 56 }}>
+              <div style={{ background: gradient, width: 56, height: 56, borderRadius: '50%' }} />
+              <div className="absolute inset-3 bg-white rounded-full" />
+            </div>
+            <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-700">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block shrink-0" />
+                {stats.verified} Verified
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block shrink-0" />
+                {stats.pending_reviews} Pending
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block shrink-0" />
+                {stats.extraction_failures ?? 0} Failed
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block shrink-0" />
+                {stats.extracting ?? 0} Extracting
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Quick action bar */}
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <button
+          onClick={() => navigate('/purchase-orders')}
+          className="flex items-center gap-1.5 bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
+        >
+          <Plus size={15} /> Create PO
+        </button>
+        <button
+          onClick={() => navigate('/purchase-orders')}
+          className="flex items-center gap-1.5 bg-white border border-gray-300 text-gray-700 text-sm px-4 py-2 rounded-lg hover:bg-gray-50 font-medium"
+        >
+          <Upload size={15} /> Upload Document
+        </button>
+        <button
+          onClick={() => reviewQueueRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          className="flex items-center gap-1.5 bg-amber-50 border border-amber-300 text-amber-800 text-sm px-4 py-2 rounded-lg hover:bg-amber-100 font-medium"
+        >
+          <Timer size={15} /> Review Pending ({stats?.pending_reviews ?? 0})
+        </button>
       </div>
 
       {/* Review Queue */}
