@@ -7,6 +7,7 @@ import { usePurchaseOrder, useChainStatus, useDeletePO, useUpdatePO } from '@/ho
 import { exportPOAsExcel } from '@/api/purchaseOrders';
 import { useReExtract, useCreateManualEntry } from '@/hooks/useExtraction';
 import { useDeleteDocument } from '@/hooks/useDocuments';
+import Breadcrumb from '@/components/Breadcrumb';
 import ChainStatusBar from '@/components/ChainStatusBar';
 import DocumentCard from '@/components/DocumentCard';
 import PDFPreviewPanel from '@/components/PDFPreviewPanel';
@@ -20,6 +21,7 @@ export default function PODetailPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
   const highlightDocId = searchParams.get('highlight');
+  const reviewParam = searchParams.get('review');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const showToast = useToast();
@@ -32,7 +34,7 @@ export default function PODetailPage() {
   const updatePOMutation = useUpdatePO();
   const manualEntryMutation = useCreateManualEntry();
 
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(highlightDocId);
   const [uploadType, setUploadType] = useState<DocumentType | null>(null);
   const [reviewDocId, setReviewDocId] = useState<string | null>(null);
   const [editDocId, setEditDocId] = useState<string | null>(null);
@@ -119,6 +121,13 @@ export default function PODetailPage() {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [highlightDocId, chainData]);
+
+  useEffect(() => {
+    if (reviewParam && !reviewDocId) {
+      setReviewDocId(reviewParam);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // only on mount
 
   if (poLoading || chainLoading) {
     return (
@@ -213,6 +222,14 @@ export default function PODetailPage() {
 
   return (
     <div className="flex flex-col gap-4 h-full">
+      {/* Breadcrumb */}
+      {po && (
+        <Breadcrumb items={[
+          { label: 'Purchase Orders', to: '/purchase-orders' },
+          { label: po.po_number },
+        ]} />
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-4 flex-wrap">
         <button
@@ -326,6 +343,11 @@ export default function PODetailPage() {
 
       {/* Chain Status Bar */}
       {chainData && <ChainStatusBar chain={chainData.chain} />}
+
+      {/* Chain complete banner */}
+      {chainData?.completeness_pct === 100 && (
+        <ChainCompleteBanner poId={id!} profilePath={`/purchase-orders/${id}/profile`} />
+      )}
 
       {/* Action error banner */}
       {actionError && (
@@ -547,6 +569,31 @@ export default function PODetailPage() {
         </div>
       )}
 
+    </div>
+  );
+}
+
+function ChainCompleteBanner({ poId, profilePath }: { poId: string; profilePath: string }) {
+  const bannerKey = `chain-complete-dismissed-${poId}`;
+  const [dismissed, setDismissed] = useState(() => {
+    try { return sessionStorage.getItem(bannerKey) === '1'; } catch { return false; }
+  });
+  if (dismissed) return null;
+  return (
+    <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
+      <span className="text-sm text-green-800 font-medium">
+        ✓ All documents complete —{' '}
+        <Link to={profilePath} className="underline hover:text-green-900">View Profile →</Link>
+      </span>
+      <button
+        onClick={() => {
+          try { sessionStorage.setItem(bannerKey, '1'); } catch {}
+          setDismissed(true);
+        }}
+        className="text-green-600 hover:text-green-800 ml-4"
+      >
+        <X size={16} />
+      </button>
     </div>
   );
 }
