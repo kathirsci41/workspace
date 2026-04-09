@@ -9,6 +9,26 @@ export function useSearch(query: string, page = 1, per_page = 20) {
   });
 }
 
+export function useAdvancedSearch(
+  params: {
+    invoice_no?: string;
+    dc_no?: string;
+    po_no?: string;
+    so_no?: string;
+    customer_name?: string;
+    document_type?: string;
+    date_from?: string;
+    date_to?: string;
+  },
+  enabled: boolean
+) {
+  return useQuery({
+    queryKey: ['advancedSearch', params],
+    queryFn: () => advancedSearch(params),
+    enabled,
+  });
+}
+
 export function useAddressSearch(
   delivery_address: string,
   extra?: { customer_name?: string; document_type?: string },

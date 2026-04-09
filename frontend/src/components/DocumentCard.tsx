@@ -22,6 +22,8 @@ interface Props {
   showLabel?: boolean;
   /** If set, shows "#n" next to the label to distinguish docs */
   docIndex?: number;
+  /** When true, renders a yellow highlight ring (used for deep-link from search) */
+  highlighted?: boolean;
 }
 
 export default function DocumentCard({
@@ -37,6 +39,7 @@ export default function DocumentCard({
   onEdit,
   showLabel = true,
   docIndex,
+  highlighted = false,
 }: Props) {
   const status = slot?.status ?? 'empty';
 
@@ -53,10 +56,12 @@ export default function DocumentCard({
 
   return (
     <div
+      id={slot?.document_id ?? undefined}
       className={clsx(
         'rounded-lg border-2 p-4 transition-all cursor-pointer',
         borderColor,
         isSelected && 'ring-2 ring-blue-500 shadow-md',
+        highlighted && 'ring-2 ring-yellow-400 shadow-lg',
         status !== 'empty' && 'hover:shadow-sm'
       )}
       onClick={() => {

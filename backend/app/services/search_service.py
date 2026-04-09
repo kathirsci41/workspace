@@ -8,6 +8,18 @@ from app.models import (
 )
 
 
+def _search_sort_key(item: dict, q_lower: str) -> int:
+    """Rank: 0=exact, 1=starts-with, 2=contains, 3=fuzzy-only."""
+    ref = (item["ref_number"] or "").lower()
+    if ref == q_lower:
+        return 0
+    elif ref.startswith(q_lower):
+        return 1
+    elif q_lower in ref:
+        return 2
+    return 3
+
+
 async def global_search(
     db: AsyncSession,
     query: str,
@@ -38,7 +50,12 @@ async def global_search(
         )
         .join(PurchaseOrder, Document.po_id == PurchaseOrder.id)
         .join(Customer, PurchaseOrder.customer_id == Customer.id)
-        .where(ReferenceIndex.ref_value.ilike(pattern))
+        .where(
+            or_(
+                ReferenceIndex.ref_value.ilike(pattern),
+                func.similarity(ReferenceIndex.ref_value, query) > 0.3,
+            )
+        )
     )
     ref_result = await db.execute(ref_stmt)
     for ref, doc, meta, po, cust in ref_result.all():
@@ -132,19 +149,9 @@ async def global_search(
                 "confidence": meta.confidence_score if meta else None,
             })
 
-    # Sort: exact match first, then starts-with, then contains
+    # Sort: exact match first, then starts-with, then contains, then fuzzy
     q_lower = query.lower()
-
-    def sort_key(item):
-        ref = (item["ref_number"] or "").lower()
-        if ref == q_lower:
-            return 0
-        elif ref.startswith(q_lower):
-            return 1
-        else:
-            return 2
-
-    results.sort(key=sort_key)
+    results.sort(key=lambda item: _search_sort_key(item, q_lower))
 
     # Paginate
     total = len(results)
