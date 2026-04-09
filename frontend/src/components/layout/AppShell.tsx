@@ -6,7 +6,7 @@ import {
   FileText,
   Files,
   Search,
-  Terminal,
+  Settings2,
   Menu,
   X,
   ChevronRight,
@@ -21,7 +21,7 @@ const navLinks = [
   { to: '/purchase-orders', label: 'Purchase Orders', icon: FileText },
   { to: '/documents', label: 'Documents', icon: Files },
   { to: '/search', label: 'Search', icon: Search },
-  { to: '/admin',  label: 'Admin',  icon: Terminal },
+  { to: '/admin',  label: 'System',  icon: Settings2 },
 ];
 
 const STORAGE_KEY = 'sidebar-collapsed';
@@ -29,7 +29,7 @@ const STORAGE_KEY = 'sidebar-collapsed';
 function getInitialCollapsed(): boolean {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === null ? true : stored === 'true';
+    return stored === null ? false : stored === 'true';
   } catch {
     return true;
   }
