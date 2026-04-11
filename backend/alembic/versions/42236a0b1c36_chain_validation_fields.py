@@ -20,8 +20,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # Create new enum types required for purchase_orders columns
-    op.execute("CREATE TYPE billingtype AS ENUM ('full', 'staged', 'recurring')")
-    op.execute("CREATE TYPE chainstatus AS ENUM ('incomplete', 'complete', 'verified', 'mismatch')")
+    op.execute("CREATE TYPE IF NOT EXISTS billingtype AS ENUM ('full', 'staged', 'recurring')")
+    op.execute("CREATE TYPE IF NOT EXISTS chainstatus AS ENUM ('incomplete', 'complete', 'verified', 'mismatch')")
 
     # Add new values to existing documenttype enum (autogenerate misses these)
     op.execute("ALTER TYPE documenttype ADD VALUE IF NOT EXISTS 'INSTALLATION_REPORT'")
