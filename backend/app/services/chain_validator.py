@@ -41,7 +41,8 @@ def compute_chain_status(
     Compute full chain validation result.
 
     documents: list of dicts with keys:
-      document_type, so_number, vpo_numbers, extraction_ok, cpo_ref
+      document_type, so_number, vpo_numbers, extraction_ok, cpo_ref,
+      billing_stage (int | None), amount (float | None, for COMPANY_INVOICE)
 
     Returns:
         {
@@ -56,7 +57,7 @@ def compute_chain_status(
     if requires_install_report:
         required_types = required_types + [DocumentType.INSTALLATION_REPORT]
 
-    present_types = {d["document_type"] for d in documents}
+    present_types = {d.get("document_type") for d in documents} - {None}
     missing_slots = [t for t in required_types if t not in present_types]
 
     # VPO slot tracking: each registered VPO needs a matching vendor invoice
@@ -65,7 +66,7 @@ def compute_chain_status(
         matched = any(
             vpo in (d.get("vpo_numbers") or [])
             for d in documents
-            if d["document_type"] == DocumentType.VENDOR_INVOICE
+            if d.get("document_type") == DocumentType.VENDOR_INVOICE
         )
         if not matched:
             missing_vendor_invoices.append(vpo)
@@ -75,7 +76,9 @@ def compute_chain_status(
     has_mismatch = False
 
     for doc in documents:
-        doc_type = doc["document_type"]
+        doc_type = doc.get("document_type")
+        if doc_type is None:
+            continue
         ok = doc.get("extraction_ok", True)
 
         if doc_type in (DocumentType.COMPANY_DC, DocumentType.COMPANY_INVOICE):
@@ -127,7 +130,7 @@ def compute_chain_status(
                     "amount": d.get("amount", 0),
                 }
                 for d in documents
-                if d["document_type"] == DocumentType.COMPANY_INVOICE
+                if d.get("document_type") == DocumentType.COMPANY_INVOICE
             ]
             billing_result = check_staged_billing(po_total, billing_milestones, stage_invoices)
             billing_complete = billing_result["overall"] == BillingStatus.COMPLETE

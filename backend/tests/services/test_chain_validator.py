@@ -92,3 +92,75 @@ def test_procurement_missing_vendor_invoice_is_incomplete():
     )
     assert result["chain_status"] == ChainStatus.INCOMPLETE
     assert "VPO-001" in result["missing_vendor_invoices"]
+
+
+def test_staged_billing_partial_is_incomplete():
+    """Stage 1 paid, stage 2 pending → chain is INCOMPLETE."""
+    result = compute_chain_status(
+        scenario=OrderScenario.STOCK,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=500000.0,
+        billing_type="staged",
+        billing_milestones=[
+            {"stage": 1, "percent": 40},
+            {"stage": 2, "percent": 60},
+        ],
+        vpo_numbers=[],
+        documents=[
+            _doc(DocumentType.CUSTOMER_PO),
+            _doc(DocumentType.COMPANY_DC, so_number="SO-001", cpo_ref="CPO-001"),
+            {
+                "document_type": DocumentType.COMPANY_INVOICE,
+                "so_number": "SO-001",
+                "vpo_numbers": [],
+                "extraction_ok": True,
+                "cpo_ref": "CPO-001",
+                "billing_stage": 1,
+                "amount": 200000.0,
+            },
+        ],
+        requires_install_report=False,
+    )
+    assert result["chain_status"] == ChainStatus.INCOMPLETE
+    assert result["billing"]["overall"] == "partial"
+
+
+def test_staged_billing_all_stages_complete_is_complete():
+    result = compute_chain_status(
+        scenario=OrderScenario.STOCK,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=500000.0,
+        billing_type="staged",
+        billing_milestones=[
+            {"stage": 1, "percent": 40},
+            {"stage": 2, "percent": 60},
+        ],
+        vpo_numbers=[],
+        documents=[
+            _doc(DocumentType.CUSTOMER_PO),
+            _doc(DocumentType.COMPANY_DC, so_number="SO-001", cpo_ref="CPO-001"),
+            {
+                "document_type": DocumentType.COMPANY_INVOICE,
+                "so_number": "SO-001",
+                "vpo_numbers": [],
+                "extraction_ok": True,
+                "cpo_ref": "CPO-001",
+                "billing_stage": 1,
+                "amount": 200000.0,
+            },
+            {
+                "document_type": DocumentType.COMPANY_INVOICE,
+                "so_number": "SO-001",
+                "vpo_numbers": [],
+                "extraction_ok": True,
+                "cpo_ref": "CPO-001",
+                "billing_stage": 2,
+                "amount": 300000.0,
+            },
+        ],
+        requires_install_report=False,
+    )
+    assert result["chain_status"] == ChainStatus.COMPLETE
+    assert result["billing"]["overall"] == "complete"
