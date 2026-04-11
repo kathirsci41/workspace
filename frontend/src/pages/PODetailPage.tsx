@@ -25,7 +25,8 @@ import clsx from 'clsx';
 function buildSlots(
   missingSlots: string[],
   onUpload: (type: string) => void,
-  onView: (type: string) => void,
+  onViewDoc: (docId: string) => void,
+  chainByType: Record<string, ApiChainSlot[]> | undefined,
 ): TimelineSlot[] {
   const SLOT_LABELS: Record<string, string> = {
     CUSTOMER_PO:           'Customer PO',
@@ -35,13 +36,16 @@ function buildSlots(
     COMPANY_INVOICE:       'Company Invoice',
     INSTALLATION_REPORT:   'Installation Report',
   };
-  return Object.keys(SLOT_LABELS).map(type => ({
-    docType:  type,
-    label:    SLOT_LABELS[type],
-    state:    missingSlots.includes(type) ? 'waiting' : 'verified',
-    onUpload: (_label: string) => onUpload(type),
-    onView:   (_label: string) => onView(type),
-  }));
+  return Object.keys(SLOT_LABELS).map(type => {
+    const firstDocId = chainByType?.[type]?.[0]?.document_id;
+    return {
+      docType:  type,
+      label:    SLOT_LABELS[type],
+      state:    missingSlots.includes(type) ? 'waiting' : 'verified',
+      onUpload: (_label: string) => onUpload(type),
+      onView:   firstDocId ? (_label: string) => onViewDoc(firstDocId) : undefined,
+    };
+  });
 }
 
 export default function PODetailPage() {
@@ -275,10 +279,8 @@ export default function PODetailPage() {
     ? buildSlots(
         chainValidation.missing_slots,
         (type) => setUploadType(type as DocumentType),
-        (type) => {
-          const firstSlot = (chainData?.chain as Record<string, ApiChainSlot[]> | undefined)?.[type]?.[0];
-          if (firstSlot?.document_id) setSelectedDocId(firstSlot.document_id);
-        },
+        (docId) => setSelectedDocId(docId),
+        chainData?.chain as Record<string, ApiChainSlot[]> | undefined,
       )
     : [];
   const fallbackCompletenessPct = timelineSlots.length > 0
