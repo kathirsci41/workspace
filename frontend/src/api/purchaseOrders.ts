@@ -74,6 +74,35 @@ export async function getPOProfile(poId: string): Promise<POProfile> {
   return data;
 }
 
+export interface ChainStatusResponse {
+  chain_status: 'incomplete' | 'complete' | 'verified' | 'mismatch';
+  missing_slots: string[];
+  missing_vendor_invoices: string[];
+  reference_checks: Array<{
+    document_type: string;
+    check: string;
+    result: 'pass' | 'mismatch' | 'skip';
+  }>;
+  billing: {
+    overall: string;
+    stages?: Array<{
+      stage: number;
+      expected_amount: number;
+      invoiced_amount: number;
+      status: string;
+    }>;
+  };
+}
+
+export async function getChainValidation(poId: string): Promise<ChainStatusResponse> {
+  const { data } = await client.get(`/api/v1/purchase-orders/${poId}/chain`);
+  return data;
+}
+
+export async function updateSoNumber(poId: string, soNumber: string): Promise<void> {
+  await client.patch(`/api/v1/purchase-orders/${poId}/so-number`, { so_number: soNumber });
+}
+
 export async function exportPOAsExcel(
   poId: string,
   poNumber: string,
