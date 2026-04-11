@@ -34,8 +34,8 @@ export function ReferenceValidationPanel({ checks }: Props) {
   }
   return (
     <div className="flex flex-col divide-y divide-slate-800">
-      {checks.map((c, i) => (
-        <div key={i} className="flex items-start gap-3 py-2">
+      {checks.map((c) => (
+        <div key={`${c.document_type}-${c.check}`} className="flex items-start gap-3 py-2">
           <span className="text-sm mt-0.5 flex-shrink-0">{RESULT_ICON[c.result] ?? '?'}</span>
           <div>
             <p className="text-xs font-medium text-slate-200">

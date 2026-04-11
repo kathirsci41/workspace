@@ -9,6 +9,7 @@ interface Props {
   billing: { overall: string; stages?: Stage[] };
   poTotal?: number | null;
   billingType: string;
+  currency?: string;
 }
 
 const BAR_COLOR: Record<string, string> = {
@@ -26,7 +27,7 @@ const OVERALL_CLASS: Record<string, string> = {
   mismatch: 'bg-red-950 text-red-400',
 };
 
-export function BillingCompletenessPanel({ billing, poTotal, billingType }: Props) {
+export function BillingCompletenessPanel({ billing, poTotal, billingType, currency = '₹' }: Props) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
@@ -43,7 +44,7 @@ export function BillingCompletenessPanel({ billing, poTotal, billingType }: Prop
           <div className="flex justify-between text-xs mb-1">
             <span className="text-slate-400">Stage {s.stage}</span>
             <span className="text-slate-300">
-              ₹{s.invoiced_amount.toLocaleString('en-IN')} / ₹{s.expected_amount.toLocaleString('en-IN')}
+              {currency}{s.invoiced_amount.toLocaleString('en-IN')} / {currency}{s.expected_amount.toLocaleString('en-IN')}
             </span>
           </div>
           <div className="h-1.5 bg-slate-800 rounded overflow-hidden">
@@ -63,7 +64,7 @@ export function BillingCompletenessPanel({ billing, poTotal, billingType }: Prop
         <div className="flex justify-between text-xs pt-2 border-t border-slate-800 mt-2">
           <span className="text-slate-500">PO Total</span>
           <span className="text-slate-200 font-semibold">
-            ₹{poTotal.toLocaleString('en-IN')}
+            {currency}{poTotal.toLocaleString('en-IN')}
           </span>
         </div>
       )}

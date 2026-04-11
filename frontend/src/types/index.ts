@@ -69,6 +69,7 @@ export interface PurchaseOrder {
   manually_completed: boolean;
   completed_at: string | null;
   completion_note: string | null;
+  billing_type?: 'full' | 'staged' | 'recurring';
   created_at: string;
   updated_at: string;
 }

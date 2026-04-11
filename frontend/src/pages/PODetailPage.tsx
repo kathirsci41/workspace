@@ -19,7 +19,7 @@ import PDFPreviewPanel from '@/components/PDFPreviewPanel';
 import UploadZone from '@/components/UploadZone';
 import ReviewModal from '@/components/ReviewModal';
 import type { ChainSlot as ApiChainSlot, ChainStatus, DocumentType } from '@/types';
-import { CHAIN_ORDER } from '@/types';
+import { CHAIN_ORDER, DOC_TYPE_LABELS } from '@/types';
 import clsx from 'clsx';
 
 function buildSlots(
@@ -27,21 +27,27 @@ function buildSlots(
   onUpload: (type: string) => void,
   onViewDoc: (docId: string) => void,
   chainByType: Record<string, ApiChainSlot[]> | undefined,
+  referenceChecks: Array<{ document_type: string; result: string }>,
 ): TimelineSlot[] {
-  const SLOT_LABELS: Record<string, string> = {
-    CUSTOMER_PO:           'Customer PO',
-    COMPANY_PO:            'Vendor PO',
-    VENDOR_INVOICE:        'Vendor Invoice',
-    COMPANY_DC:            'Company DC',
-    COMPANY_INVOICE:       'Company Invoice',
-    INSTALLATION_REPORT:   'Installation Report',
-  };
-  return Object.keys(SLOT_LABELS).map(type => {
-    const firstDocId = chainByType?.[type]?.[0]?.document_id;
+  return CHAIN_ORDER.map(type => {
+    const firstDocId = chainByType?.[type]?.[0]?.document_id ?? null;
+    const hasMismatch = referenceChecks.some(
+      rc => rc.document_type === type && rc.result === 'mismatch',
+    );
+    let state: TimelineSlot['state'];
+    if (missingSlots.includes(type)) {
+      state = 'waiting';
+    } else if (hasMismatch) {
+      state = 'mismatch';
+    } else if (firstDocId) {
+      state = 'verified';
+    } else {
+      state = 'waiting';
+    }
     return {
       docType:  type,
-      label:    SLOT_LABELS[type],
-      state:    missingSlots.includes(type) ? 'waiting' : 'verified',
+      label:    DOC_TYPE_LABELS[type],
+      state,
       onUpload: (_label: string) => onUpload(type),
       onView:   firstDocId ? (_label: string) => onViewDoc(firstDocId) : undefined,
     };
@@ -167,11 +173,14 @@ export default function PODetailPage() {
   // Fetch chain validation whenever PO id changes
   useEffect(() => {
     if (!id) return;
-    getChainValidation(id).then(setChainValidation).catch(console.error);
+    getChainValidation(id)
+      .then(setChainValidation)
+      .catch(() => showToast('Could not load chain validation. Please refresh.', 'error'));
   }, [id]);
 
   const handleSoSaveAndValidate = async () => {
     if (!id) return;
+    if (!soInput.trim()) { setSoEditing(false); return; }
     try {
       await updateSoNumber(id, soInput.trim());
       setSoEditing(false);
@@ -275,23 +284,20 @@ export default function PODetailPage() {
     CANCELLED: 'bg-red-100 text-red-700',
   };
 
+  const referenceChecks = chainValidation?.reference_checks ?? [];
   const timelineSlots = chainValidation
     ? buildSlots(
         chainValidation.missing_slots,
         (type) => setUploadType(type as DocumentType),
         (docId) => setSelectedDocId(docId),
         chainData?.chain as Record<string, ApiChainSlot[]> | undefined,
+        referenceChecks,
       )
     : [];
   const fallbackCompletenessPct = timelineSlots.length > 0
     ? Math.round((timelineSlots.filter((slot) => slot.state === 'verified').length / timelineSlots.length) * 100)
     : 0;
   const chainCompletenessPct = chainValidation?.completeness_pct ?? fallbackCompletenessPct;
-  const referenceChecks = chainValidation?.reference_checks.map((check) => ({
-    ...check,
-    extracted: check.extracted,
-    expected: check.expected,
-  })) ?? [];
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -463,7 +469,8 @@ export default function PODetailPage() {
               <BillingCompletenessPanel
                 billing={chainValidation.billing}
                 poTotal={po.total_amount}
-                billingType={(po as any).billing_type ?? 'full'}
+                billingType={po.billing_type ?? 'full'}
+                currency={po.currency === 'INR' ? '₹' : po.currency}
               />
             </div>
           </div>
