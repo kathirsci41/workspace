@@ -1,19 +1,24 @@
 from uuid import UUID
 from datetime import date
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response as FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from typing import Optional
 from pydantic import BaseModel
 from app.schemas.purchase_order import (
     POCreate, POUpdate, POResponse, POListResponse, ChainStatusResponse,
+    SONumberUpdate,
 )
 from app.schemas.po_profile import POProfileResponse
 from app.schemas.document import DocumentResponse, DocumentListResponse
+from app.models.purchase_order import PurchaseOrder
+from app.models.document import Document, DocumentType
 from app.services import po_service
 from app.services import export_service
+from app.services.chain_validator import compute_chain_status
 
 router = APIRouter()
 
@@ -94,6 +99,82 @@ async def update_po(
     return resp
 
 
+@router.patch("/{po_id}/so-number")
+async def update_so_number(
+    po_id: UUID,
+    body: SONumberUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Update SO number and trigger chain re-validation."""
+    po = await db.get(PurchaseOrder, po_id)
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    po.so_number = body.so_number
+    await db.commit()
+    await db.refresh(po)
+    return {"so_number": po.so_number}
+
+
+@router.get("/{po_id}/chain")
+async def get_chain_status_v2(
+    po_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Compute and return current chain validation status for a PO."""
+    po = await db.get(
+        PurchaseOrder,
+        po_id,
+        options=[selectinload(PurchaseOrder.documents).selectinload(Document.doc_metadata)],
+    )
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+
+    # VPO numbers: from COMPANY_PO documents' extracted vpo_numbers field
+    vpo_numbers = []
+    for doc in po.documents:
+        if doc.document_type == DocumentType.COMPANY_PO and doc.vpo_numbers:
+            vpo_numbers.extend(doc.vpo_numbers)
+
+    # Invoiced total: sum of COMPANY_INVOICE metadata total_amount
+    invoiced_total = sum(
+        float(doc.doc_metadata.total_amount or 0)
+        for doc in po.documents
+        if doc.document_type == DocumentType.COMPANY_INVOICE and doc.doc_metadata
+    )
+
+    docs_payload = [
+        {
+            "document_type": doc.document_type,
+            "so_number": doc.so_number,
+            "vpo_numbers": doc.vpo_numbers or [],
+            "extraction_ok": doc.extraction_ok,
+            "cpo_ref": doc.doc_metadata.po_ref_no if doc.doc_metadata else None,
+            "billing_stage": doc.billing_stage,
+            "amount": float(doc.doc_metadata.total_amount or 0) if doc.doc_metadata else 0,
+        }
+        for doc in po.documents
+    ]
+
+    result = compute_chain_status(
+        scenario=po.order_scenario,
+        po_number=po.po_number,
+        so_number=po.so_number,
+        po_total=float(po.total_amount) if po.total_amount else None,
+        billing_type=po.billing_type,
+        billing_milestones=po.billing_milestones or [],
+        vpo_numbers=vpo_numbers,
+        documents=docs_payload,
+        requires_install_report=po.requires_install_report,
+        invoiced_total=invoiced_total,
+    )
+
+    # Persist computed chain_status back to PO
+    po.chain_status = result["chain_status"]
+    await db.commit()
+
+    return result
+
+
 class CloseOrderRequest(BaseModel):
     note: Optional[str] = None
 
@@ -157,7 +238,7 @@ async def export_po_excel(
 
 # === Document upload nested under PO ===
 
-from fastapi import UploadFile, File, Form, HTTPException
+from fastapi import UploadFile, File, Form
 from pathlib import Path
 from app.schemas.document import DocumentUploadResponse, DocumentResponse, DocumentListResponse
 from app.schemas.extraction import ExtractionResponse
