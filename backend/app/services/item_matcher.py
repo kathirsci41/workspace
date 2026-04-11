@@ -4,6 +4,7 @@ Two-tier approach:
   1. Exact case-insensitive description match  — zero latency, 100% confidence
   2. LLM match for remainder                  — ~3-8s first call, cached 1h in Redis
 """
+import enum as _enum
 import json
 import logging
 import httpx
@@ -143,4 +144,79 @@ async def _llm_match(unmatched: list[dict], company_items: list[dict]) -> list[d
             "confidence": float(match.get("confidence", 0)),
             "match_type": "ai",
         })
+    return results
+
+
+class ItemMatchStatus(str, _enum.Enum):
+    """Status of a line item comparison between PO and delivery document."""
+    MATCHED = "matched"
+    PARTIAL = "partial"    # Qty delivered < qty ordered
+    MISSING = "missing"    # Item not in delivery at all
+
+
+def compare_po_to_delivery(
+    cpo_items: list[dict],
+    delivery_items: list[dict],
+) -> list[dict]:
+    """
+    Compare CPO line items against a delivery document (DC or Invoice).
+
+    Args:
+        cpo_items: List of order items from Customer/Company PO
+        delivery_items: List of items from delivery document (DC or Invoice)
+
+    Each item dict should contain:
+        - part_no (str): Part number for matching
+        - description (str): Item description
+        - qty (int): Quantity
+
+    Returns:
+        List of comparison results, each with:
+        - part_no: The part number from CPO
+        - description: The description from CPO
+        - qty_ordered: Quantity ordered in PO
+        - qty_delivered: Quantity delivered (0 if missing)
+        - qty_shortfall: qty_ordered - qty_delivered (0 if fully delivered)
+        - status: ItemMatchStatus enum value
+
+    Matching is case-insensitive on part_no.
+    """
+    # Build lookup map of delivery items by part_no (case-insensitive)
+    delivery_by_part: dict[str, dict] = {
+        str(it.get("part_no", "")).lower().strip(): it
+        for it in (delivery_items or [])
+        if it.get("part_no")
+    }
+
+    results = []
+    for item in (cpo_items or []):
+        part_no = str(item.get("part_no", "")).lower().strip()
+        qty_ordered = int(item.get("qty") or 0)
+        matched = delivery_by_part.get(part_no)
+
+        if not matched:
+            # Item not found in delivery
+            results.append({
+                "part_no": item.get("part_no"),
+                "description": item.get("description"),
+                "qty_ordered": qty_ordered,
+                "qty_delivered": 0,
+                "qty_shortfall": qty_ordered,
+                "status": ItemMatchStatus.MISSING,
+            })
+            continue
+
+        # Item found, check quantity
+        qty_delivered = int(matched.get("qty") or 0)
+        shortfall = max(0, qty_ordered - qty_delivered)
+        status = ItemMatchStatus.MATCHED if shortfall == 0 else ItemMatchStatus.PARTIAL
+        results.append({
+            "part_no": item.get("part_no"),
+            "description": item.get("description"),
+            "qty_ordered": qty_ordered,
+            "qty_delivered": qty_delivered,
+            "qty_shortfall": shortfall,
+            "status": status,
+        })
+
     return results
