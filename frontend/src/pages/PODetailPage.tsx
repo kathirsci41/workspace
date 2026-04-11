@@ -4,11 +4,16 @@ import { ArrowLeft, Loader2, Trash2, PenLine, Check, X, AlertTriangle, BarChart2
 import { useToast } from '@/context/ToastContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePurchaseOrder, useChainStatus, useDeletePO, useUpdatePO } from '@/hooks/usePurchaseOrders';
-import { exportPOAsExcel } from '@/api/purchaseOrders';
+import { exportPOAsExcel, getChainValidation, updateSoNumber } from '@/api/purchaseOrders';
+import type { ChainStatusResponse } from '@/api/purchaseOrders';
 import { useReExtract, useCreateManualEntry } from '@/hooks/useExtraction';
 import { useDeleteDocument } from '@/hooks/useDocuments';
 import Breadcrumb from '@/components/Breadcrumb';
 import ChainStatusBar from '@/components/ChainStatusBar';
+import { ChainTimeline } from '@/components/ChainTimeline/ChainTimeline';
+import type { ChainSlot } from '@/components/ChainTimeline/ChainTimeline';
+import { ReferenceValidationPanel } from '@/components/ReferenceValidationPanel/ReferenceValidationPanel';
+import { BillingCompletenessPanel } from '@/components/BillingCompletenessPanel/BillingCompletenessPanel';
 import DocumentCard from '@/components/DocumentCard';
 import PDFPreviewPanel from '@/components/PDFPreviewPanel';
 import UploadZone from '@/components/UploadZone';
@@ -16,6 +21,22 @@ import ReviewModal from '@/components/ReviewModal';
 import type { DocumentType } from '@/types';
 import { CHAIN_ORDER } from '@/types';
 import clsx from 'clsx';
+
+function buildSlots(missingSlots: string[]): ChainSlot[] {
+  const SLOT_LABELS: Record<string, string> = {
+    CUSTOMER_PO:           'Customer PO',
+    COMPANY_PO:            'Vendor PO',
+    VENDOR_INVOICE:        'Vendor Invoice',
+    COMPANY_DC:            'Company DC',
+    COMPANY_INVOICE:       'Company Invoice',
+    INSTALLATION_REPORT:   'Installation Report',
+  };
+  return Object.keys(SLOT_LABELS).map(type => ({
+    docType: type,
+    label:   SLOT_LABELS[type],
+    state:   missingSlots.includes(type) ? 'waiting' : 'verified',
+  }));
+}
 
 export default function PODetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -42,6 +63,9 @@ export default function PODetailPage() {
   // SO number inline edit
   const [soEditing, setSoEditing] = useState(false);
   const [soInput, setSoInput]     = useState('');
+
+  // Chain validation (reference checks, billing, missing slots)
+  const [chainValidation, setChainValidation] = useState<ChainStatusResponse | null>(null);
 
   // Confirm dialogs
   const [reExtractConfirm, setReExtractConfirm] = useState<string | null>(null); // docId
@@ -128,6 +152,26 @@ export default function PODetailPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // only on mount
+
+  // Fetch chain validation whenever PO id changes
+  useEffect(() => {
+    if (!id) return;
+    getChainValidation(id).then(setChainValidation).catch(console.error);
+  }, [id]);
+
+  const handleSoSaveAndValidate = async () => {
+    if (!id) return;
+    try {
+      await updateSoNumber(id, soInput.trim());
+      setSoEditing(false);
+      const updated = await getChainValidation(id);
+      setChainValidation(updated);
+      // Also refresh the PO data so the displayed SO badge updates
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrder', id] });
+    } catch {
+      showToast('Failed to save SO number. Please try again.', 'error');
+    }
+  };
 
   if (poLoading || chainLoading) {
     return (
@@ -313,8 +357,17 @@ export default function PODetailPage() {
                 }
                 disabled={updatePOMutation.isPending}
                 className="p-1 text-green-600 hover:bg-green-50 rounded"
+                title="Save"
               >
                 <Check size={14} />
+              </button>
+              <button
+                onClick={handleSoSaveAndValidate}
+                disabled={updatePOMutation.isPending}
+                className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded"
+                title="Save SO number and re-run chain validation"
+              >
+                Validate
               </button>
               <button
                 onClick={() => setSoEditing(false)}
@@ -347,6 +400,61 @@ export default function PODetailPage() {
       {/* Chain complete banner */}
       {chainData?.completeness_pct === 100 && (
         <ChainCompleteBanner poId={id!} profilePath={`/purchase-orders/${id}/profile`} />
+      )}
+
+      {/* Chain validation status banner */}
+      {chainValidation && (
+        <div className={clsx(
+          'rounded-lg p-3 border flex items-center justify-between',
+          chainValidation.chain_status === 'mismatch'  ? 'bg-red-50 border-red-200' :
+          chainValidation.chain_status === 'complete' || chainValidation.chain_status === 'verified'
+            ? 'bg-green-50 border-green-200' :
+          'bg-amber-50 border-amber-200'
+        )}>
+          <div>
+            <p className={clsx(
+              'text-sm font-semibold',
+              chainValidation.chain_status === 'mismatch'  ? 'text-red-800' :
+              chainValidation.chain_status === 'complete' || chainValidation.chain_status === 'verified'
+                ? 'text-green-800' : 'text-amber-800'
+            )}>
+              {chainValidation.chain_status === 'complete' || chainValidation.chain_status === 'verified'
+                ? '✓ Chain Complete'
+                : chainValidation.chain_status === 'mismatch'
+                ? '✗ Reference Mismatch'
+                : '⚠ Chain Incomplete'}
+            </p>
+            {chainValidation.missing_slots.length > 0 && (
+              <p className="text-xs text-gray-500 mt-0.5">
+                Missing: {chainValidation.missing_slots.map(s => s.replace(/_/g, ' ')).join(' · ')}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Two-column chain validation view */}
+      {chainValidation && (
+        <div className="grid grid-cols-3 gap-4">
+          <div className="col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-slate-200 mb-4">Document Chain</h3>
+            <ChainTimeline slots={buildSlots(chainValidation.missing_slots)} />
+          </div>
+          <div className="flex flex-col gap-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-slate-200 mb-3">Reference Validation</h3>
+              <ReferenceValidationPanel checks={chainValidation.reference_checks} />
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-slate-200 mb-3">Billing</h3>
+              <BillingCompletenessPanel
+                billing={chainValidation.billing}
+                poTotal={po.total_amount}
+                billingType={(po as any).billing_type ?? 'full'}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Action error banner */}
