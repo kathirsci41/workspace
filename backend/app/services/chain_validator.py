@@ -1,7 +1,7 @@
 # backend/app/services/chain_validator.py
 """Orchestrates chain presence, reference validation, and billing completeness."""
 import enum
-from app.models.purchase_order import OrderScenario, ChainStatus
+from app.models.purchase_order import OrderScenario, ChainStatus, BillingType
 from app.models.document import DocumentType
 from app.services.po_service import get_scenario_chain
 from app.services.reference_validator import (
@@ -123,7 +123,7 @@ def compute_chain_status(
     billing_complete = False
 
     if po_total:
-        if billing_type == "staged" and billing_milestones:
+        if billing_type == BillingType.STAGED and billing_milestones:
             stage_invoices = [
                 {
                     "billing_stage": d.get("billing_stage"),
@@ -149,8 +149,13 @@ def compute_chain_status(
     else:
         chain_status = ChainStatus.INCOMPLETE
 
+    total_slots = len(required_types)
+    verified_slots = total_slots - len(missing_slots)
+    completeness_pct = round(verified_slots / total_slots * 100) if total_slots > 0 else 0
+
     return {
         "chain_status": chain_status,
+        "completeness_pct": completeness_pct,
         "missing_slots": missing_slots,
         "missing_vendor_invoices": missing_vendor_invoices,
         "reference_checks": reference_checks,

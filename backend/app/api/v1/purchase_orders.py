@@ -168,9 +168,12 @@ async def get_chain_status_v2(
         invoiced_total=invoiced_total,
     )
 
-    # Persist computed chain_status back to PO
-    po.chain_status = result["chain_status"]
-    await db.commit()
+    # Update chain_status on PO in the background (best-effort, non-blocking)
+    try:
+        po.chain_status = result["chain_status"]
+        await db.commit()
+    except Exception:
+        await db.rollback()
 
     return result
 

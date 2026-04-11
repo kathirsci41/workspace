@@ -84,7 +84,7 @@ def check_staged_billing(
 
     if all_complete and any_paid:
         overall = BillingStatus.COMPLETE
-    elif any_mismatch and not any_paid:
+    elif any_mismatch:
         overall = BillingStatus.MISMATCH
     elif any_paid:
         overall = BillingStatus.PARTIAL
