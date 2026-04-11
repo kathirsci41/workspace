@@ -65,3 +65,11 @@ def test_vpo_reference_empty_doc_vpos_returns_skip():
         registered_vpo_numbers=["1PTR2526000400"],
     )
     assert result == ReferenceCheckResult.SKIP
+
+
+def test_vpo_reference_empty_registered_vpos_returns_skip():
+    result = check_vpo_reference(
+        doc_vpo_numbers=["1PTR2526000400"],
+        registered_vpo_numbers=[],
+    )
+    assert result == ReferenceCheckResult.SKIP

@@ -43,6 +43,8 @@ def check_vpo_reference(
     """Check that vendor invoice VPO numbers intersect registered VPOs for this CPO."""
     if not doc_vpo_numbers:
         return ReferenceCheckResult.SKIP
+    if not registered_vpo_numbers:
+        return ReferenceCheckResult.SKIP
     registered_set = {v.strip() for v in registered_vpo_numbers}
     for vpo in doc_vpo_numbers:
         if vpo.strip() in registered_set:

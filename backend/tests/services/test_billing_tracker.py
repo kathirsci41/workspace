@@ -51,3 +51,31 @@ def test_staged_billing_amount_mismatch():
     invoices = [{"billing_stage": 1, "amount": 50313.7}]
     result = check_staged_billing(po_total=503137.0, milestones=milestones, stage_invoices=invoices)
     assert result["stages"][0]["status"] == BillingStatus.MISMATCH
+
+
+def test_full_billing_none_po_total_returns_pending():
+    result = check_full_billing(invoiced_total=100.0, po_total=None)
+    assert result == BillingStatus.PENDING
+
+
+def test_full_billing_zero_po_total_returns_pending():
+    result = check_full_billing(invoiced_total=0.0, po_total=0)
+    assert result == BillingStatus.PENDING
+
+
+def test_staged_billing_zero_percent_milestone_no_crash():
+    milestones = [{"stage": 1, "percent": 0}]
+    invoices = [{"billing_stage": 1, "amount": 0}]
+    result = check_staged_billing(po_total=100000.0, milestones=milestones, stage_invoices=invoices)
+    assert result["stages"][0]["status"] == BillingStatus.PAID
+
+
+def test_staged_billing_all_mismatch_returns_mismatch_overall():
+    milestones = [{"stage": 1, "percent": 40}, {"stage": 2, "percent": 60}]
+    # Both stages invoiced at ~10% — way outside 5% tolerance
+    invoices = [
+        {"billing_stage": 1, "amount": 5000.0},
+        {"billing_stage": 2, "amount": 5000.0},
+    ]
+    result = check_staged_billing(po_total=503137.0, milestones=milestones, stage_invoices=invoices)
+    assert result["overall"] == BillingStatus.MISMATCH

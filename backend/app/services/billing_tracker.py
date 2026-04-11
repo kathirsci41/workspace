@@ -20,6 +20,8 @@ def check_full_billing(
     po_total: float,
 ) -> BillingStatus:
     """Check if total invoiced amount covers the PO total."""
+    if po_total is None or po_total <= 0:
+        return BillingStatus.PENDING
     if invoiced_total == 0:
         return BillingStatus.PENDING
     if invoiced_total >= po_total * (1 - _FULL_TOLERANCE):
@@ -53,13 +55,16 @@ def check_staged_billing(
     stage_results = []
     all_complete = True
     any_paid = False
+    any_mismatch = False
 
     for m in milestones:
         stage = m["stage"]
         expected = po_total * m["percent"] / 100
         invoiced = invoices_by_stage.get(stage, 0.0)
 
-        if invoiced == 0:
+        if expected == 0:
+            status = BillingStatus.PAID if invoiced == 0 else BillingStatus.MISMATCH
+        elif invoiced == 0:
             status = BillingStatus.PENDING
             all_complete = False
         elif abs(invoiced - expected) / expected <= _STAGE_TOLERANCE:
@@ -68,6 +73,7 @@ def check_staged_billing(
         else:
             status = BillingStatus.MISMATCH
             all_complete = False
+            any_mismatch = True
 
         stage_results.append({
             "stage": stage,
@@ -78,6 +84,8 @@ def check_staged_billing(
 
     if all_complete and any_paid:
         overall = BillingStatus.COMPLETE
+    elif any_mismatch and not any_paid:
+        overall = BillingStatus.MISMATCH
     elif any_paid:
         overall = BillingStatus.PARTIAL
     else:
