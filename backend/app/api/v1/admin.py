@@ -1,7 +1,7 @@
 import os
 import asyncio
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, func, select, case
@@ -156,43 +156,34 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         )
     )).one()
 
-    now = datetime.now()  # naive datetime — matches TIMESTAMP WITHOUT TIME ZONE column
-    yesterday = now - timedelta(hours=24)
-    two_days_ago = now - timedelta(hours=48)
+    # Use raw SQL text to avoid asyncpg datetime codec issues with TIMESTAMP columns
+    today_pos = (await db.scalar(text(
+        "SELECT COUNT(*) FROM purchase_orders WHERE created_at >= NOW() - INTERVAL '24 hours'"
+    ))) or 0
+    prev_pos = (await db.scalar(text(
+        "SELECT COUNT(*) FROM purchase_orders"
+        " WHERE created_at >= NOW() - INTERVAL '48 hours'"
+        " AND created_at < NOW() - INTERVAL '24 hours'"
+    ))) or 0
 
-    today_pos = (await db.scalar(
-        select(func.count(PurchaseOrder.id)).where(PurchaseOrder.created_at >= yesterday)
-    )) or 0
-    prev_pos = (await db.scalar(
-        select(func.count(PurchaseOrder.id)).where(
-            PurchaseOrder.created_at >= two_days_ago,
-            PurchaseOrder.created_at < yesterday,
-        )
-    )) or 0
+    today_docs = (await db.scalar(text(
+        "SELECT COUNT(*) FROM documents WHERE created_at >= NOW() - INTERVAL '24 hours'"
+    ))) or 0
+    prev_docs = (await db.scalar(text(
+        "SELECT COUNT(*) FROM documents"
+        " WHERE created_at >= NOW() - INTERVAL '48 hours'"
+        " AND created_at < NOW() - INTERVAL '24 hours'"
+    ))) or 0
 
-    today_docs = (await db.scalar(
-        select(func.count(Document.id)).where(Document.created_at >= yesterday)
-    )) or 0
-    prev_docs = (await db.scalar(
-        select(func.count(Document.id)).where(
-            Document.created_at >= two_days_ago,
-            Document.created_at < yesterday,
-        )
-    )) or 0
-
-    today_verified = (await db.scalar(
-        select(func.count(Document.id)).where(
-            Document.status == DocumentStatus.VERIFIED,
-            Document.updated_at >= yesterday,
-        )
-    )) or 0
-    prev_verified = (await db.scalar(
-        select(func.count(Document.id)).where(
-            Document.status == DocumentStatus.VERIFIED,
-            Document.updated_at >= two_days_ago,
-            Document.updated_at < yesterday,
-        )
-    )) or 0
+    today_verified = (await db.scalar(text(
+        "SELECT COUNT(*) FROM documents WHERE status = 'VERIFIED'"
+        " AND updated_at >= NOW() - INTERVAL '24 hours'"
+    ))) or 0
+    prev_verified = (await db.scalar(text(
+        "SELECT COUNT(*) FROM documents WHERE status = 'VERIFIED'"
+        " AND updated_at >= NOW() - INTERVAL '48 hours'"
+        " AND updated_at < NOW() - INTERVAL '24 hours'"
+    ))) or 0
 
     return {
         "total_customers":       total_customers,
