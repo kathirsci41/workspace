@@ -3,7 +3,7 @@ import enum
 from datetime import date, datetime
 from sqlalchemy import String, Text, Numeric, Float, Enum, ForeignKey, Index, Date, Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from typing import List, TYPE_CHECKING
 
 from app.models.base import Base, TimestampMixin
@@ -38,6 +38,19 @@ class GstType(str, enum.Enum):
     UNKNOWN = "unknown"
     IGST = "igst"
     CGST_SGST = "cgst_sgst"
+
+
+class BillingType(str, enum.Enum):
+    FULL = "full"
+    STAGED = "staged"
+    RECURRING = "recurring"
+
+
+class ChainStatus(str, enum.Enum):
+    INCOMPLETE = "incomplete"
+    COMPLETE = "complete"
+    VERIFIED = "verified"
+    MISMATCH = "mismatch"
 
 
 class PurchaseOrder(TimestampMixin, Base):
@@ -96,6 +109,24 @@ class PurchaseOrder(TimestampMixin, Base):
         DateTime(timezone=True), nullable=True
     )
     completion_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    billing_type: Mapped[BillingType] = mapped_column(
+        Enum(BillingType, name="billingtype",
+             values_callable=lambda obj: [e.value for e in obj]),
+        default=BillingType.FULL,
+        nullable=False,
+        server_default="full",
+    )
+    billing_milestones: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    requires_install_report: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default="false"
+    )
+    chain_status: Mapped[ChainStatus] = mapped_column(
+        Enum(ChainStatus, name="chainstatus",
+             values_callable=lambda obj: [e.value for e in obj]),
+        default=ChainStatus.INCOMPLETE,
+        nullable=False,
+        server_default="incomplete",
+    )
 
     # Relationships
     customer: Mapped["Customer"] = relationship(
