@@ -40,6 +40,10 @@ class DocumentResponse(BaseModel):
     po_number: str = ""
     customer_name: str = ""
     po_so_number: Optional[str] = None
+    so_number: Optional[str] = None
+    vpo_numbers: Optional[list[str]] = None
+    billing_stage: Optional[int] = None
+    extraction_ok: bool = True
     metadata: Optional[ExtractionResponse] = None
 
     model_config = ConfigDict(from_attributes=True)

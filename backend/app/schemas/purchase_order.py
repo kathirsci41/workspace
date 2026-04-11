@@ -25,6 +25,10 @@ class POUpdate(BaseModel):
     gst_type: Optional[Literal['unknown', 'igst', 'cgst_sgst']] = None
     invoice_split: Optional[bool] = None
     completion_note: Optional[str] = None
+    billing_type: Optional[Literal['full', 'staged', 'recurring']] = None
+    billing_milestones: Optional[list[dict]] = None
+    requires_install_report: Optional[bool] = None
+    chain_status: Optional[Literal['incomplete', 'complete', 'verified', 'mismatch']] = None
 
 
 class POResponse(BaseModel):
@@ -46,6 +50,10 @@ class POResponse(BaseModel):
     manually_completed: bool = False
     completed_at: Optional[datetime] = None
     completion_note: Optional[str] = None
+    billing_type: str = "full"
+    billing_milestones: Optional[list[dict]] = None
+    requires_install_report: bool = False
+    chain_status: str = "incomplete"
     created_at: datetime
     updated_at: datetime
     customer_name: str = ""
@@ -77,3 +85,7 @@ class ChainStatusResponse(BaseModel):
     po_number: str
     completeness_pct: float
     chain: dict[str, list[ChainSlot]]
+
+
+class SONumberUpdate(BaseModel):
+    so_number: str = Field(..., min_length=1, max_length=100)
