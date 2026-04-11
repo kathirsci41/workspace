@@ -78,6 +78,21 @@ def get_scenario_chain(scenario: OrderScenario | None) -> list[DocumentType] | N
     return _SCENARIO_CHAIN.get(scenario)
 
 
+def derive_scenario(
+    vpo_count: int,
+    has_vendor_dc: bool,
+    has_service_hint: bool,
+) -> OrderScenario:
+    """Derive scenario from observable facts. Never manually set."""
+    if vpo_count == 0:
+        if has_vendor_dc:
+            return OrderScenario.DROP_SHIP
+        if has_service_hint:
+            return OrderScenario.SERVICE_AMC
+        return OrderScenario.STOCK
+    return OrderScenario.PROCUREMENT
+
+
 # Known Indian states with GST codes for auto-detection
 # Company state should be set in config; deliveries to a different state = IGST
 _KNOWN_IGST_TRIGGER_STATES = {
