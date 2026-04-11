@@ -76,12 +76,15 @@ export async function getPOProfile(poId: string): Promise<POProfile> {
 
 export interface ChainStatusResponse {
   chain_status: 'incomplete' | 'complete' | 'verified' | 'mismatch';
+  completeness_pct?: number;
   missing_slots: string[];
   missing_vendor_invoices: string[];
   reference_checks: Array<{
     document_type: string;
     check: string;
     result: 'pass' | 'mismatch' | 'skip';
+    extracted?: string;
+    expected?: string;
   }>;
   billing: {
     overall: string;

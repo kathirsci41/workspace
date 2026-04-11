@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { ArrowLeft, Loader2, Trash2, PenLine, Check, X, AlertTriangle, BarChart2, Download } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { useQueryClient } from '@tanstack/react-query';
-import { usePurchaseOrder, useChainStatus, useDeletePO, useUpdatePO } from '@/hooks/usePurchaseOrders';
+import { usePurchaseOrder, useChainStatus, useDeletePO } from '@/hooks/usePurchaseOrders';
 import { exportPOAsExcel, getChainValidation, updateSoNumber } from '@/api/purchaseOrders';
 import type { ChainStatusResponse } from '@/api/purchaseOrders';
 import { useReExtract, useCreateManualEntry } from '@/hooks/useExtraction';
@@ -11,18 +11,18 @@ import { useDeleteDocument } from '@/hooks/useDocuments';
 import Breadcrumb from '@/components/Breadcrumb';
 import ChainStatusBar from '@/components/ChainStatusBar';
 import { ChainTimeline } from '@/components/ChainTimeline/ChainTimeline';
-import type { ChainSlot } from '@/components/ChainTimeline/ChainTimeline';
+import type { ChainSlot as TimelineSlot } from '@/components/ChainTimeline/ChainTimeline';
 import { ReferenceValidationPanel } from '@/components/ReferenceValidationPanel/ReferenceValidationPanel';
 import { BillingCompletenessPanel } from '@/components/BillingCompletenessPanel/BillingCompletenessPanel';
 import DocumentCard from '@/components/DocumentCard';
 import PDFPreviewPanel from '@/components/PDFPreviewPanel';
 import UploadZone from '@/components/UploadZone';
 import ReviewModal from '@/components/ReviewModal';
-import type { DocumentType } from '@/types';
+import type { ChainSlot as ApiChainSlot, ChainStatus, DocumentType } from '@/types';
 import { CHAIN_ORDER } from '@/types';
 import clsx from 'clsx';
 
-function buildSlots(missingSlots: string[]): ChainSlot[] {
+function buildSlots(missingSlots: string[]): TimelineSlot[] {
   const SLOT_LABELS: Record<string, string> = {
     CUSTOMER_PO:           'Customer PO',
     COMPANY_PO:            'Vendor PO',
@@ -32,9 +32,11 @@ function buildSlots(missingSlots: string[]): ChainSlot[] {
     INSTALLATION_REPORT:   'Installation Report',
   };
   return Object.keys(SLOT_LABELS).map(type => ({
-    docType: type,
-    label:   SLOT_LABELS[type],
-    state:   missingSlots.includes(type) ? 'waiting' : 'verified',
+    docType:  type,
+    label:    SLOT_LABELS[type],
+    state:    missingSlots.includes(type) ? 'waiting' : 'verified',
+    onUpload: (_label: string) => {},
+    onView:   (_label: string) => {},
   }));
 }
 
@@ -48,11 +50,12 @@ export default function PODetailPage() {
   const showToast = useToast();
 
   const { data: po, isLoading: poLoading } = usePurchaseOrder(id!);
-  const { data: chainData, isLoading: chainLoading } = useChainStatus(id!);
+  const chainStatusQuery = useChainStatus(id!);
+  const chainData = chainStatusQuery.data as ChainStatus | undefined;
+  const chainLoading = chainStatusQuery.isLoading;
   const reExtractMutation = useReExtract();
   const deleteMutation = useDeleteDocument();
   const deletePOMutation = useDeletePO();
-  const updatePOMutation = useUpdatePO();
   const manualEntryMutation = useCreateManualEntry();
 
   const [selectedDocId, setSelectedDocId] = useState<string | null>(highlightDocId);
@@ -91,8 +94,8 @@ export default function PODetailPage() {
   // Find selected slot for preview metadata
   const selectedEntry = chainData
     ? (() => {
-        for (const [docType, slots] of Object.entries(chainData.chain)) {
-          const found = slots.find((s) => s.document_id === selectedDocId);
+        for (const [docType, slots] of Object.entries(chainData.chain as Record<string, ApiChainSlot[]>)) {
+          const found = slots.find((s: ApiChainSlot) => s.document_id === selectedDocId);
           if (found) return [docType, found] as const;
         }
         return undefined;
@@ -103,18 +106,18 @@ export default function PODetailPage() {
 
   // Auto-refetch chain status when extracting
   const hasExtracting = chainData
-    ? Object.values(chainData.chain).some((slots) =>
-        slots.some((s) => s.status === 'EXTRACTING' || s.status === 'UPLOADED')
+    ? Object.values(chainData.chain as Record<string, ApiChainSlot[]>).some((slots) =>
+        slots.some((s: ApiChainSlot) => s.status === 'EXTRACTING' || s.status === 'UPLOADED')
       )
     : false;
 
   useEffect(() => {
     // Show toast when extraction finishes
     if (prevExtractingRef.current && !hasExtracting && chainData) {
-      const allSlots = Object.values(chainData.chain).flat();
-      const hasFailed       = allSlots.some(s => s.status === 'EXTRACTION_FAILED');
-      const hasPendingModel = allSlots.some(s => s.status === 'PENDING_MODEL');
-      const hasPending      = allSlots.some(s => s.status === 'PENDING_REVIEW');
+      const allSlots = Object.values(chainData.chain as Record<string, ApiChainSlot[]>).flat();
+      const hasFailed       = allSlots.some((s: ApiChainSlot) => s.status === 'EXTRACTION_FAILED');
+      const hasPendingModel = allSlots.some((s: ApiChainSlot) => s.status === 'PENDING_MODEL');
+      const hasPending      = allSlots.some((s: ApiChainSlot) => s.status === 'PENDING_REVIEW');
 
       if (hasFailed && !hasPending)
         showToast('Extraction failed — open the document to enter manually.', 'error');
@@ -264,6 +267,17 @@ export default function PODetailPage() {
     CANCELLED: 'bg-red-100 text-red-700',
   };
 
+  const timelineSlots = chainValidation ? buildSlots(chainValidation.missing_slots) : [];
+  const fallbackCompletenessPct = timelineSlots.length > 0
+    ? Math.round((timelineSlots.filter((slot) => slot.state === 'verified').length / timelineSlots.length) * 100)
+    : 0;
+  const chainCompletenessPct = chainValidation?.completeness_pct ?? fallbackCompletenessPct;
+  const referenceChecks = chainValidation?.reference_checks.map((check) => ({
+    ...check,
+    extracted: check.extracted,
+    expected: check.expected,
+  })) ?? [];
+
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* Breadcrumb */}
@@ -337,10 +351,7 @@ export default function PODetailPage() {
                 onChange={(e) => setSoInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    updatePOMutation.mutate(
-                      { id: id!, body: { so_number: soInput.trim() || null } },
-                      { onSuccess: () => setSoEditing(false) }
-                    );
+                    handleSoSaveAndValidate();
                   }
                   if (e.key === 'Escape') setSoEditing(false);
                 }}
@@ -349,25 +360,11 @@ export default function PODetailPage() {
                 className="text-xs px-2 py-1 border rounded-lg w-36 focus:ring-2 focus:ring-blue-400 focus:outline-none"
               />
               <button
-                onClick={() =>
-                  updatePOMutation.mutate(
-                    { id: id!, body: { so_number: soInput.trim() || null } },
-                    { onSuccess: () => setSoEditing(false) }
-                  )
-                }
-                disabled={updatePOMutation.isPending}
+                onClick={handleSoSaveAndValidate}
                 className="p-1 text-green-600 hover:bg-green-50 rounded"
                 title="Save"
               >
                 <Check size={14} />
-              </button>
-              <button
-                onClick={handleSoSaveAndValidate}
-                disabled={updatePOMutation.isPending}
-                className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded"
-                title="Save SO number and re-run chain validation"
-              >
-                Validate
               </button>
               <button
                 onClick={() => setSoEditing(false)}
@@ -429,6 +426,7 @@ export default function PODetailPage() {
                 Missing: {chainValidation.missing_slots.map(s => s.replace(/_/g, ' ')).join(' · ')}
               </p>
             )}
+            <p className="text-xs text-gray-500 mt-0.5">{chainCompletenessPct}% complete</p>
           </div>
         </div>
       )}
@@ -438,12 +436,12 @@ export default function PODetailPage() {
         <div className="grid grid-cols-3 gap-4">
           <div className="col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-4">
             <h3 className="text-sm font-semibold text-slate-200 mb-4">Document Chain</h3>
-            <ChainTimeline slots={buildSlots(chainValidation.missing_slots)} />
+            <ChainTimeline slots={timelineSlots} />
           </div>
           <div className="flex flex-col gap-4">
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
               <h3 className="text-sm font-semibold text-slate-200 mb-3">Reference Validation</h3>
-              <ReferenceValidationPanel checks={chainValidation.reference_checks} />
+              <ReferenceValidationPanel checks={referenceChecks} />
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
               <h3 className="text-sm font-semibold text-slate-200 mb-3">Billing</h3>
@@ -479,7 +477,7 @@ export default function PODetailPage() {
         {/* Left: Document Cards */}
         <div className="w-[55%] space-y-3 overflow-y-auto pr-1">
           {CHAIN_ORDER.map((docType) => {
-            const slots = chainData?.chain?.[docType] ?? [];
+            const slots: ApiChainSlot[] = chainData?.chain?.[docType] ?? [];
             return (
               <div key={docType} className="space-y-2">
                 {slots.length === 0 ? (
@@ -705,3 +703,4 @@ function ChainCompleteBanner({ poId, profilePath }: { poId: string; profilePath:
     </div>
   );
 }
+

@@ -5,6 +5,8 @@ export interface ChainSlot {
   ref?: string;
   soNumber?: string;
   soExpected?: string;
+  onUpload?: (slotLabel: string) => void;
+  onView?: (slotLabel: string) => void;
 }
 
 interface Props {
@@ -24,6 +26,10 @@ export function ChainTimeline({ slots }: Props) {
     <div className="flex flex-col">
       {slots.map((slot, i) => {
         const cfg = STATE_CONFIG[slot.state] ?? STATE_CONFIG.waiting;
+        const showUpload = slot.state === 'waiting';
+        const showView = slot.state === 'verified' || slot.state === 'received' || slot.state === 'mismatch';
+        const showAction = showUpload || showView;
+        const isEnabled = showUpload ? !!slot.onUpload : !!slot.onView;
         return (
           <div key={slot.docType} className="flex gap-4 relative">
             {i < slots.length - 1 && (
@@ -34,7 +40,9 @@ export function ChainTimeline({ slots }: Props) {
             </div>
             <div className="flex-1 pb-5">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-slate-200">{slot.label}</span>
+                <span className={`text-sm font-semibold text-slate-200 ${slot.state === 'cancelled' ? 'line-through' : ''}`}>
+                  {slot.label}
+                </span>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cfg.badgeClass}`}>
                   {slot.state.charAt(0).toUpperCase() + slot.state.slice(1)}
                 </span>
@@ -55,6 +63,23 @@ export function ChainTimeline({ slots }: Props) {
                 <div className="border border-dashed border-slate-700 rounded px-3 py-2 text-xs text-slate-500 bg-slate-950">
                   Not yet uploaded
                 </div>
+              )}
+              {showAction && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (showUpload) slot.onUpload?.(slot.label);
+                    if (showView) slot.onView?.(slot.label);
+                  }}
+                  disabled={!isEnabled}
+                  className={`mt-2 text-xs font-medium ${
+                    isEnabled
+                      ? 'text-blue-400 hover:text-blue-300'
+                      : 'text-slate-600 cursor-not-allowed'
+                  }`}
+                >
+                  {showUpload ? 'Upload →' : 'View →'}
+                </button>
               )}
             </div>
           </div>
