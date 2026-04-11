@@ -109,7 +109,7 @@ async def update_so_number(
     po = await db.get(PurchaseOrder, po_id)
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
-    po.so_number = body.so_number
+    po.so_number = body.so_number.strip() or None
     await db.commit()
     await db.refresh(po)
     return {"so_number": po.so_number}
@@ -167,6 +167,10 @@ async def get_chain_status_v2(
         requires_install_report=po.requires_install_report,
         invoiced_total=invoiced_total,
     )
+
+    # Fall back to stored chain_completeness when scenario produces no required slots
+    if result["completeness_pct"] == 0 and po.chain_completeness:
+        result["completeness_pct"] = int(po.chain_completeness)
 
     # Update chain_status on PO in the background (best-effort, non-blocking)
     try:

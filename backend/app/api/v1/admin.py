@@ -156,7 +156,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         )
     )).one()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now()  # naive datetime — matches TIMESTAMP WITHOUT TIME ZONE column
     yesterday = now - timedelta(hours=24)
     two_days_ago = now - timedelta(hours=48)
 

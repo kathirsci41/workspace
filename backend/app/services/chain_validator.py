@@ -119,7 +119,7 @@ def compute_chain_status(
                 has_mismatch = True
 
     # Billing completeness
-    billing_result: dict = {}
+    billing_result: dict = {"overall": BillingStatus.PENDING}
     billing_complete = False
 
     if po_total:

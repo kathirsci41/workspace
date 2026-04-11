@@ -88,4 +88,4 @@ class ChainStatusResponse(BaseModel):
 
 
 class SONumberUpdate(BaseModel):
-    so_number: str = Field(..., min_length=1, max_length=100)
+    so_number: str = Field(..., max_length=100)  # empty string clears the SO number

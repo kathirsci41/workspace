@@ -35,7 +35,7 @@ export function BillingCompletenessPanel({ billing, poTotal, billingType, curren
           {billingType} Billing
         </span>
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${OVERALL_CLASS[billing.overall] ?? OVERALL_CLASS.pending}`}>
-          {billing.overall.toUpperCase()}
+          {(billing.overall ?? 'pending').toUpperCase()}
         </span>
       </div>
 
