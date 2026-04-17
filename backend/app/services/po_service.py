@@ -395,7 +395,7 @@ async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse
         else:
             chain[doc_type.value] = []
 
-    completeness = round((slots_filled / len(active_chain)) * 100, 1)
+    completeness = round((slots_filled / len(active_chain)) * 100)
 
     return ChainStatusResponse(
         po_id=po.id,

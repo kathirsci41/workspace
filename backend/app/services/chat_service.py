@@ -70,8 +70,11 @@ async def stream_chat_response(
     if context_block:
         system_content = f"{SYSTEM_PROMPT}\n\n{context_block}"
 
+    chat_base = settings.chat_base_url or settings.ocr_base_url
+    ollama_url = f"{chat_base}/api/chat"
+
     payload = {
-        "model": settings.ocr_extractor_model,
+        "model": settings.chat_model,
         "messages": [
             {"role": "system", "content": system_content},
             {"role": "user", "content": message},
@@ -83,8 +86,6 @@ async def stream_chat_response(
             "temperature": 0.3,
         },
     }
-
-    ollama_url = f"{settings.ocr_extractor_base_url}/api/chat"
 
     try:
         async with httpx.AsyncClient(timeout=120.0) as client:

@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     # OCR context window (shared by legacy and new Ollama provider)
     ocr_num_ctx: int = 16384
 
+    # Chat assistant model (separate from extraction — must support /api/chat)
+    chat_model: str = "qwen2.5:3b"
+    chat_base_url: str = ""  # empty = use ocr_base_url (localhost:11434)
+
     # CORS
     cors_origins: List[str] = []
 
