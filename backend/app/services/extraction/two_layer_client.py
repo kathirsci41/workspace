@@ -364,6 +364,7 @@ class TwoLayerClient:
 
         raw, elapsed_ms = await self._call_extractor(payload)
         fields = self._parse_json_safe(raw)
+        fields = self._extract_field_confidences(fields)
         return fields, elapsed_ms
 
     # ------------------------------------------------------------------
@@ -630,6 +631,40 @@ class TwoLayerClient:
             f"{text[:200]}"
         )
         return {}
+
+    @staticmethod
+    def _extract_field_confidences(fields: dict) -> dict:
+        """Split LLM confidence-wrapped values into flat fields + _field_confidences.
+
+        The extraction prompt asks the LLM to return scalar fields as:
+            {"value": <extracted>, "confidence": 0.0-1.0}
+
+        This method unwraps that format:
+        - Scalar fields wrapped as {"value": x, "confidence": y} → fields[k] = x
+        - _field_confidences dict is populated with {k: y} for each unwrapped field
+        - Arrays, None values, and plain scalars are passed through unchanged
+        """
+        field_confidences: dict[str, float] = {}
+
+        for key in list(fields.keys()):
+            val = fields[key]
+            if (
+                isinstance(val, dict)
+                and "value" in val
+                and "confidence" in val
+                and not isinstance(val.get("value"), list)
+            ):
+                try:
+                    confidence = round(float(val["confidence"]), 3)
+                except (TypeError, ValueError):
+                    confidence = 0.5
+                field_confidences[key] = confidence
+                fields[key] = val["value"]
+
+        if field_confidences:
+            fields["_field_confidences"] = field_confidences
+
+        return fields
 
     @staticmethod
     def _clean_json(text: str) -> str:

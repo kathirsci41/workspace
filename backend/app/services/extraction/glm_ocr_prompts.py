@@ -435,7 +435,15 @@ Fields to extract:
 
 Rules:
 - Return ONLY a valid JSON object — no explanation, no markdown fences, no extra text
-- If a field is not present in the document, set it to null
+- For each SCALAR field (string or number), return an object with "value" and "confidence":
+    "po_number": {{"value": "PO-2024-123", "confidence": 0.97}}
+  confidence is 0.0–1.0: how certain you are the extracted value is correct.
+    1.0 = printed clearly and unambiguously
+    0.7 = partially obscured or requires interpretation
+    0.4 = guessed or inferred from context
+    0.1 = very uncertain
+- For ARRAY fields (order_items, delivery_locations), return the array directly — NO confidence wrapper
+- If a scalar field is not present in the document, set it to null (not a confidence object)
 - For ALL amounts/numbers: NEVER use commas. Write 6087800.00 NOT 6,087,800.00
 - Dates should stay EXACTLY as printed on the document (e.g. 18/12/2025). Do NOT reformat.
 - For order_items: ALWAYS return a JSON array of objects. Each object MUST have exactly these keys: sr_no, part_no, description, hsn_code, qty, uom, unit_price, total_price, serial_numbers. Use null for any key not present in the document. Numbers must have NO commas. If no items table found, return [].
