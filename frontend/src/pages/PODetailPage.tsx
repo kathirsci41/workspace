@@ -48,6 +48,7 @@ function buildSlots(
       docType:  type,
       label:    DOC_TYPE_LABELS[type],
       state,
+      ref:      chainByType?.[type]?.[0]?.ref_no ?? undefined,
       onUpload: (_label: string) => onUpload(type),
       onView:   firstDocId ? (_label: string) => onViewDoc(firstDocId) : undefined,
     };
@@ -178,6 +179,11 @@ export default function PODetailPage() {
       .catch(() => showToast('Could not load chain validation. Please refresh.', 'error'));
   }, [id]);
 
+  const refreshChainValidation = () => {
+    if (!id) return;
+    getChainValidation(id).then(setChainValidation).catch(() => {});
+  };
+
   const handleSoSaveAndValidate = async () => {
     if (!id) return;
     if (!soInput.trim()) { setSoEditing(false); return; }
@@ -218,6 +224,7 @@ export default function PODetailPage() {
     reExtractMutation.mutate(reExtractConfirm, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
+        refreshChainValidation();
         setReExtractConfirm(null);
         showToast('Re-extraction started — document will update shortly.', 'info');
       },
@@ -238,6 +245,7 @@ export default function PODetailPage() {
       onSuccess: () => {
         if (selectedDocId === deleteDocConfirm) setSelectedDocId(null);
         queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
+        refreshChainValidation();
         setDeleteDocConfirm(null);
       },
       onError: () => setDeleteDocConfirm(null),
@@ -256,6 +264,7 @@ export default function PODetailPage() {
     manualEntryMutation.mutate(docId, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
+        refreshChainValidation();
         setReviewDocId(docId);
         showToast('Manual entry mode — fill in the fields from the document.', 'info');
       },
@@ -571,6 +580,7 @@ export default function PODetailPage() {
           onSuccess={() => {
             setUploadType(null);
             queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
+            refreshChainValidation();
           }}
           onClose={() => setUploadType(null)}
         />
@@ -585,6 +595,7 @@ export default function PODetailPage() {
             setReviewDocId(null);
             queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
             queryClient.invalidateQueries({ queryKey: ['documents', 'status', 'PENDING_REVIEW'] });
+            refreshChainValidation();
             showToast('Document verified and saved.', 'success');
           }}
         />
@@ -600,6 +611,7 @@ export default function PODetailPage() {
           onSaved={() => {
             setEditDocId(null);
             queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
+            refreshChainValidation();
             showToast('Changes saved successfully.', 'success');
           }}
         />

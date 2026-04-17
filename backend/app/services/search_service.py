@@ -344,6 +344,36 @@ async def advanced_search(
                     "confidence": meta.confidence_score if meta else None,
                 })
 
+    # po_no fallback: also search purchase_orders.po_number directly
+    # (reference_index only has document-extracted refs, not the PO number itself)
+    if po_no:
+        po_stmt = (
+            select(PurchaseOrder, Customer)
+            .join(Customer, PurchaseOrder.customer_id == Customer.id)
+            .where(PurchaseOrder.po_number.ilike(f"%{po_no}%"))
+            .limit(10)
+        )
+        po_rows = await db.execute(po_stmt)
+        for po, cust in po_rows.all():
+            # Avoid duplicating a PO already surfaced via its documents
+            key = f"po-{po.id}"
+            if key not in seen_ids:
+                seen_ids.add(key)
+                results.append({
+                    "result_type": "purchase_order",
+                    "id": str(po.id),
+                    "ref_number": po.po_number,
+                    "display_name": f"PO — {po.po_number}",
+                    "document_type": None,
+                    "po_number": po.po_number,
+                    "po_id": str(po.id),
+                    "customer_name": cust.name,
+                    "confidence": None,
+                })
+
+    # Filter out results with blank ref_number (failed extractions with no useful data)
+    results = [r for r in results if r.get("ref_number")]
+
     total = len(results)
     start = (page - 1) * per_page
     end = start + per_page

@@ -99,20 +99,28 @@ async def update_po(
     return resp
 
 
-@router.patch("/{po_id}/so-number")
+@router.patch("/{po_id}/so-number", response_model=POResponse)
 async def update_so_number(
     po_id: UUID,
     body: SONumberUpdate,
     db: AsyncSession = Depends(get_db),
 ):
-    """Update SO number and trigger chain re-validation."""
-    po = await db.get(PurchaseOrder, po_id)
+    """Update SO number and return the full updated PO."""
+    po = await db.get(
+        PurchaseOrder,
+        po_id,
+        options=[selectinload(PurchaseOrder.documents)],
+    )
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
     po.so_number = body.so_number.strip() or None
     await db.commit()
     await db.refresh(po)
-    return {"so_number": po.so_number}
+    resp = POResponse.model_validate(po)
+    if po.customer:
+        resp.customer_name = po.customer.name
+        resp.customer_sky_id = po.customer.customer_id
+    return resp
 
 
 @router.get("/{po_id}/chain")
@@ -193,11 +201,17 @@ async def close_order(
     db: AsyncSession = Depends(get_db),
 ):
     """Manually close a PO — marks order as completed. One-way operation."""
+    from app.models.purchase_order import ChainStatus
     po = await po_service.close_order(db, id, body.note)
     resp = POResponse.model_validate(po)
     if po.customer:
         resp.customer_name = po.customer.name
         resp.customer_sky_id = po.customer.customer_id
+    if po.chain_status == ChainStatus.MISMATCH:
+        from fastapi.responses import JSONResponse
+        data = resp.model_dump(mode="json")
+        data["_warning"] = "Order closed with unresolved reference mismatches. Review chain validation before dispatch."
+        return JSONResponse(content=data)
     return resp
 
 

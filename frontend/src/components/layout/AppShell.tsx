@@ -11,6 +11,7 @@ import {
   X,
   ChevronRight,
   ChevronLeft,
+  MessageSquare,
 } from 'lucide-react';
 import clsx from 'clsx';
 import InlineSearch from './InlineSearch';
@@ -21,6 +22,7 @@ const navLinks = [
   { to: '/purchase-orders', label: 'Purchase Orders', icon: FileText },
   { to: '/documents', label: 'Documents', icon: Files },
   { to: '/search', label: 'Search', icon: Search },
+  { to: '/chat',   label: 'Assistant', icon: MessageSquare },
   { to: '/admin',  label: 'System',  icon: Settings2 },
 ];
 
@@ -121,7 +123,7 @@ export default function AppShell() {
           </button>
           {!collapsed && (
             <div className="px-4 pb-3 text-xs text-gray-500">
-              DocPlatform V3.0 — Dev Build
+              DocPlatform v2.2.0
             </div>
           )}
         </div>

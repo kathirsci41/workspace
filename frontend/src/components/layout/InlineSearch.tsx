@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Users, FileText, File, Loader2, ArrowRight } from 'lucide-react';
 import { useSearch } from '@/hooks/useSearch';
 import type { SearchResult } from '@/types';
@@ -10,6 +10,7 @@ export default function InlineSearch() {
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -34,11 +35,11 @@ export default function InlineSearch() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Open dropdown when results come in
+  // Open dropdown when results come in — suppress on /search (that page handles its own search)
   useEffect(() => {
-    if (debouncedQuery.length >= 2) setOpen(true);
+    if (debouncedQuery.length >= 2 && pathname !== '/search') setOpen(true);
     setActiveIdx(-1);
-  }, [debouncedQuery, data]);
+  }, [debouncedQuery, data, pathname]);
 
   const handleResultClick = useCallback(
     (result: SearchResult) => {
@@ -125,7 +126,7 @@ export default function InlineSearch() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => {
-            if (debouncedQuery.length >= 2) setOpen(true);
+            if (debouncedQuery.length >= 2 && pathname !== '/search') setOpen(true);
           }}
           onKeyDown={handleKeyDown}
           className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"

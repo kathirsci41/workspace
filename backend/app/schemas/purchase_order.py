@@ -83,7 +83,7 @@ class ChainSlot(BaseModel):
 class ChainStatusResponse(BaseModel):
     po_id: UUID
     po_number: str
-    completeness_pct: float
+    completeness_pct: int
     chain: dict[str, list[ChainSlot]]
 
 

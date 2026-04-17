@@ -422,6 +422,8 @@ async def close_order(db: AsyncSession, po_id: UUID, note: str | None = None) ->
     po.completion_note = note
     po.status = POStatus.COMPLETE
     po.chain_completeness = 100.0
+    # Preserve chain_status so mismatches remain visible after close
+    # (do not override to COMPLETE — reviewers should still see unresolved refs)
 
     await db.commit()
     await db.refresh(po)
@@ -504,6 +506,18 @@ async def update_chain_completeness(db: AsyncSession, po_id: UUID) -> float:
 
     po.chain_completeness = completeness
     po.status = status
+
+    # Auto-derive scenario from document evidence if still UNKNOWN
+    if getattr(po, 'order_scenario', None) == OrderScenario.UNKNOWN:
+        docs_result = await db.execute(
+            select(Document.document_type).where(Document.po_id == po_id)
+        )
+        doc_types = [row[0] for row in docs_result.all()]
+        vpo_count = sum(1 for dt in doc_types if dt == DocumentType.COMPANY_PO)
+        has_vendor_dc = DocumentType.VENDOR_DC in doc_types
+        if vpo_count > 0 or has_vendor_dc:
+            po.order_scenario = derive_scenario(vpo_count, has_vendor_dc, False)
+
     await db.commit()
 
     return completeness
