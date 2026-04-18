@@ -28,6 +28,7 @@ from app.services.cross_doc_validator import (
     check_vdc_ref_on_vinv,
     check_date_sequence,
     check_hsn_consistency,
+    check_order_item_coverage,
 )
 
 
@@ -405,6 +406,51 @@ def compute_chain_status(
             "expected": f"consistent HSN for {v['part_no']}",
             "skip_reason": None,
         })
+
+    # ── Module 4: Order Item Coverage ────────────────────────────────────────
+
+    # 4A: CPO vs CDC — did the company deliver all customer-ordered items?
+    cpo_items = next((d.get("order_items", []) for d in cpo_docs), [])
+    cdc_items_flat = [item for d in cdc_docs for item in (d.get("order_items") or [])]
+    cpo_cdc = check_order_item_coverage(cpo_items, cdc_items_flat)
+    reference_checks.append({
+        "document_type": DocumentType.CUSTOMER_PO,
+        "check": "cpo_vs_cdc_items",
+        "result": cpo_cdc["result"],
+        "extracted": ", ".join(cpo_cdc["missing_parts"] + cpo_cdc["partial_parts"]) or None,
+        "expected": None,
+        "skip_reason": cpo_cdc.get("skip_reason"),
+    })
+    # WARNING only — partial delivery is legitimate
+
+    # 4B: VPO vs VINV — did the vendor supply all company-ordered items?
+    if vpo_docs and vinv_docs:
+        vpo_items = next((d.get("order_items", []) for d in vpo_docs), [])
+        vinv_items_flat = [item for d in vinv_docs for item in (d.get("order_items") or [])]
+        vpo_vinv = check_order_item_coverage(vpo_items, vinv_items_flat)
+        reference_checks.append({
+            "document_type": DocumentType.COMPANY_PO,
+            "check": "vpo_vs_vinv_items",
+            "result": vpo_vinv["result"],
+            "extracted": ", ".join(vpo_vinv["missing_parts"] + vpo_vinv["partial_parts"]) or None,
+            "expected": None,
+            "skip_reason": vpo_vinv.get("skip_reason"),
+        })
+        # WARNING only
+
+    # 4C: CDC vs CI — does the invoice cover all items on the delivery note?
+    if cdc_docs and ci_docs:
+        ci_items_flat = [item for d in ci_docs for item in (d.get("order_items") or [])]
+        cdc_ci = check_order_item_coverage(cdc_items_flat, ci_items_flat)
+        reference_checks.append({
+            "document_type": DocumentType.COMPANY_DC,
+            "check": "cdc_vs_ci_items",
+            "result": cdc_ci["result"],
+            "extracted": ", ".join(cdc_ci["missing_parts"] + cdc_ci["partial_parts"]) or None,
+            "expected": None,
+            "skip_reason": cdc_ci.get("skip_reason"),
+        })
+        # WARNING only
 
     # Billing completeness
     billing_result: dict = {"overall": BillingStatus.PENDING}

@@ -570,4 +570,96 @@ def test_date_sequence_violation_produces_warning_check():
     date_checks = [rc for rc in result["reference_checks"] if rc["check"] == "date_sequence"]
     assert len(date_checks) >= 1
     assert all(rc["result"] == "warning" for rc in date_checks)
+
+
+def test_missing_item_in_cdc_produces_warning():
+    """CPO has two items; CDC only delivers one → WARNING on cpo_vs_cdc check."""
+    result = compute_chain_status(
+        scenario=OrderScenario.STOCK,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=200000.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=[],
+        documents=[
+            _doc_full(DocumentType.CUSTOMER_PO, order_items=[
+                {"part_no": "FG81F", "description": "FortiGate 81F", "qty": "1"},
+                {"part_no": "FS108E", "description": "FortiSwitch 108E", "qty": "1"},
+            ]),
+            _doc_full(DocumentType.COMPANY_DC,
+                      so_number="SO-001", cpo_ref="CPO-001",
+                      order_items=[
+                          {"part_no": "FG81F", "description": "FortiGate 81F", "qty": "1"},
+                          # FS108E missing
+                      ]),
+            _doc_full(DocumentType.COMPANY_INVOICE,
+                      so_number="SO-001", cpo_ref="CPO-001",
+                      amount=200000.0),
+        ],
+        requires_install_report=False,
+        invoiced_total=200000.0,
+    )
+    item_checks = [rc for rc in result["reference_checks"] if rc["check"] == "cpo_vs_cdc_items"]
+    assert len(item_checks) == 1
+    assert item_checks[0]["result"] == "warning"
+    # WARNING must not flip chain_status to MISMATCH
+    assert result["chain_status"] != ChainStatus.MISMATCH
+
+
+def test_all_items_delivered_produces_pass():
+    """All CPO items present in CDC → PASS on cpo_vs_cdc check."""
+    result = compute_chain_status(
+        scenario=OrderScenario.STOCK,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=200000.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=[],
+        documents=[
+            _doc_full(DocumentType.CUSTOMER_PO, order_items=[
+                {"part_no": "FG81F", "qty": "2"},
+            ]),
+            _doc_full(DocumentType.COMPANY_DC,
+                      so_number="SO-001", cpo_ref="CPO-001",
+                      order_items=[
+                          {"part_no": "FG81F", "qty": "2"},
+                      ]),
+            _doc_full(DocumentType.COMPANY_INVOICE,
+                      so_number="SO-001", cpo_ref="CPO-001",
+                      amount=200000.0),
+        ],
+        requires_install_report=False,
+        invoiced_total=200000.0,
+    )
+    item_checks = [rc for rc in result["reference_checks"] if rc["check"] == "cpo_vs_cdc_items"]
+    assert item_checks[0]["result"] == "pass"
+
+
+def test_no_part_nos_on_cpo_skips_item_check():
+    """Customer PO items have only descriptions (no part_no) → SKIP."""
+    result = compute_chain_status(
+        scenario=OrderScenario.STOCK,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=100000.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=[],
+        documents=[
+            _doc_full(DocumentType.CUSTOMER_PO, order_items=[
+                {"description": "Firewall unit", "qty": "1"},  # no part_no
+            ]),
+            _doc_full(DocumentType.COMPANY_DC,
+                      so_number="SO-001", cpo_ref="CPO-001"),
+            _doc_full(DocumentType.COMPANY_INVOICE,
+                      so_number="SO-001", cpo_ref="CPO-001",
+                      amount=100000.0),
+        ],
+        requires_install_report=False,
+        invoiced_total=100000.0,
+    )
+    item_checks = [rc for rc in result["reference_checks"] if rc["check"] == "cpo_vs_cdc_items"]
+    assert item_checks[0]["result"] == "skip"
     assert result["chain_status"] != ChainStatus.MISMATCH
