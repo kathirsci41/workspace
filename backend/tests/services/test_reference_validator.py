@@ -102,3 +102,14 @@ def test_vpo_reference_no_invoices_at_all_returns_skip():
         registered_vpo_numbers=["VPO-001"],
     )
     assert result == ReferenceCheckResult.SKIP
+
+
+def test_warning_is_valid_reference_check_result():
+    from app.services.reference_validator import ReferenceCheckResult
+    assert ReferenceCheckResult.WARNING == "warning"
+
+
+def test_warning_is_distinct_from_mismatch():
+    from app.services.reference_validator import ReferenceCheckResult
+    assert ReferenceCheckResult.WARNING != ReferenceCheckResult.MISMATCH
+    assert ReferenceCheckResult.WARNING != ReferenceCheckResult.PASS

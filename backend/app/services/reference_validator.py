@@ -5,6 +5,7 @@ import enum
 class ReferenceCheckResult(str, enum.Enum):
     PASS = "pass"
     MISMATCH = "mismatch"
+    WARNING = "warning"   # Unusual but not an audit failure — does NOT flip chain_status
     SKIP = "skip"   # extracted value was None/empty â€” cannot validate
 
 
