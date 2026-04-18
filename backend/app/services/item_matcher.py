@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def _safe_int(v) -> int:
-    """Safely parse qty from LLM extraction (handles '2,000', '3.00', '5 Nos', None)."""
+    """Safely parse qty from LLM extraction. Handles '2,000'→2000, '3.00'→3, None→0. Unparseable strings like '5 Nos' return 0."""
     if v is None:
         return 0
     try:
