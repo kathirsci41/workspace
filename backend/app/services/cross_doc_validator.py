@@ -32,3 +32,25 @@ def check_vinv_sum_vs_vpo_total(
         return ReferenceCheckResult.SKIP
     ratio = abs(sum(vinv_totals) - vpo_total) / vpo_total
     return ReferenceCheckResult.WARNING if ratio > _AMOUNT_TOLERANCE_VINV else ReferenceCheckResult.PASS
+
+
+# ── Module 3B: GSTIN and Name Consistency ────────────────────────────────────
+
+def check_gstin_consistency(gstins: list[str | None]) -> ReferenceCheckResult:
+    """All GSTINs in the list must be identical (case/whitespace normalised)."""
+    valid = [g.strip().upper() for g in gstins if g and g.strip()]
+    if len(valid) < 2:
+        return ReferenceCheckResult.SKIP
+    return ReferenceCheckResult.PASS if len(set(valid)) == 1 else ReferenceCheckResult.MISMATCH
+
+
+def check_name_consistency(names: list[str | None]) -> ReferenceCheckResult:
+    """Names should fuzzy-match at ≥85% ratio. Returns WARNING (not MISMATCH) — typos are common."""
+    valid = [n.strip().lower() for n in names if n and n.strip()]
+    if len(valid) < 2:
+        return ReferenceCheckResult.SKIP
+    first = valid[0]
+    for name in valid[1:]:
+        if SequenceMatcher(None, first, name).ratio() < _NAME_FUZZY_RATIO:
+            return ReferenceCheckResult.WARNING
+    return ReferenceCheckResult.PASS

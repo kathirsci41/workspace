@@ -1,6 +1,8 @@
 from app.services.cross_doc_validator import (
     check_ci_vs_cpo_total,
     check_vinv_sum_vs_vpo_total,
+    check_gstin_consistency,
+    check_name_consistency,
 )
 from app.services.reference_validator import ReferenceCheckResult
 
@@ -37,3 +39,33 @@ def test_vinv_sum_no_totals_returns_skip():
 
 def test_vinv_sum_no_vpo_total_returns_skip():
     assert check_vinv_sum_vs_vpo_total([381359.0], None) == ReferenceCheckResult.SKIP
+
+
+# --- 3B: GSTIN and name checks ---
+
+def test_gstin_all_match_returns_pass():
+    assert check_gstin_consistency(["33AAICS1881D1ZJ", "33AAICS1881D1ZJ", "33AAICS1881D1ZJ"]) == ReferenceCheckResult.PASS
+
+def test_gstin_one_differs_returns_mismatch():
+    assert check_gstin_consistency(["33AAICS1881D1ZJ", "33AAICS1881D1ZJ", "29AAICS1881D1ZK"]) == ReferenceCheckResult.MISMATCH
+
+def test_gstin_normalises_whitespace_and_case():
+    assert check_gstin_consistency([" 33aaics1881d1zj ", "33AAICS1881D1ZJ"]) == ReferenceCheckResult.PASS
+
+def test_gstin_fewer_than_two_valid_returns_skip():
+    assert check_gstin_consistency([None, "", "33AAICS1881D1ZJ"]) == ReferenceCheckResult.SKIP
+
+def test_gstin_all_none_returns_skip():
+    assert check_gstin_consistency([None, None]) == ReferenceCheckResult.SKIP
+
+def test_name_exact_match_returns_pass():
+    assert check_name_consistency(["Shriram Finance", "Shriram Finance"]) == ReferenceCheckResult.PASS
+
+def test_name_ltd_vs_limited_returns_pass():
+    assert check_name_consistency(["Shriram Finance Ltd", "Shriram Finance Limited"]) == ReferenceCheckResult.PASS
+
+def test_name_completely_different_returns_warning():
+    assert check_name_consistency(["Shriram Finance", "Tata Motors"]) == ReferenceCheckResult.WARNING
+
+def test_name_only_one_valid_returns_skip():
+    assert check_name_consistency([None, "Shriram Finance"]) == ReferenceCheckResult.SKIP
