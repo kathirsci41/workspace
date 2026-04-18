@@ -367,3 +367,36 @@ def test_address_partial_match_treated_as_pass():
     assert len(addr_checks) == 1
     assert addr_checks[0]["result"] == "pass"
     assert result["chain_status"] == ChainStatus.COMPLETE
+
+
+def test_vpo_and_logic_both_vpos_must_appear():
+    """VPO-002 registered but missing from invoice → MISMATCH (not PASS)."""
+    result = compute_chain_status(
+        scenario=OrderScenario.PROCUREMENT,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=100000.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=["VPO-001", "VPO-002"],
+        documents=[
+            _doc(DocumentType.CUSTOMER_PO),
+            _doc(DocumentType.COMPANY_PO),
+            _doc(DocumentType.COMPANY_DC, so_number="SO-001", cpo_ref="CPO-001"),
+            _doc(DocumentType.COMPANY_INVOICE, so_number="SO-001", cpo_ref="CPO-001"),
+            {
+                "document_type": DocumentType.VENDOR_INVOICE,
+                "so_number": "SO-001",
+                "vpo_numbers": ["VPO-001"],
+                "extraction_ok": True,
+                "cpo_ref": None,
+                "delivery_address": None,
+            },
+        ],
+        requires_install_report=False,
+        invoiced_total=100000.0,
+    )
+    vpo_checks = [rc for rc in result["reference_checks"] if rc["check"] == "vpo_reference"]
+    assert len(vpo_checks) == 1
+    assert vpo_checks[0]["result"] == "mismatch"
+    assert result["chain_status"] == ChainStatus.MISMATCH

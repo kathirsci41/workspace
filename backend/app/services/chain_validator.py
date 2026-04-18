@@ -124,25 +124,36 @@ def compute_chain_status(
             if cpo_result == ReferenceCheckResult.MISMATCH:
                 has_mismatch = True
 
-        if doc_type == DocumentType.VENDOR_INVOICE:
-            doc_vpo_numbers = (doc.get("vpo_numbers") or []) if ok else []
-            vpo_result = check_vpo_reference(
-                doc_vpo_numbers=doc_vpo_numbers,
-                registered_vpo_numbers=vpo_numbers or [],
-            )
-            vpo_skip_reason = None
-            if vpo_result == ReferenceCheckResult.SKIP:
-                vpo_skip_reason = "extraction_failed" if not ok else ("no_vpo_registered" if not (vpo_numbers or []) else "no_extracted_vpo")
-            reference_checks.append({
-                "document_type": doc_type,
-                "check": "vpo_reference",
-                "result": vpo_result,
-                "extracted": ", ".join(doc_vpo_numbers) if doc_vpo_numbers else None,
-                "expected": ", ".join(vpo_numbers or []) if vpo_numbers else None,
-                "skip_reason": vpo_skip_reason,
-            })
-            if vpo_result == ReferenceCheckResult.MISMATCH:
-                has_mismatch = True
+    # VPO check — aggregated across all VENDOR_INVOICE documents (AND-logic)
+    vendor_invoices = [d for d in documents if d.get("document_type") == DocumentType.VENDOR_INVOICE]
+    if vendor_invoices or (vpo_numbers or []):
+        doc_vpo_numbers_list = [
+            (d.get("vpo_numbers") or []) if d.get("extraction_ok", True) else []
+            for d in vendor_invoices
+        ]
+        vpo_result = check_vpo_reference(
+            doc_vpo_numbers_list=doc_vpo_numbers_list,
+            registered_vpo_numbers=vpo_numbers or [],
+        )
+        vpo_skip_reason = None
+        if vpo_result == ReferenceCheckResult.SKIP:
+            if not (vpo_numbers or []):
+                vpo_skip_reason = "no_vpo_registered"
+            elif not any(d.get("extraction_ok", True) for d in vendor_invoices):
+                vpo_skip_reason = "extraction_failed"
+            else:
+                vpo_skip_reason = "no_extracted_vpo"
+        all_invoice_vpos = [v for vpo_list in doc_vpo_numbers_list for v in vpo_list]
+        reference_checks.append({
+            "document_type": DocumentType.VENDOR_INVOICE,
+            "check": "vpo_reference",
+            "result": vpo_result,
+            "extracted": ", ".join(all_invoice_vpos) if all_invoice_vpos else None,
+            "expected": ", ".join(vpo_numbers or []) if vpo_numbers else None,
+            "skip_reason": vpo_skip_reason,
+        })
+        if vpo_result == ReferenceCheckResult.MISMATCH:
+            has_mismatch = True
 
     # Address consistency: CUSTOMER_PO delivery address vs COMPANY_DC delivery address
     cpo_address = next(

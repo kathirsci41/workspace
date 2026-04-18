@@ -37,16 +37,23 @@ def check_cpo_reference(
 
 
 def check_vpo_reference(
-    doc_vpo_numbers: list[str],
+    doc_vpo_numbers_list: list[list[str]],
     registered_vpo_numbers: list[str],
 ) -> ReferenceCheckResult:
-    """Check that vendor invoice VPO numbers intersect registered VPOs for this CPO."""
-    if not doc_vpo_numbers:
-        return ReferenceCheckResult.SKIP
+    """
+    Check that ALL registered VPO numbers are covered by at least one vendor invoice.
+
+    doc_vpo_numbers_list: one list per VENDOR_INVOICE document.
+    registered_vpo_numbers: VPOs registered on the CPO.
+
+    Returns PASS only when every registered VPO appears in at least one invoice.
+    """
     if not registered_vpo_numbers:
         return ReferenceCheckResult.SKIP
+    all_invoice_vpos = {v.strip() for vpo_list in doc_vpo_numbers_list for v in vpo_list}
+    if not all_invoice_vpos:
+        return ReferenceCheckResult.SKIP
     registered_set = {v.strip() for v in registered_vpo_numbers}
-    for vpo in doc_vpo_numbers:
-        if vpo.strip() in registered_set:
-            return ReferenceCheckResult.PASS
+    if registered_set.issubset(all_invoice_vpos):
+        return ReferenceCheckResult.PASS
     return ReferenceCheckResult.MISMATCH
