@@ -365,19 +365,47 @@ export default function PODetailPage() {
             </div>
             {CHAIN_ORDER.map(docType => {
               const slots = chain[docType] ?? [];
-              const slot  = slots[0] ?? null;
+              const isMulti = docType === 'VENDOR_INVOICE' || docType === 'VENDOR_DC';
+              const label = DOC_TYPE_LABELS[docType] ?? docType;
               return (
-                <DocCard
-                  key={docType}
-                  label={DOC_TYPE_LABELS[docType] ?? docType}
-                  slot={slot}
-                  onUpload={() => setUploadType(docType as DocumentType)}
-                  onReview={docId => setReviewDocId(docId)}
-                  onView={docId => handleViewDoc(docId)}
-                  onReExtract={docId => setReExtractConfirm(docId)}
-                  onEditFields={docId => setEditDocId(docId)}
-                  onDelete={docId => setDeleteDocConfirm(docId)}
-                />
+                <div key={docType} className="flex flex-col gap-1.5">
+                  {slots.length === 0 ? (
+                    <DocCard
+                      label={label}
+                      slot={null}
+                      onUpload={() => setUploadType(docType as DocumentType)}
+                      onReview={docId => setReviewDocId(docId)}
+                      onView={docId => handleViewDoc(docId)}
+                      onReExtract={docId => setReExtractConfirm(docId)}
+                      onEditFields={docId => setEditDocId(docId)}
+                      onDelete={docId => setDeleteDocConfirm(docId)}
+                    />
+                  ) : (
+                    <>
+                      {slots.map((slot, i) => (
+                        <DocCard
+                          key={slot.document_id ?? i}
+                          label={slots.length > 1 ? `${label} #${i + 1}` : label}
+                          slot={slot}
+                          onUpload={() => setUploadType(docType as DocumentType)}
+                          onReview={docId => setReviewDocId(docId)}
+                          onView={docId => handleViewDoc(docId)}
+                          onReExtract={docId => setReExtractConfirm(docId)}
+                          onEditFields={docId => setEditDocId(docId)}
+                          onDelete={docId => setDeleteDocConfirm(docId)}
+                        />
+                      ))}
+                      {isMulti && (
+                        <button
+                          onClick={() => setUploadType(docType as DocumentType)}
+                          className="self-start text-xs font-medium text-[--accent] hover:underline pl-1"
+                        >
+                          + Add another {label}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               );
             })}
           </div>
