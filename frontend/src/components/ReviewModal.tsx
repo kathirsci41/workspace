@@ -96,7 +96,11 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       for (const [key, value] of Object.entries(metadata.extracted_data)) {
         if (key.startsWith('_') || key.startsWith('custom_')) continue;
         if (ARRAY_FIELDS.has(key)) continue;  // Keep arrays out of formData — they must not be overwritten by string coercion
-        initial[key] = value != null ? String(value) : '';
+        // Handle legacy extracted_data where scalar fields were stored as {value, confidence} objects
+        const rawVal = value != null && typeof value === 'object' && !Array.isArray(value) && 'value' in (value as object)
+          ? (value as { value: unknown }).value
+          : value;
+        initial[key] = rawVal != null ? String(rawVal) : '';
       }
       // Always include operator_notes (from existing data or empty)
       initial['operator_notes'] = (metadata.extracted_data['operator_notes'] as string) ?? '';
