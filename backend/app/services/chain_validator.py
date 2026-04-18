@@ -443,7 +443,7 @@ def compute_chain_status(
         ci_items_flat = [item for d in ci_docs for item in (d.get("order_items") or [])]
         cdc_ci = check_order_item_coverage(cdc_items_flat, ci_items_flat)
         reference_checks.append({
-            "document_type": DocumentType.COMPANY_DC,
+            "document_type": None,
             "check": "cdc_vs_ci_items",
             "result": cdc_ci["result"],
             "extracted": ", ".join(p for p in cdc_ci["missing_parts"] + cdc_ci["partial_parts"] if p) or None,
