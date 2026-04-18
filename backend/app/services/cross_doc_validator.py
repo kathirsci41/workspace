@@ -112,9 +112,9 @@ def check_dc_ref_on_ci(
     if not refs_text:
         return ReferenceCheckResult.SKIP
     for dc_num in cdc_dc_numbers:
-        if dc_num and dc_num.upper() not in refs_text.upper():
-            return ReferenceCheckResult.WARNING
-    return ReferenceCheckResult.PASS
+        if dc_num and dc_num.upper() in refs_text.upper():
+            return ReferenceCheckResult.PASS
+    return ReferenceCheckResult.WARNING
 
 
 def check_vpo_ref_on_vdc(
@@ -142,9 +142,9 @@ def check_vdc_ref_on_vinv(
     if not refs_text:
         return ReferenceCheckResult.SKIP
     for dc_num in vdc_dc_numbers:
-        if dc_num and dc_num.upper() not in refs_text.upper():
-            return ReferenceCheckResult.WARNING
-    return ReferenceCheckResult.PASS
+        if dc_num and dc_num.upper() in refs_text.upper():
+            return ReferenceCheckResult.PASS
+    return ReferenceCheckResult.WARNING
 
 
 # ── Module 3E: Date Sequence Validation ─────────────────────────────────────

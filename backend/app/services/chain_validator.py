@@ -216,7 +216,7 @@ def compute_chain_status(
         has_mismatch = True
 
     # 3A: Vendor Invoice sum vs Company PO total (WARNING — freight tolerance)
-    vinv_totals = [d.get("amount", 0) for d in vinv_docs]
+    vinv_totals = [d.get("amount") for d in vinv_docs if d.get("amount")]
     vpo_total_val = next((d.get("amount") for d in vpo_docs), None)
     vinv_vpo_result = check_vinv_sum_vs_vpo_total(vinv_totals, vpo_total_val)
     reference_checks.append({
