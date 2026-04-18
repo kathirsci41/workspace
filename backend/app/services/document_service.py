@@ -195,3 +195,34 @@ async def get_preview_data(
     doc = await get_document(db, document_id)
     file_data = await storage_service.read_file(doc.file_path)
     return file_data, doc.mime_type, doc.original_filename
+
+
+async def check_duplicate_ref_in_po(
+    db: AsyncSession,
+    po_id: str,
+    document_type: str,
+    primary_ref_no: str | None,
+    exclude_doc_id: str | None = None,
+) -> bool:
+    """
+    Return True if another document in this PO already has the same primary_ref_no
+    for the same document_type. Used to warn operators before creating a duplicate.
+    exclude_doc_id: skip this document (used when editing existing metadata).
+    """
+    if not primary_ref_no:
+        return False
+
+    stmt = (
+        select(Document.id)
+        .join(DocumentMetadata, DocumentMetadata.document_id == Document.id)
+        .where(
+            Document.po_id == po_id,
+            Document.document_type == document_type,
+            DocumentMetadata.primary_ref_no == primary_ref_no,
+        )
+    )
+    if exclude_doc_id:
+        stmt = stmt.where(Document.id != exclude_doc_id)
+
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none() is not None
