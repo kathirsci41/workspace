@@ -417,7 +417,7 @@ def compute_chain_status(
         "document_type": DocumentType.CUSTOMER_PO,
         "check": "cpo_vs_cdc_items",
         "result": cpo_cdc["result"],
-        "extracted": ", ".join(cpo_cdc["missing_parts"] + cpo_cdc["partial_parts"]) or None,
+        "extracted": ", ".join(p for p in cpo_cdc["missing_parts"] + cpo_cdc["partial_parts"] if p) or None,
         "expected": None,
         "skip_reason": cpo_cdc.get("skip_reason"),
     })
@@ -432,7 +432,7 @@ def compute_chain_status(
             "document_type": DocumentType.COMPANY_PO,
             "check": "vpo_vs_vinv_items",
             "result": vpo_vinv["result"],
-            "extracted": ", ".join(vpo_vinv["missing_parts"] + vpo_vinv["partial_parts"]) or None,
+            "extracted": ", ".join(p for p in vpo_vinv["missing_parts"] + vpo_vinv["partial_parts"] if p) or None,
             "expected": None,
             "skip_reason": vpo_vinv.get("skip_reason"),
         })
@@ -446,7 +446,7 @@ def compute_chain_status(
             "document_type": DocumentType.COMPANY_DC,
             "check": "cdc_vs_ci_items",
             "result": cdc_ci["result"],
-            "extracted": ", ".join(cdc_ci["missing_parts"] + cdc_ci["partial_parts"]) or None,
+            "extracted": ", ".join(p for p in cdc_ci["missing_parts"] + cdc_ci["partial_parts"] if p) or None,
             "expected": None,
             "skip_reason": cdc_ci.get("skip_reason"),
         })
