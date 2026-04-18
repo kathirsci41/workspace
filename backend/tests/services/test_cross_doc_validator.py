@@ -3,6 +3,8 @@ from app.services.cross_doc_validator import (
     check_vinv_sum_vs_vpo_total,
     check_gstin_consistency,
     check_name_consistency,
+    check_serial_chain,
+    check_vdc_vs_vinv_serials,
 )
 from app.services.reference_validator import ReferenceCheckResult
 
@@ -69,3 +71,69 @@ def test_name_completely_different_returns_warning():
 
 def test_name_only_one_valid_returns_skip():
     assert check_name_consistency([None, "Shriram Finance"]) == ReferenceCheckResult.SKIP
+
+
+# --- 3C: Serial chain of custody ---
+
+def test_serial_chain_all_vendor_serials_shipped_returns_pass():
+    # Real Skylark case: VINV C190224835 serials appear in CDC DC2915
+    result = check_serial_chain(
+        vinv_serials=[["NDKDL1U", "NDLEFAU"]],
+        cdc_serials=[["FG120GTK25028863", "NDKDL1U", "NDLEFAU"]],
+    )
+    assert result["result"] == ReferenceCheckResult.PASS
+    assert result["missing"] == []
+
+def test_serial_chain_extra_cdc_serial_is_not_flagged():
+    result = check_serial_chain(
+        vinv_serials=[["NDKDL1U"]],
+        cdc_serials=[["FG120GTK25028863", "NDKDL1U"]],
+    )
+    assert result["result"] == ReferenceCheckResult.PASS
+
+def test_serial_chain_missing_serial_returns_mismatch():
+    result = check_serial_chain(
+        vinv_serials=[["NDKDL1U", "NDLEFAU"]],
+        cdc_serials=[["NDKDL1U"]],
+    )
+    assert result["result"] == ReferenceCheckResult.MISMATCH
+    assert "NDLEFAU" in result["missing"]
+
+def test_serial_chain_multiple_vinvs_union():
+    result = check_serial_chain(
+        vinv_serials=[["NDKDL1U"], ["NDLEFAU"]],
+        cdc_serials=[["NDKDL1U", "NDLEFAU"]],
+    )
+    assert result["result"] == ReferenceCheckResult.PASS
+
+def test_serial_chain_case_insensitive():
+    result = check_serial_chain(
+        vinv_serials=[["ndkdl1u"]],
+        cdc_serials=[["NDKDL1U"]],
+    )
+    assert result["result"] == ReferenceCheckResult.PASS
+
+def test_serial_chain_no_vendor_serials_skips():
+    result = check_serial_chain(vinv_serials=[[]], cdc_serials=[["NDKDL1U"]])
+    assert result["result"] == ReferenceCheckResult.SKIP
+    assert result["skip_reason"] == "no_vendor_serials"
+
+def test_serial_chain_no_cdc_serials_skips():
+    result = check_serial_chain(vinv_serials=[["NDKDL1U"]], cdc_serials=[[]])
+    assert result["result"] == ReferenceCheckResult.SKIP
+    assert result["skip_reason"] == "no_cdc_serials"
+
+def test_vdc_vs_vinv_serials_all_match_returns_pass():
+    result = check_vdc_vs_vinv_serials(
+        vdc_serials=["NDKDL1U", "NDLEFAU"],
+        vinv_serials=[["NDKDL1U", "NDLEFAU"]],
+    )
+    assert result["result"] == ReferenceCheckResult.PASS
+
+def test_vdc_vs_vinv_serials_missing_returns_mismatch():
+    result = check_vdc_vs_vinv_serials(
+        vdc_serials=["NDKDL1U", "NDLEFAU"],
+        vinv_serials=[["NDKDL1U"]],
+    )
+    assert result["result"] == ReferenceCheckResult.MISMATCH
+    assert "NDLEFAU" in result["missing"]

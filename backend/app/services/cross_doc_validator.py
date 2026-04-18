@@ -54,3 +54,46 @@ def check_name_consistency(names: list[str | None]) -> ReferenceCheckResult:
         if SequenceMatcher(None, first, name).ratio() < _NAME_FUZZY_RATIO:
             return ReferenceCheckResult.WARNING
     return ReferenceCheckResult.PASS
+
+
+# ── Module 3C: Serial Number Chain of Custody ────────────────────────────────
+
+def check_serial_chain(
+    vinv_serials: list[list[str]],
+    cdc_serials: list[list[str]],
+) -> dict:
+    """
+    All serials received from vendor (VINV) must appear in at least one Company DC.
+    CDC can have MORE serials (stock items) — only FEWER is a problem.
+    """
+    received = {s.upper().strip() for sl in vinv_serials for s in sl if s.strip()}
+    shipped  = {s.upper().strip() for sl in cdc_serials  for s in sl if s.strip()}
+    if not received:
+        return {"result": ReferenceCheckResult.SKIP, "missing": [], "skip_reason": "no_vendor_serials"}
+    if not shipped:
+        return {"result": ReferenceCheckResult.SKIP, "missing": [], "skip_reason": "no_cdc_serials"}
+    missing = sorted(received - shipped)
+    return {
+        "result": ReferenceCheckResult.MISMATCH if missing else ReferenceCheckResult.PASS,
+        "missing": missing,
+        "skip_reason": None,
+    }
+
+
+def check_vdc_vs_vinv_serials(
+    vdc_serials: list[str],
+    vinv_serials: list[list[str]],
+) -> dict:
+    """All serials on Vendor DC must appear on at least one Vendor Invoice."""
+    vdc_set  = {s.upper().strip() for s in vdc_serials if s.strip()}
+    vinv_set = {s.upper().strip() for sl in vinv_serials for s in sl if s.strip()}
+    if not vdc_set:
+        return {"result": ReferenceCheckResult.SKIP, "missing": [], "skip_reason": "no_vdc_serials"}
+    if not vinv_set:
+        return {"result": ReferenceCheckResult.SKIP, "missing": [], "skip_reason": "no_vinv_serials"}
+    missing = sorted(vdc_set - vinv_set)
+    return {
+        "result": ReferenceCheckResult.MISMATCH if missing else ReferenceCheckResult.PASS,
+        "missing": missing,
+        "skip_reason": None,
+    }
