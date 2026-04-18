@@ -50,9 +50,11 @@ def check_vpo_reference(
     """
     if not registered_vpo_numbers:
         return ReferenceCheckResult.SKIP
+    if not doc_vpo_numbers_list:
+        return ReferenceCheckResult.SKIP  # no invoices present at all — missing slot, not mismatch
     all_invoice_vpos = {v.strip() for vpo_list in doc_vpo_numbers_list for v in vpo_list}
     if not all_invoice_vpos:
-        return ReferenceCheckResult.MISMATCH
+        return ReferenceCheckResult.MISMATCH  # invoices exist but no VPO found on any of them
     registered_set = {v.strip() for v in registered_vpo_numbers}
     if registered_set.issubset(all_invoice_vpos):
         return ReferenceCheckResult.PASS

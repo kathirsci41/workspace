@@ -83,8 +83,8 @@ def test_so_mismatch_sets_mismatch_status():
     assert result["chain_status"] == ChainStatus.MISMATCH
 
 
-def test_procurement_missing_vendor_invoice_is_mismatch():
-    """VPO registered but no invoice covers it → VPO check returns MISMATCH."""
+def test_procurement_missing_vendor_invoice_is_incomplete():
+    """VPO registered but no VENDOR_INVOICE document uploaded → INCOMPLETE (not MISMATCH)."""
     result = compute_chain_status(
         scenario=OrderScenario.PROCUREMENT,
         po_number="CPO-001",
@@ -102,7 +102,7 @@ def test_procurement_missing_vendor_invoice_is_mismatch():
         requires_install_report=False,
         invoiced_total=100000.0,
     )
-    assert result["chain_status"] == ChainStatus.MISMATCH
+    assert result["chain_status"] == ChainStatus.INCOMPLETE
     assert "VPO-001" in result["missing_vendor_invoices"]
 
 

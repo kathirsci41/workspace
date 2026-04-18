@@ -95,10 +95,10 @@ def test_vpo_reference_empty_registered_vpos_returns_skip():
     assert result == ReferenceCheckResult.SKIP
 
 
-def test_vpo_reference_no_invoices_at_all_returns_mismatch():
-    """Registered VPOs exist but no invoice documents at all — coverage failure."""
+def test_vpo_reference_no_invoices_at_all_returns_skip():
+    """No invoices at all → SKIP so missing_vendor_invoices drives INCOMPLETE, not MISMATCH."""
     result = check_vpo_reference(
         doc_vpo_numbers_list=[],
         registered_vpo_numbers=["VPO-001"],
     )
-    assert result == ReferenceCheckResult.MISMATCH
+    assert result == ReferenceCheckResult.SKIP
