@@ -34,26 +34,26 @@ const COL_LABELS: Record<string, string> = {
 
 // Tailwind classes — define width per known column; unknown columns get auto width
 const COL_WIDTHS: Record<string, string> = {
-  sr_no:            'w-10',
-  part_no:          'w-28',
-  description:      'min-w-[10rem]',
-  hsn_code:         'w-20',
-  qty:              'w-14',
-  uom:              'w-14',
-  unit_price:       'w-24',
-  total_price:      'w-24',
-  serial_numbers:   'w-32',
-  // Delivery locations
-  region:           'w-20',
-  unit:             'w-16',
-  branch:           'w-24',
-  gstin_no:         'w-28',
-  asset_description:'min-w-[8rem]',
-  employee_code:    'w-20',
-  employee_name:    'w-28',
-  contact_person:   'w-28',
-  contact_no:       'w-24',
-  delivery_address: 'min-w-[12rem]',
+  sr_no:            'min-w-[2.5rem]',
+  part_no:          'min-w-[7rem]',
+  description:      'min-w-[14rem]',
+  hsn_code:         'min-w-[5rem]',
+  qty:              'min-w-[3.5rem]',
+  uom:              'min-w-[3.5rem]',
+  unit_price:       'min-w-[6rem]',
+  total_price:      'min-w-[6rem]',
+  serial_numbers:   'min-w-[9rem]',
+  // Delivery locations — wider to prevent truncation
+  region:           'min-w-[5rem]',
+  unit:             'min-w-[4rem]',
+  branch:           'min-w-[7rem]',
+  gstin_no:         'min-w-[10rem]',
+  asset_description:'min-w-[14rem]',
+  employee_code:    'min-w-[6rem]',
+  employee_name:    'min-w-[12rem]',
+  contact_person:   'min-w-[10rem]',
+  contact_no:       'min-w-[8rem]',
+  delivery_address: 'min-w-[16rem]',
 };
 
 export function OrderItemsTable({ columns, rows, onChange, readOnly = false }: OrderItemsTableProps) {
@@ -78,7 +78,7 @@ export function OrderItemsTable({ columns, rows, onChange, readOnly = false }: O
   return (
     <div>
       <div className="overflow-x-auto rounded border border-gray-200">
-        <table className="w-full text-xs border-collapse">
+        <table className="min-w-max w-full text-xs border-collapse">
           <thead>
             <tr className="bg-gray-50">
               {columns.map((col) => (

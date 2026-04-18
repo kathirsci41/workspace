@@ -66,8 +66,9 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
   const [formData, setFormData]           = useState<Record<string, string>>({});
   const [customFields, setCustomFields]   = useState<{ id: string; label: string; value: string }[]>([]);
   const [isManualMode, setIsManualMode]   = useState(false);
+  const [isEditMode, setIsEditMode]       = useState(false);
   const [errorsOpen, setErrorsOpen]       = useState(true);
-  const [warningsOpen, setWarningsOpen]   = useState(false);
+  const [warningsOpen, setWarningsOpen]   = useState(true);
 
   // SO entry prompt — shown when PO has no SO number (verify blocked until set)
   const [soPrompt, setSoPrompt]           = useState<{ poId: string } | null>(null);
@@ -130,10 +131,11 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       const dRows = parsedDelivery.map(normalizeRow);
       setDeliveryRows(dRows);
       originalDeliveryRows.current = dRows;
-      setIsManualMode(
+      const manual =
         metadata.model_version === 'manual' ||
-        Object.values(metadata.extracted_data).every((v) => v === null || v === '')
-      );
+        Object.values(metadata.extracted_data).every((v) => v === null || v === '');
+      setIsManualMode(manual);
+      setIsEditMode(manual);
     } else if (template?.fields) {
       const initial: Record<string, string> = {};
       for (const key of Object.keys(template.fields)) {
@@ -148,6 +150,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       setDeliveryRows([]);
       originalDeliveryRows.current = [];
       setIsManualMode(true);
+      setIsEditMode(true);
     }
   }, [metadata, template]);
 
@@ -480,7 +483,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
         </div>
       )}
 
-      <div className="m-auto bg-white rounded-xl shadow-2xl w-[95vw] h-[90vh] max-w-7xl flex flex-col">
+      <div className="m-auto bg-white w-screen h-screen flex flex-col">
 
         {/* ── Header ──────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
@@ -543,12 +546,32 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
         <div className="flex-1 flex min-h-0">
 
           {/* Left: PDF */}
-          <div className="w-1/2 border-r border-gray-200">
+          <div className="w-[58%] border-r border-gray-200">
             <PDFViewer url={getPreviewUrl(documentId)} />
           </div>
 
           {/* Right: Form */}
-          <div className="w-1/2 flex flex-col">
+          <div className="w-[42%] flex flex-col">
+            {/* Edit mode toggle bar */}
+            {!isManualMode && (
+              <div className="flex items-center justify-between px-5 py-2.5 border-b border-gray-100 bg-gray-50/50">
+                <span className="text-xs text-gray-400">
+                  {isEditMode ? 'Edit mode — modify fields then Verify' : 'Review mode — verify extracted values'}
+                </span>
+                <button
+                  onClick={() => setIsEditMode((v) => !v)}
+                  className={clsx(
+                    'inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors',
+                    isEditMode
+                      ? 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                      : 'bg-[--accent] border-[--accent] text-white hover:opacity-90'
+                  )}
+                >
+                  <PenLine size={13} />
+                  {isEditMode ? 'Back to Review' : 'Edit Fields'}
+                </button>
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto p-6 space-y-3">
 
               {/* Manual mode notice */}
@@ -628,71 +651,93 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
               )}
 
               {/* ── Form fields ──────────────────────────────────── */}
-              {sortedFormKeys(Object.keys(formData).filter((k) => !ARRAY_FIELDS.has(k))).map((key) => {
-                const value = formData[key];
-                const conf  = getFieldConfidence(key);
-                const isChanged = value !== (originalSnapshot.current[key] ?? '');
+              <div className={clsx(isEditMode ? 'space-y-3' : 'grid grid-cols-2 gap-2.5')}>
+                {sortedFormKeys(Object.keys(formData).filter((k) => !ARRAY_FIELDS.has(k) && k !== 'operator_notes')).map((key) => {
+                  const value     = formData[key];
+                  const conf      = getFieldConfidence(key);
+                  const isEmpty   = !value;
+                  const isLowConf = conf !== null && conf < CONF_MEDIUM;
+                  const isChanged = value !== (originalSnapshot.current[key] ?? '');
 
-                return (
-                  <div key={key}>
-                    <label className="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">
-                      <span>
-                        {formatLabel(key)}
-                        {/* Changed indicator */}
-                        {isChanged && (
-                          <span className="ml-1.5 text-blue-500 font-semibold" title="Modified">
-                            ✎
+                  if (!isEditMode) {
+                    return (
+                      <div
+                        key={key}
+                        className={clsx(
+                          'rounded-lg px-3 py-2.5 border',
+                          isEmpty      ? 'bg-red-50 border-red-200'
+                          : isLowConf  ? 'bg-amber-50 border-amber-200'
+                          :              'bg-white border-[--veil]',
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                            {formatLabel(key)}
+                          </span>
+                          {conf !== null && (
+                            <span className={clsx('text-[10px] px-1.5 py-0.5 rounded font-medium', confBadgeColour(conf))}>
+                              {Math.round(conf * 100)}%
+                            </span>
+                          )}
+                        </div>
+                        <p className={clsx(
+                          'text-sm font-medium break-words',
+                          isEmpty     ? 'text-red-400 italic'
+                          : isLowConf ? 'text-amber-900'
+                          :              'text-[--ink]',
+                        )}>
+                          {isEmpty ? 'Not extracted' : value}
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={key}>
+                      <label className="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">
+                        <span>
+                          {formatLabel(key)}
+                          {isChanged && (
+                            <span className="ml-1.5 text-blue-500 font-semibold" title="Modified">✎</span>
+                          )}
+                        </span>
+                        {conf !== null && (
+                          <span className={clsx('text-xs px-1.5 py-0.5 rounded font-medium', confBadgeColour(conf))}>
+                            {Math.round(conf * 100)}%
                           </span>
                         )}
-                      </span>
-                      {/* ── NEW Phase 5: per-field confidence badge ── */}
-                      {conf !== null && (
-                        <span
-                          className={clsx(
-                            'text-xs px-1.5 py-0.5 rounded font-medium',
-                            confBadgeColour(conf)
-                          )}
+                      </label>
+                      {key === 'signature_present' ? (
+                        <select
+                          value={value}
+                          onChange={(e) => setFormData((f) => ({ ...f, [key]: e.target.value }))}
+                          className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none border-gray-300"
                         >
-                          {Math.round(conf * 100)}%
-                        </span>
+                          <option value="">Unknown</option>
+                          <option value="true">Yes</option>
+                          <option value="false">No</option>
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={(e) => setFormData((f) => ({ ...f, [key]: e.target.value }))}
+                          placeholder={`Enter ${formatLabel(key).toLowerCase()}`}
+                          className={clsx(
+                            'w-full px-3 py-2 border-l-4 border rounded-lg text-sm',
+                            'focus:ring-2 focus:ring-blue-500 focus:outline-none',
+                            conf !== null
+                              ? confColour(conf)
+                              : value
+                                ? 'border-gray-300'
+                                : 'border-red-200 bg-red-50'
+                          )}
+                        />
                       )}
-                    </label>
-
-                    {key === 'signature_present' ? (
-                      <select
-                        value={value}
-                        onChange={(e) =>
-                          setFormData((f) => ({ ...f, [key]: e.target.value }))
-                        }
-                        className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none border-gray-300"
-                      >
-                        <option value="">Unknown</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        value={value}
-                        onChange={(e) =>
-                          setFormData((f) => ({ ...f, [key]: e.target.value }))
-                        }
-                        placeholder={`Enter ${formatLabel(key).toLowerCase()}`}
-                        className={clsx(
-                          'w-full px-3 py-2 border-l-4 border rounded-lg text-sm',
-                          'focus:ring-2 focus:ring-blue-500 focus:outline-none',
-                          // Left border from confidence, right border from value presence
-                          conf !== null
-                            ? confColour(conf)
-                            : value
-                              ? 'border-gray-300'
-                              : 'border-red-200 bg-red-50'
-                        )}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                })}
+              </div>
 
               {Object.keys(formData).length === 0 && !isLoading && (
                 <p className="text-sm text-gray-400 py-8 text-center">
@@ -741,7 +786,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
               )}
 
               {/* ── Operator Remarks — always visible ─────────────── */}
-              {'operator_notes' in formData && (
+              {'operator_notes' in formData && (isEditMode || !!formData['operator_notes']) && (
                 <div className="pt-3 mt-1 border-t border-gray-100">
                   <label className="block text-xs font-medium text-gray-500 mb-1">
                     Remarks
@@ -760,7 +805,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
               )}
 
               {/* ── Custom Fields ──────────────────────────────────── */}
-              <div className="pt-3 mt-1 border-t border-gray-100">
+              {isEditMode && <div className="pt-3 mt-1 border-t border-gray-100">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-medium text-gray-500">Custom Fields</span>
                   <button
@@ -795,7 +840,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
                     </button>
                   </div>
                 ))}
-              </div>
+              </div>}
             </div>
 
             {/* ── Action buttons ─────────────────────────────────── */}
