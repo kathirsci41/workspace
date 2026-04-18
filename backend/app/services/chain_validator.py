@@ -135,14 +135,7 @@ def compute_chain_status(
             doc_vpo_numbers_list=doc_vpo_numbers_list,
             registered_vpo_numbers=vpo_numbers or [],
         )
-        vpo_skip_reason = None
-        if vpo_result == ReferenceCheckResult.SKIP:
-            if not (vpo_numbers or []):
-                vpo_skip_reason = "no_vpo_registered"
-            elif not any(d.get("extraction_ok", True) for d in vendor_invoices):
-                vpo_skip_reason = "extraction_failed"
-            else:
-                vpo_skip_reason = "no_extracted_vpo"
+        vpo_skip_reason = "no_vpo_registered" if vpo_result == ReferenceCheckResult.SKIP else None
         all_invoice_vpos = [v for vpo_list in doc_vpo_numbers_list for v in vpo_list]
         reference_checks.append({
             "document_type": DocumentType.VENDOR_INVOICE,

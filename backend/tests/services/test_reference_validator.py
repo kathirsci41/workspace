@@ -78,12 +78,13 @@ def test_vpo_reference_no_match_returns_mismatch():
     assert result == ReferenceCheckResult.MISMATCH
 
 
-def test_vpo_reference_empty_doc_vpos_returns_skip():
+def test_vpo_reference_empty_doc_vpos_returns_mismatch():
+    """Invoice present but no VPOs on it and VPOs are registered → MISMATCH."""
     result = check_vpo_reference(
         doc_vpo_numbers_list=[[]],
         registered_vpo_numbers=["1PTR2526000400"],
     )
-    assert result == ReferenceCheckResult.SKIP
+    assert result == ReferenceCheckResult.MISMATCH
 
 
 def test_vpo_reference_empty_registered_vpos_returns_skip():
@@ -92,3 +93,12 @@ def test_vpo_reference_empty_registered_vpos_returns_skip():
         registered_vpo_numbers=[],
     )
     assert result == ReferenceCheckResult.SKIP
+
+
+def test_vpo_reference_no_invoices_at_all_returns_mismatch():
+    """Registered VPOs exist but no invoice documents at all — coverage failure."""
+    result = check_vpo_reference(
+        doc_vpo_numbers_list=[],
+        registered_vpo_numbers=["VPO-001"],
+    )
+    assert result == ReferenceCheckResult.MISMATCH

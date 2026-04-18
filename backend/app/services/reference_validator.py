@@ -52,7 +52,7 @@ def check_vpo_reference(
         return ReferenceCheckResult.SKIP
     all_invoice_vpos = {v.strip() for vpo_list in doc_vpo_numbers_list for v in vpo_list}
     if not all_invoice_vpos:
-        return ReferenceCheckResult.SKIP
+        return ReferenceCheckResult.MISMATCH
     registered_set = {v.strip() for v in registered_vpo_numbers}
     if registered_set.issubset(all_invoice_vpos):
         return ReferenceCheckResult.PASS
