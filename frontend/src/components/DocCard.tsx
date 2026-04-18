@@ -4,7 +4,6 @@ import type { ChainSlot } from '@/types';
 import clsx from 'clsx';
 
 interface Props {
-  docType: string;
   label: string;
   slot: ChainSlot | null;
   onUpload: () => void;
@@ -34,7 +33,7 @@ const STATUS_TAG: Record<string, { label: string; cls: string }> = {
 };
 
 export default function DocCard({
-  docType: _docType, label, slot,
+  label, slot,
   onUpload, onReview, onView, onReExtract, onEditFields, onDelete,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);

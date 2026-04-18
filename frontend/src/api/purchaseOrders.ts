@@ -75,6 +75,7 @@ export async function getPOProfile(poId: string): Promise<POProfile> {
 }
 
 export interface ChainStatusResponse {
+  chain: Record<string, import('@/types').ChainSlot[]>;
   chain_status: 'incomplete' | 'complete' | 'verified' | 'mismatch';
   completeness_pct?: number;
   missing_slots: string[];

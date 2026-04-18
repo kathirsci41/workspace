@@ -41,7 +41,7 @@ function KpiCard({ label, value, sub, variant }: {
 export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
   const billingType = po.billing_type ?? 'full';
   const milestones: BillingMilestone[] = po.billing_milestones ?? [];
-  const stages = chainValidation?.billing?.stages ?? [];
+  const stages = chainValidation?.billing.stages ?? [];
   const total = Number(po.total_amount ?? 0);
 
   const billedSoFar = stages.reduce((sum, s) => sum + (s.invoiced_amount ?? 0), 0);
@@ -49,26 +49,28 @@ export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
   const billedPct   = total > 0 ? Math.round((billedSoFar / total) * 100) : 0;
 
   const [editingMilestones, setEditingMilestones] = useState(false);
-  const [draftMilestones, setDraftMilestones] = useState<BillingMilestone[]>(milestones);
+  type DraftMilestone = BillingMilestone & { _id: number };
+  const toDraft = (m: BillingMilestone, i: number): DraftMilestone => ({ ...m, _id: i });
+  const [draftMilestones, setDraftMilestones] = useState<DraftMilestone[]>(milestones.map(toDraft));
 
   function saveMilestones() {
-    onUpdate({ billing_milestones: draftMilestones });
+    onUpdate({ billing_milestones: draftMilestones.map(({ _id: _, ...m }) => m) });
     setEditingMilestones(false);
   }
 
   function addMilestone() {
     setDraftMilestones(prev => [
       ...prev,
-      { name: '', percentage: 0, trigger: '', due_date: null },
+      { name: '', percentage: 0, trigger: '', due_date: null, _id: Date.now() },
     ]);
   }
 
-  function updateDraft(i: number, field: keyof BillingMilestone, value: string | number | null) {
-    setDraftMilestones(prev => prev.map((m, idx) => idx === i ? { ...m, [field]: value } : m));
+  function updateDraft(id: number, field: keyof BillingMilestone, value: string | number | null) {
+    setDraftMilestones(prev => prev.map(m => m._id === id ? { ...m, [field]: value } : m));
   }
 
-  function removeDraft(i: number) {
-    setDraftMilestones(prev => prev.filter((_, idx) => idx !== i));
+  function removeDraft(id: number) {
+    setDraftMilestones(prev => prev.filter(m => m._id !== id));
   }
 
   return (
@@ -180,7 +182,7 @@ export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
             </span>
             {!editingMilestones && (
               <button
-                onClick={() => { setDraftMilestones(milestones); setEditingMilestones(true); }}
+                onClick={() => { setDraftMilestones(milestones.map(toDraft)); setEditingMilestones(true); }}
                 className="text-xs font-semibold text-[--accent] hover:underline"
               >
                 ✏ Edit milestones
@@ -191,13 +193,13 @@ export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
           {editingMilestones && (
             <div className="bg-[#eef2ff] border border-[#c7d2fe] rounded-xl p-4 mb-4">
               <div className="space-y-2 mb-3">
-                {draftMilestones.map((m, i) => (
-                  <div key={i} className="grid grid-cols-[2fr_1fr_2fr_auto] gap-2 items-center">
+                {draftMilestones.map(m => (
+                  <div key={m._id} className="grid grid-cols-[2fr_1fr_2fr_auto] gap-2 items-center">
                     <input
                       className="border border-[--veil] rounded-lg px-2 py-1.5 text-xs"
                       placeholder="Milestone name"
                       value={m.name}
-                      onChange={e => updateDraft(i, 'name', e.target.value)}
+                      onChange={e => updateDraft(m._id, 'name', e.target.value)}
                     />
                     <input
                       className="border border-[--veil] rounded-lg px-2 py-1.5 text-xs"
@@ -206,15 +208,15 @@ export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
                       min={0}
                       max={100}
                       value={m.percentage}
-                      onChange={e => updateDraft(i, 'percentage', Number(e.target.value))}
+                      onChange={e => updateDraft(m._id, 'percentage', Number(e.target.value))}
                     />
                     <input
                       className="border border-[--veil] rounded-lg px-2 py-1.5 text-xs"
                       placeholder="Trigger (e.g. On delivery)"
                       value={m.trigger}
-                      onChange={e => updateDraft(i, 'trigger', e.target.value)}
+                      onChange={e => updateDraft(m._id, 'trigger', e.target.value)}
                     />
-                    <button onClick={() => removeDraft(i)} className="text-red-400 hover:text-red-600 px-1 text-sm">✕</button>
+                    <button onClick={() => removeDraft(m._id)} className="text-red-400 hover:text-red-600 px-1 text-sm">✕</button>
                   </div>
                 ))}
               </div>
@@ -242,7 +244,7 @@ export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
             <div className="bg-white border border-[--veil] rounded-xl p-6 text-center text-sm text-gray-400">
               No milestones defined yet.{' '}
               <button
-                onClick={() => { setDraftMilestones([]); setEditingMilestones(true); }}
+                onClick={() => { setDraftMilestones([]  ); setEditingMilestones(true); }}
                 className="text-[--accent] font-semibold hover:underline"
               >
                 Set up milestones
