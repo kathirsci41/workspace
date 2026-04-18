@@ -97,3 +97,51 @@ def check_vdc_vs_vinv_serials(
         "missing": missing,
         "skip_reason": None,
     }
+
+
+# ── Module 3D: Document Cross-References ────────────────────────────────────
+
+def check_dc_ref_on_ci(
+    cdc_dc_numbers: list[str],
+    ci_dc_refs: list[str | None],
+) -> ReferenceCheckResult:
+    """Company Invoice should reference at least one Company DC number. WARNING if missing."""
+    if not cdc_dc_numbers:
+        return ReferenceCheckResult.SKIP
+    refs_text = " ".join(r for r in ci_dc_refs if r)
+    if not refs_text:
+        return ReferenceCheckResult.SKIP
+    for dc_num in cdc_dc_numbers:
+        if dc_num and dc_num.upper() not in refs_text.upper():
+            return ReferenceCheckResult.WARNING
+    return ReferenceCheckResult.PASS
+
+
+def check_vpo_ref_on_vdc(
+    vdc_po_refs: list[str | None],
+    vpo_numbers: list[str],
+) -> ReferenceCheckResult:
+    """Vendor DC should cite Company PO number. WARNING if missing."""
+    if not vpo_numbers:
+        return ReferenceCheckResult.SKIP
+    refs = {r.upper().strip() for r in vdc_po_refs if r}
+    if not refs:
+        return ReferenceCheckResult.SKIP
+    vpos = {v.upper().strip() for v in vpo_numbers}
+    return ReferenceCheckResult.PASS if refs & vpos else ReferenceCheckResult.WARNING
+
+
+def check_vdc_ref_on_vinv(
+    vdc_dc_numbers: list[str],
+    vinv_dc_refs: list[str | None],
+) -> ReferenceCheckResult:
+    """Vendor Invoice should reference Vendor DC number. WARNING if missing."""
+    if not vdc_dc_numbers:
+        return ReferenceCheckResult.SKIP
+    refs_text = " ".join(r for r in vinv_dc_refs if r)
+    if not refs_text:
+        return ReferenceCheckResult.SKIP
+    for dc_num in vdc_dc_numbers:
+        if dc_num and dc_num.upper() not in refs_text.upper():
+            return ReferenceCheckResult.WARNING
+    return ReferenceCheckResult.PASS

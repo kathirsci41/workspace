@@ -5,6 +5,9 @@ from app.services.cross_doc_validator import (
     check_name_consistency,
     check_serial_chain,
     check_vdc_vs_vinv_serials,
+    check_dc_ref_on_ci,
+    check_vpo_ref_on_vdc,
+    check_vdc_ref_on_vinv,
 )
 from app.services.reference_validator import ReferenceCheckResult
 
@@ -137,3 +140,54 @@ def test_vdc_vs_vinv_serials_missing_returns_mismatch():
     )
     assert result["result"] == ReferenceCheckResult.MISMATCH
     assert "NDLEFAU" in result["missing"]
+
+
+# --- 3D: Document cross-references ---
+
+def test_dc_ref_on_ci_found_returns_pass():
+    assert check_dc_ref_on_ci(
+        cdc_dc_numbers=["1DNT2526DC2915"],
+        ci_dc_refs=["1DNT2526DC2915"],
+    ) == ReferenceCheckResult.PASS
+
+def test_dc_ref_on_ci_not_found_returns_warning():
+    assert check_dc_ref_on_ci(
+        cdc_dc_numbers=["1DNT2526DC2915"],
+        ci_dc_refs=["SOME-OTHER-DC"],
+    ) == ReferenceCheckResult.WARNING
+
+def test_dc_ref_on_ci_no_ci_refs_returns_skip():
+    assert check_dc_ref_on_ci(
+        cdc_dc_numbers=["1DNT2526DC2915"],
+        ci_dc_refs=[None],
+    ) == ReferenceCheckResult.SKIP
+
+def test_vpo_ref_on_vdc_found_returns_pass():
+    assert check_vpo_ref_on_vdc(
+        vdc_po_refs=["1PTR2526000400"],
+        vpo_numbers=["1PTR2526000400"],
+    ) == ReferenceCheckResult.PASS
+
+def test_vpo_ref_on_vdc_not_found_returns_warning():
+    assert check_vpo_ref_on_vdc(
+        vdc_po_refs=["WRONG-PO"],
+        vpo_numbers=["1PTR2526000400"],
+    ) == ReferenceCheckResult.WARNING
+
+def test_vpo_ref_on_vdc_no_vpo_numbers_returns_skip():
+    assert check_vpo_ref_on_vdc(
+        vdc_po_refs=["1PTR2526000400"],
+        vpo_numbers=[],
+    ) == ReferenceCheckResult.SKIP
+
+def test_vdc_ref_on_vinv_found_returns_pass():
+    assert check_vdc_ref_on_vinv(
+        vdc_dc_numbers=["VDC-001"],
+        vinv_dc_refs=["VDC-001"],
+    ) == ReferenceCheckResult.PASS
+
+def test_vdc_ref_on_vinv_no_refs_returns_skip():
+    assert check_vdc_ref_on_vinv(
+        vdc_dc_numbers=["VDC-001"],
+        vinv_dc_refs=[None],
+    ) == ReferenceCheckResult.SKIP
