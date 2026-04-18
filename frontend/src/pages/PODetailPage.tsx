@@ -73,7 +73,7 @@ export default function PODetailPage() {
   const updatePOMutation = useMutation({
     mutationFn: (patch: Partial<PurchaseOrder>) => updatePO(id!, patch),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['purchase-order', id] });
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrder', id] });
       queryClient.invalidateQueries({ queryKey: ['chain-validation', id] });
       queryClient.invalidateQueries({ queryKey: ['chain-status', id] });
       showToast('Saved', 'success');
@@ -153,7 +153,7 @@ export default function PODetailPage() {
   const invalidateChain = () => {
     queryClient.invalidateQueries({ queryKey: ['chain-validation', id] });
     queryClient.invalidateQueries({ queryKey: ['chain-status', id] });
-    queryClient.invalidateQueries({ queryKey: ['purchase-order', id] });
+    queryClient.invalidateQueries({ queryKey: ['purchaseOrder', id] });
   };
 
   if (poLoading) {
