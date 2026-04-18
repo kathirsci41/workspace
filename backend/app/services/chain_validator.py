@@ -82,23 +82,38 @@ def compute_chain_status(
         ok = doc.get("extraction_ok", True)
 
         if doc_type in (DocumentType.COMPANY_DC, DocumentType.COMPANY_INVOICE):
+            extracted_so = doc.get("so_number") if ok else None
             so_result = check_so_consistency(
-                extracted_so=doc.get("so_number") if ok else None,
+                extracted_so=extracted_so,
                 expected_so=so_number,
             )
+            if so_result == ReferenceCheckResult.SKIP:
+                so_skip_reason = "extraction_failed" if not ok else ("no_so_number" if not so_number else "no_extracted_value")
+            else:
+                so_skip_reason = None
+
+            extracted_cpo = doc.get("cpo_ref") if ok else None
             cpo_result = check_cpo_reference(
-                extracted_cpo_ref=doc.get("cpo_ref") if ok else None,
+                extracted_cpo_ref=extracted_cpo,
                 expected_po_number=po_number,
             )
+            cpo_skip_reason = "extraction_failed" if cpo_result == ReferenceCheckResult.SKIP and not ok else None
+
             reference_checks.append({
                 "document_type": doc_type,
                 "check": "so_consistency",
                 "result": so_result,
+                "extracted": extracted_so,
+                "expected": so_number,
+                "skip_reason": so_skip_reason,
             })
             reference_checks.append({
                 "document_type": doc_type,
                 "check": "cpo_reference",
                 "result": cpo_result,
+                "extracted": extracted_cpo,
+                "expected": po_number,
+                "skip_reason": cpo_skip_reason,
             })
             if so_result == ReferenceCheckResult.MISMATCH:
                 has_mismatch = True
@@ -106,14 +121,21 @@ def compute_chain_status(
                 has_mismatch = True
 
         if doc_type == DocumentType.VENDOR_INVOICE:
+            doc_vpo_numbers = doc.get("vpo_numbers") or []
             vpo_result = check_vpo_reference(
-                doc_vpo_numbers=doc.get("vpo_numbers") or [],
+                doc_vpo_numbers=doc_vpo_numbers,
                 registered_vpo_numbers=vpo_numbers or [],
             )
+            vpo_skip_reason = None
+            if vpo_result == ReferenceCheckResult.SKIP:
+                vpo_skip_reason = "no_vpo_registered" if not (vpo_numbers or []) else "no_extracted_vpo"
             reference_checks.append({
                 "document_type": doc_type,
                 "check": "vpo_reference",
                 "result": vpo_result,
+                "extracted": ", ".join(doc_vpo_numbers) if doc_vpo_numbers else None,
+                "expected": ", ".join(vpo_numbers or []) if vpo_numbers else None,
+                "skip_reason": vpo_skip_reason,
             })
             if vpo_result == ReferenceCheckResult.MISMATCH:
                 has_mismatch = True

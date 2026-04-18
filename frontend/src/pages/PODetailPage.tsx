@@ -297,18 +297,35 @@ export default function PODetailPage() {
                 <span className="text-xs text-gray-400">No reference data — upload documents to validate</span>
               )}
               {referenceChecks.map((rc, i) => (
-                <span
-                  key={i}
-                  className={clsx(
-                    'text-xs font-medium px-3 py-1.5 rounded-lg border flex items-center gap-1.5',
-                    rc.result === 'pass'     && 'bg-green-50 border-green-300 text-green-700',
-                    rc.result === 'mismatch' && 'bg-red-50 border-red-300 text-red-700',
-                    rc.result === 'skip'     && 'bg-gray-50 border-gray-200 text-gray-500',
+                <div key={i} className="relative group">
+                  <span
+                    className={clsx(
+                      'text-xs font-medium px-3 py-1.5 rounded-lg border flex items-center gap-1.5 cursor-default',
+                      rc.result === 'pass'     && 'bg-green-50 border-green-300 text-green-700',
+                      rc.result === 'mismatch' && 'bg-red-50 border-red-300 text-red-700',
+                      rc.result === 'skip' && rc.skip_reason === 'extraction_failed'
+                        ? 'bg-orange-50 border-orange-200 text-orange-600'
+                        : rc.result === 'skip' && 'bg-gray-50 border-gray-200 text-gray-400',
+                    )}
+                  >
+                    {rc.result === 'pass' ? '✓' : rc.result === 'mismatch' ? '✗' : rc.skip_reason === 'extraction_failed' ? '⚠' : '○'}
+                    {' '}{rc.check}
+                  </span>
+                  {(rc.result === 'mismatch' || (rc.result === 'skip' && rc.skip_reason === 'extraction_failed')) && (
+                    <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover:block z-30 w-64 bg-[--ink] text-white text-[10px] rounded-lg px-3 py-2 shadow-lg">
+                      {rc.result === 'mismatch' && (
+                        <>
+                          <div className="font-bold mb-1">Mismatch</div>
+                          <div>Extracted: <span className="font-mono">{rc.extracted ?? '—'}</span></div>
+                          <div>Expected: <span className="font-mono">{rc.expected ?? '—'}</span></div>
+                        </>
+                      )}
+                      {rc.result === 'skip' && rc.skip_reason === 'extraction_failed' && (
+                        <div>Extraction failed — validate manually</div>
+                      )}
+                    </div>
                   )}
-                >
-                  {rc.result === 'pass' ? '✓' : rc.result === 'mismatch' ? '✗' : '○'}
-                  {' '}{rc.check}
-                </span>
+                </div>
               ))}
             </div>
 

@@ -104,7 +104,8 @@ async def build_order_context(po_id: str | uuid.UUID, db: AsyncSession) -> str:
             )
 
     billing = chain.get("billing", {})
-    billing_status = billing.get("overall", "unknown")
+    billing_status_raw = billing.get("overall", "unknown")
+    billing_status = billing_status_raw.value if hasattr(billing_status_raw, "value") else str(billing_status_raw)
     lines.append(f"Billing status: {billing_status}")
     if billing.get("stages"):
         for stage in billing["stages"]:
@@ -122,7 +123,7 @@ async def build_order_context(po_id: str | uuid.UUID, db: AsyncSession) -> str:
             meta = doc.doc_metadata
             ref = meta.primary_ref_no if meta else None
             amount = _fmt_amount(meta.total_amount) if meta else "N/A"
-            conf = f"{int((meta.confidence_score or 0) * 100)}%" if meta and meta.confidence_score else "N/A"
+            conf = f"{int(meta.confidence_score or 0)}%" if meta and meta.confidence_score else "N/A"
             lines.append(
                 f"  {doc.document_type.value}: [{doc.status.value}]"
                 f" ref={ref or 'N/A'} amount={amount} confidence={conf}"

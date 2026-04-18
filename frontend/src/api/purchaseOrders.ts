@@ -84,8 +84,9 @@ export interface ChainStatusResponse {
     document_type: string;
     check: string;
     result: 'pass' | 'mismatch' | 'skip';
-    extracted?: string;
-    expected?: string;
+    extracted?: string | null;
+    expected?: string | null;
+    skip_reason?: string | null;
   }>;
   billing: {
     overall: string;

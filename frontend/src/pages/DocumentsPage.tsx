@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ExternalLink, X } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useCustomers } from '@/hooks/useCustomers';
+import { SkeletonTableRow } from '@/components/Skeleton';
 import clsx from 'clsx';
 
 const DOC_TYPE_OPTIONS = [
@@ -192,11 +193,9 @@ export default function DocumentsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {isLoading ? (
-              <tr>
-                <td colSpan={8} className="px-5 py-8 text-center text-gray-400">Loading...</td>
-              </tr>
-            ) : data?.items?.length ? (
+            {isLoading
+              ? Array.from({ length: 6 }).map((_, i) => <SkeletonTableRow key={i} columns={8} />)
+              : data?.items?.length ? (
               data.items.map((doc) => (
                 <tr key={doc.id} className="hover:bg-gray-50">
                   <td className="px-5 py-3">
@@ -210,10 +209,10 @@ export default function DocumentsPage() {
                   <td className="px-5 py-3 font-mono text-xs text-gray-600">
                     {doc.metadata?.primary_ref_no ?? '—'}
                   </td>
-                  <td className="px-5 py-3 font-medium text-blue-700">
+                  <td className="px-5 py-3 font-mono font-medium text-accent">
                     {doc.po_number || '—'}
                   </td>
-                  <td className="px-5 py-3 text-gray-600">
+                  <td className="px-5 py-3 text-ink/70 max-w-[160px] truncate" title={doc.customer_name || '—'}>
                     {doc.customer_name || '—'}
                   </td>
                   <td className="px-5 py-3">

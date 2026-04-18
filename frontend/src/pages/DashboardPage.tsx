@@ -5,6 +5,7 @@ import client from '@/api/client';
 import { usePurchaseOrders } from '@/hooks/usePurchaseOrders';
 import { useDocumentsByStatus } from '@/hooks/useDocuments';
 import { DOC_TYPE_LABELS } from '@/types';
+import { SkeletonCard, SkeletonTableRow } from '@/components/Skeleton';
 import clsx from 'clsx';
 
 interface Stats {
@@ -86,11 +87,13 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
+      <h2 className="text-2xl font-bold font-display tracking-tight mb-6">Dashboard</h2>
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        {cards.map((card) => (
+        {!stats
+          ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+          : cards.map((card) => (
           <div
             key={card.label}
             onClick={card.onClick ?? (card.to ? () => navigate(card.to!) : undefined)}
@@ -155,7 +158,7 @@ export default function DashboardPage() {
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <button
           onClick={() => navigate('/purchase-orders')}
-          className="flex items-center gap-1.5 bg-blue-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
+          className="flex items-center gap-1.5 bg-accent text-white text-sm px-4 py-2 rounded-lg hover:bg-accent/90 font-medium"
         >
           <Plus size={15} /> Create PO
         </button>
@@ -205,6 +208,7 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
+              {!pendingData && Array.from({ length: 4 }).map((_, i) => <SkeletonTableRow key={i} columns={6} />)}
               {pendingData?.items?.map((doc) => {
                 const validationErrors = (doc.metadata?.extracted_data?.['_validation_errors'] as string[]) ?? [];
                 const soPending = validationErrors.some((e) => e.includes('SO number'));
@@ -281,6 +285,7 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
+              {!poData && Array.from({ length: 5 }).map((_, i) => <SkeletonTableRow key={i} columns={5} />)}
               {poData?.items?.map((po) => (
                 <tr
                   key={po.id}

@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, Loader2, MessageSquare, X } from 'lucide-react';
+import { Send, Square, MessageSquare, X } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { streamMessage } from '@/api/chat';
 import { getPurchaseOrders } from '@/api/purchaseOrders';
 import type { PurchaseOrder } from '@/types';
@@ -20,19 +21,17 @@ const QUICK_CHIPS = [
   'What should I do next?',
 ];
 
-// Matches PO-style references: PO-2024-123, PO/24/001, PO2024001, etc.
 const PO_PATTERN = /\b(PO[-/]?[\w/-]+)/gi;
 
-function renderMessageText(text: string): React.ReactNode {
+function linkifyText(text: string): React.ReactNode[] {
   const parts = text.split(PO_PATTERN);
   return parts.map((part, i) => {
     if (i % 2 === 1) {
-      // Odd indexes are the captured PO references
       return (
         <Link
           key={i}
           to={`/purchase-orders?search=${encodeURIComponent(part)}`}
-          className="underline font-medium hover:opacity-80"
+          className="font-mono underline font-medium hover:opacity-80"
         >
           {part}
         </Link>
@@ -42,21 +41,57 @@ function renderMessageText(text: string): React.ReactNode {
   });
 }
 
+const mdComponents: React.ComponentProps<typeof ReactMarkdown>['components'] = {
+  p: ({ children }) => <p className="mb-2 last:mb-0">{linkifyText(String(children))}</p>,
+  ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
+  li: ({ children }) => <li>{children}</li>,
+  code: ({ children }) => (
+    <code className="font-mono bg-veil/60 text-ink px-1 py-0.5 rounded text-xs">{children}</code>
+  ),
+  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+  a: ({ href, children }) => (
+    <a href={href} className="underline hover:opacity-80">{children}</a>
+  ),
+};
+
+function TypingDots() {
+  return (
+    <span className="flex items-center gap-1 h-5 px-1">
+      {[0, 1, 2].map(i => (
+        <span
+          key={i}
+          className="w-1.5 h-1.5 rounded-full bg-ink/40"
+          style={{ animation: `typing-bounce 1.2s ease-in-out ${i * 0.15}s infinite` }}
+        />
+      ))}
+    </span>
+  );
+}
+
 function MessageBubble({ msg }: { msg: Message }) {
   const isUser = msg.role === 'user';
   return (
     <div className={clsx('flex w-full', isUser ? 'justify-end' : 'justify-start')}>
       <div
         className={clsx(
-          'max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words',
+          'max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed break-words',
           isUser
-            ? 'bg-blue-600 text-white rounded-br-sm'
-            : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm'
+            ? 'bg-accent text-white rounded-br-sm'
+            : 'bg-white border border-veil text-ink rounded-bl-sm shadow-sm'
         )}
       >
-        {isUser ? msg.text : renderMessageText(msg.text)}
-        {msg.streaming && (
-          <span className="inline-block w-1.5 h-3.5 bg-gray-400 ml-0.5 animate-pulse rounded-sm align-text-bottom" />
+        {isUser ? (
+          msg.text
+        ) : msg.streaming && msg.text === '' ? (
+          <TypingDots />
+        ) : (
+          <>
+            <ReactMarkdown components={mdComponents}>{msg.text}</ReactMarkdown>
+            {msg.streaming && (
+              <span className="inline-block w-1.5 h-3.5 bg-ink/30 ml-0.5 animate-pulse rounded-sm align-text-bottom" />
+            )}
+          </>
         )}
       </div>
     </div>
@@ -78,20 +113,25 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
 
-  // Fetch recent POs for context selector
   useEffect(() => {
     getPurchaseOrders(1, 50)
       .then(res => setPoList(res.items))
       .catch(() => {});
   }, []);
 
-  // Auto-scroll to latest message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Cleanup SSE on unmount
   useEffect(() => () => { cleanupRef.current?.(); }, []);
+
+  // Auto-resize textarea up to ~5 lines
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+  }, [input]);
 
   const filteredPos = poSearch
     ? poList.filter(po =>
@@ -99,6 +139,15 @@ export default function ChatPage() {
         (po.customer_name ?? '').toLowerCase().includes(poSearch.toLowerCase())
       )
     : poList.slice(0, 8);
+
+  const stopStreaming = useCallback(() => {
+    cleanupRef.current?.();
+    cleanupRef.current = null;
+    setMessages(prev =>
+      prev.map(m => m.streaming ? { ...m, streaming: false } : m)
+    );
+    setIsStreaming(false);
+  }, []);
 
   const sendUserMessage = useCallback((text: string) => {
     const trimmed = text.trim();
@@ -162,18 +211,18 @@ export default function ChatPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <MessageSquare size={20} className="text-blue-600" />
-          <h1 className="text-lg font-semibold text-gray-800">Assistant</h1>
+          <MessageSquare size={20} className="text-accent" />
+          <h1 className="text-lg font-semibold font-display tracking-tight text-ink">Assistant</h1>
         </div>
 
         {/* PO Context selector */}
         <div className="relative">
           {selectedPo ? (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-              <span className="font-medium">{selectedPo.po_number}</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 border border-accent/30 rounded-lg text-sm text-accent">
+              <span className="font-mono font-medium">{selectedPo.po_number}</span>
               <button
                 onClick={() => setSelectedPo(null)}
-                className="hover:text-blue-900"
+                className="hover:text-accent/70"
                 title="Remove PO context"
               >
                 <X size={14} />
@@ -183,39 +232,39 @@ export default function ChatPage() {
             <div>
               <button
                 onClick={() => setShowPoDropdown(v => !v)}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
+                className="px-3 py-1.5 text-sm border border-veil rounded-lg text-ink/60 hover:bg-veil/40 transition-colors"
               >
                 + Add PO context
               </button>
               {showPoDropdown && (
-                <div className="absolute right-0 mt-1 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                  <div className="p-2 border-b">
+                <div className="absolute right-0 mt-1 w-72 bg-white border border-veil rounded-lg shadow-lg z-10">
+                  <div className="p-2 border-b border-veil">
                     <input
                       autoFocus
                       type="text"
                       placeholder="Search PO number or customer…"
                       value={poSearch}
                       onChange={e => setPoSearch(e.target.value)}
-                      className="w-full text-sm px-2 py-1.5 border border-gray-200 rounded outline-none focus:border-blue-400"
+                      className="w-full text-sm px-2 py-1.5 border border-veil rounded outline-none focus:border-accent"
                     />
                   </div>
                   <ul className="max-h-48 overflow-y-auto py-1">
                     {filteredPos.length === 0 && (
-                      <li className="px-3 py-2 text-sm text-gray-400">No orders found</li>
+                      <li className="px-3 py-2 text-sm text-ink/40">No orders found</li>
                     )}
                     {filteredPos.map(po => (
                       <li key={po.id}>
                         <button
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-paper"
                           onClick={() => {
                             setSelectedPo(po);
                             setShowPoDropdown(false);
                             setPoSearch('');
                           }}
                         >
-                          <div className="font-medium text-gray-800">{po.po_number}</div>
+                          <div className="font-mono font-medium text-ink">{po.po_number}</div>
                           {po.customer_name && (
-                            <div className="text-xs text-gray-400">{po.customer_name}</div>
+                            <div className="text-xs text-ink/40">{po.customer_name}</div>
                           )}
                         </button>
                       </li>
@@ -244,7 +293,7 @@ export default function ChatPage() {
               key={chip}
               onClick={() => sendUserMessage(chip)}
               disabled={isStreaming}
-              className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors disabled:opacity-50"
+              className="px-3 py-1.5 text-xs bg-veil/60 hover:bg-veil text-ink/70 rounded-full transition-colors disabled:opacity-50"
             >
               {chip}
             </button>
@@ -253,7 +302,7 @@ export default function ChatPage() {
       )}
 
       {/* Input area */}
-      <form onSubmit={handleSubmit} className="mt-2 flex items-end gap-2 border-t pt-3">
+      <form onSubmit={handleSubmit} className="mt-2 flex items-end gap-2 border-t border-veil pt-3">
         <textarea
           ref={inputRef}
           rows={1}
@@ -263,25 +312,35 @@ export default function ChatPage() {
           disabled={isStreaming}
           placeholder={selectedPo ? `Ask about ${selectedPo.po_number}…` : 'Type your question…'}
           className={clsx(
-            'flex-1 resize-none rounded-xl border border-gray-300 px-4 py-2.5 text-sm',
-            'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-            'disabled:bg-gray-50 disabled:text-gray-400',
-            'max-h-32 overflow-y-auto'
+            'flex-1 resize-none rounded-xl border border-veil px-4 py-2.5 text-sm bg-white text-ink',
+            'focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent',
+            'disabled:bg-paper disabled:text-ink/40',
+            'overflow-y-auto [&::-webkit-scrollbar]:hidden'
           )}
-          style={{ minHeight: '42px' }}
         />
-        <button
-          type="submit"
-          disabled={!input.trim() || isStreaming}
-          className={clsx(
-            'flex items-center justify-center w-10 h-10 rounded-xl transition-colors shrink-0',
-            input.trim() && !isStreaming
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-          )}
-        >
-          {isStreaming ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-        </button>
+        {isStreaming ? (
+          <button
+            type="button"
+            onClick={stopStreaming}
+            className="flex items-center justify-center w-10 h-10 rounded-xl bg-signal text-white hover:bg-signal/90 transition-all shrink-0"
+            title="Stop generating"
+          >
+            <Square size={16} />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={!input.trim()}
+            className={clsx(
+              'flex items-center justify-center w-10 h-10 rounded-xl transition-all shrink-0',
+              input.trim()
+                ? 'bg-accent text-white hover:bg-accent/90'
+                : 'bg-veil text-ink/30 cursor-not-allowed'
+            )}
+          >
+            <Send size={18} />
+          </button>
+        )}
       </form>
     </div>
   );

@@ -174,8 +174,8 @@ Structural redesigns for Customers and PO Profile. Ships after Branch 1.
 - "Edit →" inline
 
 **API calls:**
-- `GET /api/v1/customers/:id` — already exists
-- `GET /api/v1/customers/:id/purchase-orders` — already exists
+- `GET /api/v1/customers/:id` — already exists (returns basic customer fields only)
+- `GET /api/v1/customers/:id/purchase-orders` — already exists (used to compute total value + avg chain health client-side from the returned PO list; no backend aggregate needed)
 
 ### 3. PO Profile — Redesign
 
@@ -246,7 +246,7 @@ The Document Detail page handles the "Open in PO →" link back to the parent PO
 |---|---|
 | PDF viewer in DocDetail | `PDFPreviewPanel` — reuse as-is |
 | Review actions in DocDetail | `ReviewModal` — reuse as-is |
-| Chain status in CustomerDetail | `ChainStatusBar` — reuse as-is |
+| Chain health % in CustomerDetail | Computed client-side from PO list (`avg of chain_completeness across all POs`), displayed as a stat card — not `ChainStatusBar` (which is per-PO) |
 | Cross-check display | `ProfileDiscrepancyPanel` — filter by doc ID, render inline |
 
 ---
