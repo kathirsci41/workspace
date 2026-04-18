@@ -145,3 +145,46 @@ def check_vdc_ref_on_vinv(
         if dc_num and dc_num.upper() not in refs_text.upper():
             return ReferenceCheckResult.WARNING
     return ReferenceCheckResult.PASS
+
+
+# ── Module 3E: Date Sequence Validation ─────────────────────────────────────
+
+_DATE_ORDER = [
+    "CUSTOMER_PO",
+    "COMPANY_PO",
+    "VENDOR_DC",
+    "VENDOR_INVOICE",
+    "COMPANY_DC",
+    "COMPANY_INVOICE",
+]
+
+
+def check_date_sequence(
+    dated_docs: list[dict],
+) -> list[dict]:
+    """
+    Check document dates follow logical order.
+    dated_docs: [{"document_type": str, "doc_date": date | None}]
+    Returns list of violation dicts; empty list = no violations.
+    1-day tolerance for same-day processing edge cases.
+    """
+    by_type: dict[str, date] = {}
+    for doc in dated_docs:
+        dt = doc.get("doc_date")
+        dtype = doc.get("document_type")
+        if dt and dtype and dtype not in by_type:
+            by_type[str(dtype)] = dt
+
+    violations = []
+    for i, earlier_type in enumerate(_DATE_ORDER):
+        for later_type in _DATE_ORDER[i + 1:]:
+            if earlier_type in by_type and later_type in by_type:
+                delta = (by_type[later_type] - by_type[earlier_type]).days
+                if delta < -1:
+                    violations.append({
+                        "earlier_type": earlier_type,
+                        "later_type": later_type,
+                        "delta_days": delta,
+                        "result": ReferenceCheckResult.WARNING,
+                    })
+    return violations

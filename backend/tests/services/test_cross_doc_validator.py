@@ -8,7 +8,10 @@ from app.services.cross_doc_validator import (
     check_dc_ref_on_ci,
     check_vpo_ref_on_vdc,
     check_vdc_ref_on_vinv,
+    check_date_sequence,
 )
+from datetime import date as _date
+
 from app.services.reference_validator import ReferenceCheckResult
 
 
@@ -191,3 +194,48 @@ def test_vdc_ref_on_vinv_no_refs_returns_skip():
         vdc_dc_numbers=["VDC-001"],
         vinv_dc_refs=[None],
     ) == ReferenceCheckResult.SKIP
+
+
+# --- 3E: Date sequence ---
+
+def test_date_sequence_correct_order_returns_no_violations():
+    docs = [
+        {"document_type": "CUSTOMER_PO",    "doc_date": _date(2026, 1, 1)},
+        {"document_type": "COMPANY_PO",     "doc_date": _date(2026, 1, 2)},
+        {"document_type": "VENDOR_INVOICE", "doc_date": _date(2026, 1, 10)},
+        {"document_type": "COMPANY_DC",     "doc_date": _date(2026, 1, 12)},
+        {"document_type": "COMPANY_INVOICE","doc_date": _date(2026, 1, 12)},
+    ]
+    assert check_date_sequence(docs) == []
+
+def test_date_sequence_ci_before_cpo_returns_violation():
+    docs = [
+        {"document_type": "CUSTOMER_PO",    "doc_date": _date(2026, 3, 1)},
+        {"document_type": "COMPANY_INVOICE","doc_date": _date(2026, 1, 1)},
+    ]
+    violations = check_date_sequence(docs)
+    assert len(violations) == 1
+    assert violations[0]["earlier_type"] == "CUSTOMER_PO"
+    assert violations[0]["later_type"] == "COMPANY_INVOICE"
+    assert violations[0]["result"] == ReferenceCheckResult.WARNING
+
+def test_date_sequence_same_day_no_violation():
+    docs = [
+        {"document_type": "COMPANY_DC",     "doc_date": _date(2026, 1, 10)},
+        {"document_type": "COMPANY_INVOICE","doc_date": _date(2026, 1, 10)},
+    ]
+    assert check_date_sequence(docs) == []
+
+def test_date_sequence_one_day_tolerance():
+    docs = [
+        {"document_type": "COMPANY_DC",     "doc_date": _date(2026, 1, 10)},
+        {"document_type": "COMPANY_INVOICE","doc_date": _date(2026, 1, 9)},
+    ]
+    assert check_date_sequence(docs) == []
+
+def test_date_sequence_skips_none_dates():
+    docs = [
+        {"document_type": "CUSTOMER_PO",    "doc_date": None},
+        {"document_type": "COMPANY_INVOICE","doc_date": _date(2026, 1, 1)},
+    ]
+    assert check_date_sequence(docs) == []
