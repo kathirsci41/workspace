@@ -332,3 +332,10 @@ def test_order_item_coverage_case_insensitive_part_matching():
     dc_items = [{"part_no": "FG81F", "qty": "1"}]
     result = check_order_item_coverage(po_items, dc_items)
     assert result["result"] == ReferenceCheckResult.PASS
+
+
+def test_order_item_coverage_empty_delivery_items_returns_warning():
+    po_items = [{"part_no": "FG81F", "qty": "1"}]
+    result = check_order_item_coverage(po_items, [])
+    assert result["result"] == ReferenceCheckResult.WARNING
+    assert "FG81F" in result["missing_parts"]

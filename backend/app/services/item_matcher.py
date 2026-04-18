@@ -14,6 +14,16 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _safe_int(v) -> int:
+    """Safely parse qty from LLM extraction (handles '2,000', '3.00', '5 Nos', None)."""
+    if v is None:
+        return 0
+    try:
+        return int(float(str(v).replace(",", "")))
+    except (ValueError, TypeError):
+        return 0
+
+
 async def match_items_by_description(
     customer_items: list[dict],   # from CUSTOMER_PO — have description, no part_no
     company_items: list[dict],    # from COMPANY_PO  — have part_no + description
@@ -191,7 +201,7 @@ def compare_po_to_delivery(
     results = []
     for item in (cpo_items or []):
         part_no = str(item.get("part_no", "")).lower().strip()
-        qty_ordered = int(item.get("qty") or 0)
+        qty_ordered = _safe_int(item.get("qty"))
         matched = delivery_by_part.get(part_no)
 
         if not matched:
@@ -207,7 +217,7 @@ def compare_po_to_delivery(
             continue
 
         # Item found, check quantity
-        qty_delivered = int(matched.get("qty") or 0)
+        qty_delivered = _safe_int(matched.get("qty"))
         shortfall = max(0, qty_ordered - qty_delivered)
         status = ItemMatchStatus.MATCHED if shortfall == 0 else ItemMatchStatus.PARTIAL
         results.append({

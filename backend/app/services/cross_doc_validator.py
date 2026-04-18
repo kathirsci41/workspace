@@ -225,8 +225,8 @@ def check_order_item_coverage(
     """
     Compare PO line items against delivery document items using part_no matching.
 
-    SKIP if either list is empty or has no part_nos.
-    WARNING if any item is missing or partially delivered.
+    SKIP if po_items is empty or has no part_nos.
+    WARNING if any item is missing or partially delivered — including when delivery_items is empty (all items treated as undelivered).
     PASS if all items are fully delivered.
 
     Returns {result, missing_parts, partial_parts, comparison, skip_reason}.
