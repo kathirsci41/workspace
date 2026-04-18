@@ -159,6 +159,11 @@ async def get_chain_status_v2(
             "cpo_ref": doc.doc_metadata.po_ref_no if doc.doc_metadata else None,
             "billing_stage": doc.billing_stage,
             "amount": float(doc.doc_metadata.total_amount or 0) if doc.doc_metadata else 0,
+            "delivery_address": (
+                doc.doc_metadata.extracted_data.get("delivery_address")
+                if doc.doc_metadata and doc.doc_metadata.extracted_data
+                else None
+            ),
         }
         for doc in po.documents
     ]

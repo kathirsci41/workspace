@@ -15,6 +15,7 @@ from app.services.billing_tracker import (
     check_staged_billing,
     BillingStatus,
 )
+from app.services.address_parser import validate_addresses, AddressMatchResult
 
 
 class SlotState(str, enum.Enum):
@@ -142,6 +143,32 @@ def compute_chain_status(
             })
             if vpo_result == ReferenceCheckResult.MISMATCH:
                 has_mismatch = True
+
+    # Address consistency: CUSTOMER_PO delivery address vs COMPANY_DC delivery address
+    cpo_address = next(
+        (d.get("delivery_address") for d in documents if d.get("document_type") == DocumentType.CUSTOMER_PO),
+        None,
+    )
+    cdc_address = next(
+        (d.get("delivery_address") for d in documents if d.get("document_type") == DocumentType.COMPANY_DC),
+        None,
+    )
+    addr_result = validate_addresses(cpo_address, cdc_address)
+    if addr_result in (AddressMatchResult.MATCH, AddressMatchResult.PARTIAL):
+        addr_check_result = ReferenceCheckResult.PASS
+    elif addr_result == AddressMatchResult.MISMATCH:
+        addr_check_result = ReferenceCheckResult.MISMATCH
+        has_mismatch = True
+    else:
+        addr_check_result = ReferenceCheckResult.SKIP
+    reference_checks.append({
+        "document_type": DocumentType.CUSTOMER_PO,
+        "check": "delivery_address",
+        "result": addr_check_result,
+        "extracted": cpo_address,
+        "expected": cdc_address,
+        "skip_reason": "missing_address" if addr_check_result == ReferenceCheckResult.SKIP else None,
+    })
 
     # Billing completeness
     billing_result: dict = {"overall": BillingStatus.PENDING}

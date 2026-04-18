@@ -13,6 +13,17 @@ def _doc(doc_type, so_number=None, vpo_numbers=None, extraction_ok=True, cpo_ref
     }
 
 
+def _doc_with_address(doc_type, delivery_address=None, so_number=None, cpo_ref=None, extraction_ok=True):
+    return {
+        "document_type": doc_type,
+        "so_number": so_number,
+        "vpo_numbers": [],
+        "extraction_ok": extraction_ok,
+        "cpo_ref": cpo_ref,
+        "delivery_address": delivery_address,
+    }
+
+
 def test_stock_missing_dc_is_incomplete():
     result = compute_chain_status(
         scenario=OrderScenario.STOCK,
@@ -263,3 +274,71 @@ def test_reference_checks_cpo_skip_reason_no_extracted_value():
     assert len(cpo_checks) == 1
     assert cpo_checks[0]["result"] == "skip"
     assert cpo_checks[0]["skip_reason"] == "no_extracted_value"
+
+
+def test_address_mismatch_sets_mismatch_status():
+    result = compute_chain_status(
+        scenario=OrderScenario.STOCK,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=100000.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=[],
+        documents=[
+            _doc_with_address(DocumentType.CUSTOMER_PO, delivery_address="123 Main St, Chennai, Tamil Nadu 600001"),
+            _doc_with_address(DocumentType.COMPANY_DC,  delivery_address="456 Other St, Mumbai, Maharashtra 400001",
+                              so_number="SO-001", cpo_ref="CPO-001"),
+            _doc_with_address(DocumentType.COMPANY_INVOICE, so_number="SO-001", cpo_ref="CPO-001"),
+        ],
+        requires_install_report=False,
+        invoiced_total=100000.0,
+    )
+    addr_checks = [rc for rc in result["reference_checks"] if rc["check"] == "delivery_address"]
+    assert len(addr_checks) == 1
+    assert addr_checks[0]["result"] == "mismatch"
+    assert result["chain_status"] == ChainStatus.MISMATCH
+
+
+def test_address_match_does_not_affect_chain_status():
+    result = compute_chain_status(
+        scenario=OrderScenario.STOCK,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=100000.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=[],
+        documents=[
+            _doc_with_address(DocumentType.CUSTOMER_PO, delivery_address="123 Main St, Chennai, Tamil Nadu 600001"),
+            _doc_with_address(DocumentType.COMPANY_DC,  delivery_address="123 Main St, Chennai, Tamil Nadu 600001",
+                              so_number="SO-001", cpo_ref="CPO-001"),
+            _doc_with_address(DocumentType.COMPANY_INVOICE, so_number="SO-001", cpo_ref="CPO-001"),
+        ],
+        requires_install_report=False,
+        invoiced_total=100000.0,
+    )
+    addr_checks = [rc for rc in result["reference_checks"] if rc["check"] == "delivery_address"]
+    assert len(addr_checks) == 1
+    assert addr_checks[0]["result"] == "pass"
+    assert result["chain_status"] == ChainStatus.COMPLETE
+
+
+def test_address_skip_when_addresses_missing():
+    result = compute_chain_status(
+        scenario=OrderScenario.STOCK,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=100000.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=[],
+        documents=[
+            _doc(DocumentType.CUSTOMER_PO),
+            _doc(DocumentType.COMPANY_DC, so_number="SO-001", cpo_ref="CPO-001"),
+        ],
+        requires_install_report=False,
+    )
+    addr_checks = [rc for rc in result["reference_checks"] if rc["check"] == "delivery_address"]
+    assert len(addr_checks) == 1
+    assert addr_checks[0]["result"] == "skip"
