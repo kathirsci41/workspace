@@ -365,7 +365,7 @@ export default function PODetailPage() {
             </div>
             {CHAIN_ORDER.map(docType => {
               const slots = chain[docType] ?? [];
-              const isMulti = docType === 'VENDOR_INVOICE' || docType === 'VENDOR_DC' || docType === 'COMPANY_PO';
+              const isMulti = docType !== 'CUSTOMER_PO';
               const label = DOC_TYPE_LABELS[docType] ?? docType;
               return (
                 <div key={docType} className="flex flex-col gap-1.5">
