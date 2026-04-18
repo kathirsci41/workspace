@@ -150,6 +150,12 @@ async def get_chain_status_v2(
         if doc.document_type == DocumentType.COMPANY_INVOICE and doc.doc_metadata
     )
 
+    def _ed(doc: Document, key: str):
+        """Safe getter for extracted_data fields."""
+        if doc.doc_metadata and doc.doc_metadata.extracted_data:
+            return doc.doc_metadata.extracted_data.get(key)
+        return None
+
     docs_payload = [
         {
             "document_type": doc.document_type,
@@ -159,11 +165,23 @@ async def get_chain_status_v2(
             "cpo_ref": doc.doc_metadata.po_ref_no if doc.doc_metadata else None,
             "billing_stage": doc.billing_stage,
             "amount": float(doc.doc_metadata.total_amount or 0) if doc.doc_metadata else 0,
-            "delivery_address": (
-                doc.doc_metadata.extracted_data.get("delivery_address")
-                if doc.doc_metadata and doc.doc_metadata.extracted_data
+            "delivery_address": _ed(doc, "delivery_address"),
+            "customer_gstin": _ed(doc, "customer_gstin"),
+            "vendor_gstin":   _ed(doc, "vendor_gstin"),
+            "customer_name":  _ed(doc, "customer_name"),
+            "vendor_name":    _ed(doc, "vendor_name"),
+            "serial_numbers": _ed(doc, "serial_numbers") or [],
+            "dc_number": (
+                doc.doc_metadata.primary_ref_no
+                if doc.doc_metadata and doc.document_type in (
+                    DocumentType.COMPANY_DC, DocumentType.VENDOR_DC
+                )
                 else None
             ),
+            "dc_reference": _ed(doc, "dc_reference"),
+            "po_reference": _ed(doc, "po_reference"),
+            "doc_date": doc.doc_metadata.doc_date if doc.doc_metadata else None,
+            "order_items": _ed(doc, "order_items") or [],
         }
         for doc in po.documents
     ]
