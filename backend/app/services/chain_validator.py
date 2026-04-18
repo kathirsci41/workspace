@@ -16,6 +16,19 @@ from app.services.billing_tracker import (
     BillingStatus,
 )
 from app.services.address_parser import validate_addresses, AddressMatchResult
+from app.services.cross_doc_validator import (
+    check_ci_vs_cpo_total,
+    check_vinv_sum_vs_vpo_total,
+    check_gstin_consistency,
+    check_name_consistency,
+    check_serial_chain,
+    check_vdc_vs_vinv_serials,
+    check_dc_ref_on_ci,
+    check_vpo_ref_on_vdc,
+    check_vdc_ref_on_vinv,
+    check_date_sequence,
+    check_hsn_consistency,
+)
 
 
 class SlotState(str, enum.Enum):
@@ -176,6 +189,222 @@ def compute_chain_status(
         "expected": cpo_address,
         "skip_reason": "missing_address" if addr_check_result == ReferenceCheckResult.SKIP else None,
     })
+
+    # ── Module 3 cross-document checks ───────────────────────────────────────
+
+    cpo_docs  = [d for d in documents if d.get("document_type") == DocumentType.CUSTOMER_PO]
+    vpo_docs  = [d for d in documents if d.get("document_type") == DocumentType.COMPANY_PO]
+    vinv_docs = [d for d in documents if d.get("document_type") == DocumentType.VENDOR_INVOICE and d.get("extraction_ok", True)]
+    vdc_docs  = [d for d in documents if d.get("document_type") == DocumentType.VENDOR_DC]
+    cdc_docs  = [d for d in documents if d.get("document_type") == DocumentType.COMPANY_DC]
+    ci_docs   = [d for d in documents if d.get("document_type") == DocumentType.COMPANY_INVOICE]
+
+    # 3A: Company Invoice total vs Customer PO total (MISMATCH)
+    # Use invoiced_total (already-computed aggregate) so staged billing is handled correctly.
+    # Only flag MISMATCH when invoiced_total > 0 (i.e., at least one invoice exists).
+    ci_total_val = invoiced_total if invoiced_total and invoiced_total > 0 else None
+    ci_cpo_result = check_ci_vs_cpo_total(ci_total_val, po_total)
+    reference_checks.append({
+        "document_type": DocumentType.COMPANY_INVOICE,
+        "check": "ci_vs_cpo_total",
+        "result": ci_cpo_result,
+        "extracted": ci_total_val,
+        "expected": po_total,
+        "skip_reason": "missing_amount" if ci_cpo_result == ReferenceCheckResult.SKIP else None,
+    })
+    if ci_cpo_result == ReferenceCheckResult.MISMATCH:
+        has_mismatch = True
+
+    # 3A: Vendor Invoice sum vs Company PO total (WARNING — freight tolerance)
+    vinv_totals = [d.get("amount", 0) for d in vinv_docs]
+    vpo_total_val = next((d.get("amount") for d in vpo_docs), None)
+    vinv_vpo_result = check_vinv_sum_vs_vpo_total(vinv_totals, vpo_total_val)
+    reference_checks.append({
+        "document_type": DocumentType.VENDOR_INVOICE,
+        "check": "vinv_sum_vs_vpo_total",
+        "result": vinv_vpo_result,
+        "extracted": sum(vinv_totals) if vinv_totals else None,
+        "expected": vpo_total_val,
+        "skip_reason": "missing_amount" if vinv_vpo_result == ReferenceCheckResult.SKIP else None,
+    })
+    # WARNING — intentionally NOT setting has_mismatch
+
+    # 3B: Customer GSTIN consistency across CPO, CDC, CI (MISMATCH)
+    customer_gstins = [d.get("customer_gstin") for d in cpo_docs + cdc_docs + ci_docs]
+    gstin_customer = check_gstin_consistency(customer_gstins)
+    reference_checks.append({
+        "document_type": None,
+        "check": "customer_gstin_consistency",
+        "result": gstin_customer,
+        "extracted": ", ".join(g for g in customer_gstins if g) or None,
+        "expected": None,
+        "skip_reason": "insufficient_data" if gstin_customer == ReferenceCheckResult.SKIP else None,
+    })
+    if gstin_customer == ReferenceCheckResult.MISMATCH:
+        has_mismatch = True
+
+    # 3B: Vendor GSTIN — WARNING only (Redington multi-state GSTINs are legitimate)
+    vendor_gstins = [d.get("vendor_gstin") for d in vpo_docs + vinv_docs]
+    gstin_vendor_raw = check_gstin_consistency(vendor_gstins)
+    gstin_vendor = (
+        ReferenceCheckResult.WARNING
+        if gstin_vendor_raw == ReferenceCheckResult.MISMATCH
+        else gstin_vendor_raw
+    )
+    reference_checks.append({
+        "document_type": None,
+        "check": "vendor_gstin_consistency",
+        "result": gstin_vendor,
+        "extracted": ", ".join(g for g in vendor_gstins if g) or None,
+        "expected": None,
+        "skip_reason": "insufficient_data" if gstin_vendor == ReferenceCheckResult.SKIP else None,
+    })
+    # vendor GSTIN is WARNING — NOT setting has_mismatch
+
+    # 3B: Customer name fuzzy match (WARNING)
+    customer_names = [d.get("customer_name") for d in cpo_docs + cdc_docs + ci_docs]
+    name_result = check_name_consistency(customer_names)
+    reference_checks.append({
+        "document_type": None,
+        "check": "customer_name_consistency",
+        "result": name_result,
+        "extracted": None,
+        "expected": None,
+        "skip_reason": "insufficient_data" if name_result == ReferenceCheckResult.SKIP else None,
+    })
+
+    # 3C: Serial chain — VINV serials must appear in CDC (MISMATCH)
+    vinv_serials = [d.get("serial_numbers", []) for d in vinv_docs]
+    cdc_serials  = [d.get("serial_numbers", []) for d in cdc_docs if d.get("extraction_ok", True)]
+    serial_result = check_serial_chain(vinv_serials, cdc_serials)
+    reference_checks.append({
+        "document_type": DocumentType.VENDOR_INVOICE,
+        "check": "serial_chain",
+        "result": serial_result["result"],
+        "extracted": ", ".join(serial_result.get("missing", [])) or None,
+        "expected": None,
+        "skip_reason": serial_result.get("skip_reason"),
+    })
+    if serial_result["result"] == ReferenceCheckResult.MISMATCH:
+        has_mismatch = True
+
+    # 3C: VDC serials must appear on VINV (MISMATCH)
+    if vdc_docs:
+        vdc_serials_flat = [s for d in vdc_docs for s in (d.get("serial_numbers") or []) if d.get("extraction_ok", True)]
+        vdc_vinv = check_vdc_vs_vinv_serials(vdc_serials_flat, vinv_serials)
+        reference_checks.append({
+            "document_type": DocumentType.VENDOR_DC,
+            "check": "vdc_vinv_serial_match",
+            "result": vdc_vinv["result"],
+            "extracted": ", ".join(vdc_vinv.get("missing", [])) or None,
+            "expected": None,
+            "skip_reason": vdc_vinv.get("skip_reason"),
+        })
+        if vdc_vinv["result"] == ReferenceCheckResult.MISMATCH:
+            has_mismatch = True
+
+    # 3D: Company DC number referenced on Company Invoice (WARNING)
+    cdc_dc_numbers = [d.get("dc_number") for d in cdc_docs if d.get("dc_number")]
+    ci_dc_refs = [d.get("dc_reference") for d in ci_docs]
+    reference_checks.append({
+        "document_type": None,  # cross-doc check — not tied to a single document type
+        "check": "dc_ref_on_ci",
+        "result": check_dc_ref_on_ci(cdc_dc_numbers, ci_dc_refs),
+        "extracted": ", ".join(r for r in ci_dc_refs if r) or None,
+        "expected": ", ".join(cdc_dc_numbers) or None,
+        "skip_reason": None,
+    })
+
+    # 3D: VPO number referenced on Vendor DC (WARNING)
+    if vdc_docs and vpo_numbers:
+        vdc_po_refs = [d.get("po_reference") for d in vdc_docs if d.get("extraction_ok", True)]
+        reference_checks.append({
+            "document_type": None,  # cross-doc check
+            "check": "vpo_ref_on_vdc",
+            "result": check_vpo_ref_on_vdc(vdc_po_refs, vpo_numbers),
+            "extracted": ", ".join(r for r in vdc_po_refs if r) or None,
+            "expected": ", ".join(vpo_numbers),
+            "skip_reason": None,
+        })
+
+    # 3D: Vendor DC number referenced on Vendor Invoice (WARNING)
+    if vdc_docs and vinv_docs:
+        vdc_numbers = [d.get("dc_number") for d in vdc_docs if d.get("dc_number")]
+        vinv_dc_refs = [d.get("dc_reference") for d in vinv_docs]
+        reference_checks.append({
+            "document_type": None,  # cross-doc check
+            "check": "vdc_ref_on_vinv",
+            "result": check_vdc_ref_on_vinv(vdc_numbers, vinv_dc_refs),
+            "extracted": ", ".join(r for r in vinv_dc_refs if r) or None,
+            "expected": ", ".join(vdc_numbers) or None,
+            "skip_reason": None,
+        })
+
+    # 3E: Date sequence
+    dated_docs = [
+        {
+            "document_type": (
+                d["document_type"].value
+                if hasattr(d.get("document_type"), "value")
+                else str(d.get("document_type", ""))
+            ),
+            "doc_date": d.get("doc_date"),
+        }
+        for d in documents
+    ]
+    for v in check_date_sequence(dated_docs):
+        reference_checks.append({
+            "document_type": v["earlier_type"],
+            "check": "date_sequence",
+            "result": ReferenceCheckResult.WARNING,
+            "extracted": f"{v['later_type']} dated {v['delta_days']} days before {v['earlier_type']}",
+            "expected": f"{v['later_type']} date >= {v['earlier_type']} date",
+            "skip_reason": None,
+        })
+
+    # 3F: HSN consistency — customer loop (CPO, CDC, CI)
+    customer_loop = [
+        {
+            "document_type": (
+                d["document_type"].value
+                if hasattr(d.get("document_type"), "value")
+                else str(d.get("document_type", ""))
+            ),
+            "order_items": d.get("order_items", []),
+        }
+        for d in cpo_docs + cdc_docs + ci_docs if d.get("extraction_ok", True)
+    ]
+    for v in check_hsn_consistency(customer_loop):
+        reference_checks.append({
+            "document_type": None,
+            "check": "hsn_consistency_customer",
+            "result": ReferenceCheckResult.WARNING,
+            "extracted": ", ".join(v["hsn_values"]),
+            "expected": f"consistent HSN for {v['part_no']}",
+            "skip_reason": None,
+        })
+
+    # 3F: HSN consistency — procurement loop (VPO, VINV)
+    procurement_loop = [
+        {
+            "document_type": (
+                d["document_type"].value
+                if hasattr(d.get("document_type"), "value")
+                else str(d.get("document_type", ""))
+            ),
+            "order_items": d.get("order_items", []),
+        }
+        for d in vpo_docs + vinv_docs if d.get("extraction_ok", True)
+    ]
+    for v in check_hsn_consistency(procurement_loop):
+        reference_checks.append({
+            "document_type": None,
+            "check": "hsn_consistency_procurement",
+            "result": ReferenceCheckResult.WARNING,
+            "extracted": ", ".join(v["hsn_values"]),
+            "expected": f"consistent HSN for {v['part_no']}",
+            "skip_reason": None,
+        })
 
     # Billing completeness
     billing_result: dict = {"overall": BillingStatus.PENDING}

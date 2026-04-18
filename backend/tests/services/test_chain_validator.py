@@ -401,3 +401,173 @@ def test_vpo_and_logic_both_vpos_must_appear():
     assert len(vpo_checks) == 1
     assert vpo_checks[0]["result"] == "mismatch"
     assert result["chain_status"] == ChainStatus.MISMATCH
+
+
+# ── Module 3 integration tests ────────────────────────────────────────────────
+
+from datetime import date as _date
+
+
+def _doc_full(doc_type, **kwargs):
+    """Extended doc dict with all Module 3 fields."""
+    return {
+        "document_type": doc_type,
+        "so_number": kwargs.get("so_number"),
+        "vpo_numbers": kwargs.get("vpo_numbers", []),
+        "extraction_ok": kwargs.get("extraction_ok", True),
+        "cpo_ref": kwargs.get("cpo_ref"),
+        "billing_stage": kwargs.get("billing_stage"),
+        "amount": kwargs.get("amount", 0),
+        "delivery_address": kwargs.get("delivery_address"),
+        "customer_gstin": kwargs.get("customer_gstin"),
+        "vendor_gstin": kwargs.get("vendor_gstin"),
+        "customer_name": kwargs.get("customer_name"),
+        "vendor_name": kwargs.get("vendor_name"),
+        "serial_numbers": kwargs.get("serial_numbers", []),
+        "dc_number": kwargs.get("dc_number"),
+        "dc_reference": kwargs.get("dc_reference"),
+        "po_reference": kwargs.get("po_reference"),
+        "doc_date": kwargs.get("doc_date"),
+        "order_items": kwargs.get("order_items", []),
+    }
+
+
+def test_ci_amount_mismatch_sets_chain_mismatch():
+    result = compute_chain_status(
+        scenario=OrderScenario.STOCK,
+        po_number="PWFA251127016",
+        so_number="SO-001",
+        po_total=503137.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=[],
+        documents=[
+            _doc_full(DocumentType.CUSTOMER_PO, amount=503137.0),
+            _doc_full(DocumentType.COMPANY_DC, so_number="SO-001", cpo_ref="PWFA251127016"),
+            _doc_full(DocumentType.COMPANY_INVOICE,
+                      so_number="SO-001", cpo_ref="PWFA251127016",
+                      amount=490000.0),  # 2.6% diff → MISMATCH
+        ],
+        requires_install_report=False,
+        invoiced_total=490000.0,
+    )
+    ci_checks = [rc for rc in result["reference_checks"] if rc["check"] == "ci_vs_cpo_total"]
+    assert len(ci_checks) == 1
+    assert ci_checks[0]["result"] == "mismatch"
+    assert result["chain_status"] == ChainStatus.MISMATCH
+
+
+def test_gstin_mismatch_sets_chain_mismatch():
+    result = compute_chain_status(
+        scenario=OrderScenario.STOCK,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=100000.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=[],
+        documents=[
+            _doc_full(DocumentType.CUSTOMER_PO, customer_gstin="33AAICS1881D1ZJ"),
+            _doc_full(DocumentType.COMPANY_DC,
+                      so_number="SO-001", cpo_ref="CPO-001",
+                      customer_gstin="29AAICS1881D1ZK"),
+            _doc_full(DocumentType.COMPANY_INVOICE,
+                      so_number="SO-001", cpo_ref="CPO-001",
+                      customer_gstin="33AAICS1881D1ZJ",
+                      amount=100000.0),
+        ],
+        requires_install_report=False,
+        invoiced_total=100000.0,
+    )
+    gstin_checks = [rc for rc in result["reference_checks"] if rc["check"] == "customer_gstin_consistency"]
+    assert gstin_checks[0]["result"] == "mismatch"
+    assert result["chain_status"] == ChainStatus.MISMATCH
+
+
+def test_serial_chain_mismatch_sets_chain_mismatch():
+    result = compute_chain_status(
+        scenario=OrderScenario.PROCUREMENT,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=100000.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=["1PTR2526000400"],
+        documents=[
+            _doc_full(DocumentType.CUSTOMER_PO),
+            _doc_full(DocumentType.COMPANY_PO),
+            _doc_full(DocumentType.VENDOR_INVOICE,
+                      vpo_numbers=["1PTR2526000400"],
+                      serial_numbers=["NDKDL1U", "NDLEFAU"],
+                      amount=80000.0),
+            _doc_full(DocumentType.COMPANY_DC,
+                      so_number="SO-001", cpo_ref="CPO-001",
+                      serial_numbers=["NDKDL1U"]),  # NDLEFAU not shipped
+            _doc_full(DocumentType.COMPANY_INVOICE,
+                      so_number="SO-001", cpo_ref="CPO-001",
+                      amount=100000.0),
+        ],
+        requires_install_report=False,
+        invoiced_total=100000.0,
+    )
+    serial_checks = [rc for rc in result["reference_checks"] if rc["check"] == "serial_chain"]
+    assert serial_checks[0]["result"] == "mismatch"
+    assert result["chain_status"] == ChainStatus.MISMATCH
+
+
+def test_warning_checks_do_not_set_chain_mismatch():
+    """Vendor GSTIN mismatch = WARNING, should not flip chain_status to MISMATCH."""
+    result = compute_chain_status(
+        scenario=OrderScenario.PROCUREMENT,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=100000.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=["1PTR2526000400"],
+        documents=[
+            _doc_full(DocumentType.CUSTOMER_PO),
+            _doc_full(DocumentType.COMPANY_PO, vendor_gstin="33AAACS5403H1Z5"),
+            _doc_full(DocumentType.VENDOR_INVOICE,
+                      vpo_numbers=["1PTR2526000400"],
+                      vendor_gstin="29AAACS5403H1ZK",  # Redington Karnataka GSTIN
+                      amount=80000.0),
+            _doc_full(DocumentType.COMPANY_DC,
+                      so_number="SO-001", cpo_ref="CPO-001"),
+            _doc_full(DocumentType.COMPANY_INVOICE,
+                      so_number="SO-001", cpo_ref="CPO-001",
+                      amount=100000.0),
+        ],
+        requires_install_report=False,
+        invoiced_total=100000.0,
+    )
+    vendor_gstin_checks = [rc for rc in result["reference_checks"] if rc["check"] == "vendor_gstin_consistency"]
+    assert vendor_gstin_checks[0]["result"] == "warning"
+    assert result["chain_status"] != ChainStatus.MISMATCH
+
+
+def test_date_sequence_violation_produces_warning_check():
+    result = compute_chain_status(
+        scenario=OrderScenario.STOCK,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=100000.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=[],
+        documents=[
+            _doc_full(DocumentType.CUSTOMER_PO, doc_date=_date(2026, 3, 1)),
+            _doc_full(DocumentType.COMPANY_DC,
+                      so_number="SO-001", cpo_ref="CPO-001",
+                      doc_date=_date(2026, 1, 1)),  # DC before CPO — impossible
+            _doc_full(DocumentType.COMPANY_INVOICE,
+                      so_number="SO-001", cpo_ref="CPO-001",
+                      amount=100000.0),
+        ],
+        requires_install_report=False,
+        invoiced_total=100000.0,
+    )
+    date_checks = [rc for rc in result["reference_checks"] if rc["check"] == "date_sequence"]
+    assert len(date_checks) >= 1
+    assert all(rc["result"] == "warning" for rc in date_checks)
+    assert result["chain_status"] != ChainStatus.MISMATCH
