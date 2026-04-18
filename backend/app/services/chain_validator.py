@@ -97,7 +97,10 @@ def compute_chain_status(
                 extracted_cpo_ref=extracted_cpo,
                 expected_po_number=po_number,
             )
-            cpo_skip_reason = "extraction_failed" if cpo_result == ReferenceCheckResult.SKIP and not ok else None
+            if cpo_result == ReferenceCheckResult.SKIP:
+                cpo_skip_reason = "extraction_failed" if not ok else "no_extracted_value"
+            else:
+                cpo_skip_reason = None
 
             reference_checks.append({
                 "document_type": doc_type,
@@ -121,14 +124,14 @@ def compute_chain_status(
                 has_mismatch = True
 
         if doc_type == DocumentType.VENDOR_INVOICE:
-            doc_vpo_numbers = doc.get("vpo_numbers") or []
+            doc_vpo_numbers = (doc.get("vpo_numbers") or []) if ok else []
             vpo_result = check_vpo_reference(
                 doc_vpo_numbers=doc_vpo_numbers,
                 registered_vpo_numbers=vpo_numbers or [],
             )
             vpo_skip_reason = None
             if vpo_result == ReferenceCheckResult.SKIP:
-                vpo_skip_reason = "no_vpo_registered" if not (vpo_numbers or []) else "no_extracted_vpo"
+                vpo_skip_reason = "extraction_failed" if not ok else ("no_vpo_registered" if not (vpo_numbers or []) else "no_extracted_vpo")
             reference_checks.append({
                 "document_type": doc_type,
                 "check": "vpo_reference",

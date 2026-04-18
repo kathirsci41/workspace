@@ -185,7 +185,8 @@ def test_reference_checks_include_extracted_and_expected_on_mismatch():
     )
     so_checks = [rc for rc in result["reference_checks"] if rc["check"] == "so_consistency"]
     assert len(so_checks) > 0
-    mismatch_check = next(rc for rc in so_checks if rc["result"] == "mismatch")
+    mismatch_check = next((rc for rc in so_checks if rc["result"] == "mismatch"), None)
+    assert mismatch_check is not None, "Expected a mismatch check entry but none found"
     assert mismatch_check["extracted"] == "SO-WRONG"
     assert mismatch_check["expected"] == "SO-001"
 
@@ -236,3 +237,29 @@ def test_reference_checks_skip_reason_no_so_when_so_not_set():
     ]
     assert all(rc["result"] == "skip" for rc in so_checks)
     assert all(rc["skip_reason"] == "no_so_number" for rc in so_checks)
+
+
+def test_reference_checks_cpo_skip_reason_no_extracted_value():
+    result = compute_chain_status(
+        scenario=OrderScenario.STOCK,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=100000.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=[],
+        documents=[
+            _doc(DocumentType.CUSTOMER_PO),
+            _doc(DocumentType.COMPANY_DC, so_number="SO-001", cpo_ref=None, extraction_ok=True),
+            _doc(DocumentType.COMPANY_INVOICE, so_number="SO-001", cpo_ref="CPO-001"),
+        ],
+        requires_install_report=False,
+        invoiced_total=100000.0,
+    )
+    cpo_checks = [
+        rc for rc in result["reference_checks"]
+        if rc["check"] == "cpo_reference" and rc["document_type"] == DocumentType.COMPANY_DC
+    ]
+    assert len(cpo_checks) == 1
+    assert cpo_checks[0]["result"] == "skip"
+    assert cpo_checks[0]["skip_reason"] == "no_extracted_value"
