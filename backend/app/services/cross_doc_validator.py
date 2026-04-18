@@ -3,6 +3,7 @@ from datetime import date
 from difflib import SequenceMatcher
 
 from app.services.reference_validator import ReferenceCheckResult
+from app.services.item_matcher import compare_po_to_delivery, ItemMatchStatus
 
 _AMOUNT_TOLERANCE_CI   = 0.01   # 1% — Company Invoice vs Customer PO (strict)
 _AMOUNT_TOLERANCE_VINV = 0.05   # 5% — Vendor Invoice sum vs Company PO (freight allowed)
@@ -213,3 +214,56 @@ def check_hsn_consistency(
         for part_no, hsn_set in part_hsn.items()
         if len(hsn_set) > 1
     ]
+
+
+# ── Module 4: Order Item Coverage ────────────────────────────────────────────
+
+def check_order_item_coverage(
+    po_items: list[dict],
+    delivery_items: list[dict],
+) -> dict:
+    """
+    Compare PO line items against delivery document items using part_no matching.
+
+    SKIP if either list is empty or has no part_nos.
+    WARNING if any item is missing or partially delivered.
+    PASS if all items are fully delivered.
+
+    Returns {result, missing_parts, partial_parts, comparison, skip_reason}.
+    """
+    if not po_items:
+        return {
+            "result": ReferenceCheckResult.SKIP,
+            "missing_parts": [],
+            "partial_parts": [],
+            "comparison": [],
+            "skip_reason": "no_po_items",
+        }
+
+    po_has_part_nos = any(it.get("part_no") for it in po_items)
+    if not po_has_part_nos:
+        return {
+            "result": ReferenceCheckResult.SKIP,
+            "missing_parts": [],
+            "partial_parts": [],
+            "comparison": [],
+            "skip_reason": "no_part_nos",
+        }
+
+    comparison = compare_po_to_delivery(po_items, delivery_items or [])
+
+    missing_parts = [r["part_no"] for r in comparison if r["status"] == ItemMatchStatus.MISSING]
+    partial_parts = [r["part_no"] for r in comparison if r["status"] == ItemMatchStatus.PARTIAL]
+
+    if missing_parts or partial_parts:
+        result = ReferenceCheckResult.WARNING
+    else:
+        result = ReferenceCheckResult.PASS
+
+    return {
+        "result": result,
+        "missing_parts": missing_parts,
+        "partial_parts": partial_parts,
+        "comparison": comparison,
+        "skip_reason": None,
+    }

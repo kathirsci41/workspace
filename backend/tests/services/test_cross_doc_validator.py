@@ -10,6 +10,7 @@ from app.services.cross_doc_validator import (
     check_vdc_ref_on_vinv,
     check_date_sequence,
     check_hsn_consistency,
+    check_order_item_coverage,
 )
 from datetime import date as _date
 
@@ -271,3 +272,63 @@ def test_hsn_only_one_doc_with_hsn_returns_empty():
         {"document_type": "COMPANY_INVOICE","order_items": [{"part_no": "FG-120G", "hsn_code": ""}]},
     ]
     assert check_hsn_consistency(docs) == []
+
+
+# ── Module 4: Order Item Coverage ────────────────────────────────────────────
+
+def test_order_item_coverage_all_matched_returns_pass():
+    po_items = [
+        {"part_no": "FG81F", "description": "FortiGate 81F", "qty": "2"},
+        {"part_no": "FS108E", "description": "FortiSwitch 108E", "qty": "1"},
+    ]
+    dc_items = [
+        {"part_no": "FG81F", "description": "FortiGate 81F", "qty": "2"},
+        {"part_no": "FS108E", "description": "FortiSwitch 108E", "qty": "1"},
+    ]
+    result = check_order_item_coverage(po_items, dc_items)
+    assert result["result"] == ReferenceCheckResult.PASS
+    assert result["missing_parts"] == []
+    assert result["partial_parts"] == []
+
+
+def test_order_item_coverage_missing_part_returns_warning():
+    po_items = [
+        {"part_no": "FG81F", "description": "FortiGate 81F", "qty": "1"},
+        {"part_no": "FS108E", "description": "FortiSwitch 108E", "qty": "1"},
+    ]
+    dc_items = [
+        {"part_no": "FG81F", "description": "FortiGate 81F", "qty": "1"},
+        # FS108E missing
+    ]
+    result = check_order_item_coverage(po_items, dc_items)
+    assert result["result"] == ReferenceCheckResult.WARNING
+    assert "FS108E" in result["missing_parts"]
+
+
+def test_order_item_coverage_partial_qty_returns_warning():
+    po_items = [{"part_no": "FG81F", "description": "FortiGate 81F", "qty": "3"}]
+    dc_items = [{"part_no": "FG81F", "description": "FortiGate 81F", "qty": "2"}]
+    result = check_order_item_coverage(po_items, dc_items)
+    assert result["result"] == ReferenceCheckResult.WARNING
+    assert "FG81F" in result["partial_parts"]
+
+
+def test_order_item_coverage_no_part_nos_skips():
+    po_items = [{"description": "Some item", "qty": "1"}]   # no part_no
+    dc_items = [{"description": "Some item", "qty": "1"}]
+    result = check_order_item_coverage(po_items, dc_items)
+    assert result["result"] == ReferenceCheckResult.SKIP
+    assert result["skip_reason"] == "no_part_nos"
+
+
+def test_order_item_coverage_empty_po_items_skips():
+    result = check_order_item_coverage([], [{"part_no": "FG81F", "qty": "1"}])
+    assert result["result"] == ReferenceCheckResult.SKIP
+    assert result["skip_reason"] == "no_po_items"
+
+
+def test_order_item_coverage_case_insensitive_part_matching():
+    po_items = [{"part_no": "fg81f", "qty": "1"}]
+    dc_items = [{"part_no": "FG81F", "qty": "1"}]
+    result = check_order_item_coverage(po_items, dc_items)
+    assert result["result"] == ReferenceCheckResult.PASS
