@@ -165,8 +165,8 @@ def compute_chain_status(
         "document_type": DocumentType.CUSTOMER_PO,
         "check": "delivery_address",
         "result": addr_check_result,
-        "extracted": cpo_address,
-        "expected": cdc_address,
+        "extracted": cdc_address,
+        "expected": cpo_address,
         "skip_reason": "missing_address" if addr_check_result == ReferenceCheckResult.SKIP else None,
     })
 

@@ -342,3 +342,28 @@ def test_address_skip_when_addresses_missing():
     addr_checks = [rc for rc in result["reference_checks"] if rc["check"] == "delivery_address"]
     assert len(addr_checks) == 1
     assert addr_checks[0]["result"] == "skip"
+
+
+def test_address_partial_match_treated_as_pass():
+    """City+state match without PIN code → PARTIAL → should be treated as PASS."""
+    result = compute_chain_status(
+        scenario=OrderScenario.STOCK,
+        po_number="CPO-001",
+        so_number="SO-001",
+        po_total=100000.0,
+        billing_type="full",
+        billing_milestones=[],
+        vpo_numbers=[],
+        documents=[
+            _doc_with_address(DocumentType.CUSTOMER_PO, delivery_address="123 Main St, Chennai, Tamil Nadu"),
+            _doc_with_address(DocumentType.COMPANY_DC,  delivery_address="456 Other Rd, Chennai, Tamil Nadu",
+                              so_number="SO-001", cpo_ref="CPO-001"),
+            _doc_with_address(DocumentType.COMPANY_INVOICE, so_number="SO-001", cpo_ref="CPO-001"),
+        ],
+        requires_install_report=False,
+        invoiced_total=100000.0,
+    )
+    addr_checks = [rc for rc in result["reference_checks"] if rc["check"] == "delivery_address"]
+    assert len(addr_checks) == 1
+    assert addr_checks[0]["result"] == "pass"
+    assert result["chain_status"] == ChainStatus.COMPLETE
