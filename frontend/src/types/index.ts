@@ -70,6 +70,7 @@ export interface PurchaseOrder {
   completed_at: string | null;
   completion_note: string | null;
   billing_type?: 'full' | 'staged' | 'recurring';
+  billing_milestones?: BillingMilestone[];
   created_at: string;
   updated_at: string;
 }
@@ -150,6 +151,13 @@ export interface ChainStatus {
   po_number: string;
   completeness_pct: number;
   chain: Record<string, ChainSlot[]>;
+}
+
+export interface BillingMilestone {
+  name: string;
+  percentage: number;
+  trigger: string;
+  due_date: string | null;
 }
 
 // ── NEW: correction payload sent to POST /corrections ────────────

@@ -1,740 +1,594 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft, Loader2, Trash2, PenLine, Check, X, AlertTriangle, BarChart2, Download } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
-import { useQueryClient } from '@tanstack/react-query';
-import { usePurchaseOrder, useChainStatus, useDeletePO } from '@/hooks/usePurchaseOrders';
-import { exportPOAsExcel, getChainValidation, updateSoNumber } from '@/api/purchaseOrders';
-import type { ChainStatusResponse } from '@/api/purchaseOrders';
-import { useReExtract, useCreateManualEntry } from '@/hooks/useExtraction';
+import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
+import { usePurchaseOrder, useDeletePO } from '@/hooks/usePurchaseOrders';
+import { exportPOAsExcel, getChainValidation, getChainStatus, updatePO } from '@/api/purchaseOrders';
+import type { ChainStatus } from '@/types';
+import { useReExtract } from '@/hooks/useExtraction';
 import { useDeleteDocument } from '@/hooks/useDocuments';
 import Breadcrumb from '@/components/Breadcrumb';
-import ChainStatusBar from '@/components/ChainStatusBar';
-import { ChainTimeline } from '@/components/ChainTimeline/ChainTimeline';
-import type { ChainSlot as TimelineSlot } from '@/components/ChainTimeline/ChainTimeline';
-import { ReferenceValidationPanel } from '@/components/ReferenceValidationPanel/ReferenceValidationPanel';
-import { BillingCompletenessPanel } from '@/components/BillingCompletenessPanel/BillingCompletenessPanel';
-import DocumentCard from '@/components/DocumentCard';
-import PDFPreviewPanel from '@/components/PDFPreviewPanel';
+import { LightChainTimeline } from '@/components/LightChainTimeline';
+import DocCard from '@/components/DocCard';
+import OrderSettingsCard from '@/components/OrderSettingsCard';
+import BillingTab from '@/components/BillingTab';
+import PDFViewer from '@/components/PDFViewer';
+import { getPreviewUrl, getDownloadUrl } from '@/api/documents';
 import UploadZone from '@/components/UploadZone';
 import ReviewModal from '@/components/ReviewModal';
-import type { ChainSlot as ApiChainSlot, ChainStatus, DocumentType } from '@/types';
+import type { ChainSlot, DocumentType, PurchaseOrder } from '@/types';
 import { CHAIN_ORDER, DOC_TYPE_LABELS } from '@/types';
 import clsx from 'clsx';
 
-function buildSlots(
-  missingSlots: string[],
-  onUpload: (type: string) => void,
-  onViewDoc: (docId: string) => void,
-  chainByType: Record<string, ApiChainSlot[]> | undefined,
-  referenceChecks: Array<{ document_type: string; result: string }>,
-): TimelineSlot[] {
-  return CHAIN_ORDER.map(type => {
-    const firstDocId = chainByType?.[type]?.[0]?.document_id ?? null;
-    const hasMismatch = referenceChecks.some(
-      rc => rc.document_type === type && rc.result === 'mismatch',
-    );
-    let state: TimelineSlot['state'];
-    if (missingSlots.includes(type)) {
-      state = 'waiting';
-    } else if (hasMismatch) {
-      state = 'mismatch';
-    } else if (firstDocId) {
-      state = 'verified';
-    } else {
-      state = 'waiting';
-    }
-    return {
-      docType:  type,
-      label:    DOC_TYPE_LABELS[type],
-      state,
-      ref:      chainByType?.[type]?.[0]?.ref_no ?? undefined,
-      onUpload: (_label: string) => onUpload(type),
-      onView:   firstDocId ? (_label: string) => onViewDoc(firstDocId) : undefined,
-    };
-  });
-}
+type Tab = 'overview' | 'documents' | 'billing';
 
 export default function PODetailPage() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
-  const highlightDocId = searchParams.get('highlight');
-  const reviewParam = searchParams.get('review');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const showToast = useToast();
 
-  const { data: po, isLoading: poLoading } = usePurchaseOrder(id!);
-  const chainStatusQuery = useChainStatus(id!);
-  const chainData = chainStatusQuery.data as ChainStatus | undefined;
-  const chainLoading = chainStatusQuery.isLoading;
-  const reExtractMutation = useReExtract();
-  const deleteMutation = useDeleteDocument();
-  const deletePOMutation = useDeletePO();
-  const manualEntryMutation = useCreateManualEntry();
-
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(highlightDocId);
-  const [uploadType, setUploadType] = useState<DocumentType | null>(null);
-  const [reviewDocId, setReviewDocId] = useState<string | null>(null);
-  const [editDocId, setEditDocId] = useState<string | null>(null);
-
-  // SO number inline edit
-  const [soEditing, setSoEditing] = useState(false);
-  const [soInput, setSoInput]     = useState('');
-
-  // Chain validation (reference checks, billing, missing slots)
-  const [chainValidation, setChainValidation] = useState<ChainStatusResponse | null>(null);
-
-  // Confirm dialogs
-  const [reExtractConfirm, setReExtractConfirm] = useState<string | null>(null); // docId
-  const [deleteDocConfirm, setDeleteDocConfirm] = useState<string | null>(null); // docId
+  const [activeTab, setActiveTab]             = useState<Tab>('overview');
+  const [uploadType, setUploadType]           = useState<DocumentType | null>(null);
+  const [reviewDocId, setReviewDocId]         = useState<string | null>(null);
+  const [editDocId, setEditDocId]             = useState<string | null>(null);
+  const [selectedDocId, setSelectedDocId]     = useState<string | null>(searchParams.get('highlight'));
+  const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
+  const [reExtractConfirm, setReExtractConfirm] = useState<string | null>(null);
+  const [deleteDocConfirm, setDeleteDocConfirm] = useState<string | null>(null);
   const [deletePOConfirm, setDeletePOConfirm]   = useState(false);
-
   const [exporting, setExporting] = useState(false);
 
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      await exportPOAsExcel(id!, po!.po_number, 'separate');
-    } catch {
-      showToast('Export failed. Please try again.', 'error');
-    } finally {
-      setExporting(false);
-    }
-  };
+  const { data: po, isLoading: poLoading } = usePurchaseOrder(id!);
 
-  // Track previous extracting state to detect completion
+  // /chain — validation data (reference checks, billing, missing slots, completeness_pct)
+  const chainQuery = useQuery({
+    queryKey: ['chain-validation', id],
+    queryFn: () => getChainValidation(id!),
+    enabled: !!id,
+  });
+  const chainValidation = chainQuery.data ?? null;
+
+  // /chain-status — document slot data (chain: Record<string, ChainSlot[]>)
+  const chainSlotsQuery = useQuery({
+    queryKey: ['chain-status', id],
+    queryFn: () => getChainStatus(id!),
+    enabled: !!id,
+    refetchInterval: (query) => {
+      const data = query.state.data as ChainStatus | undefined;
+      if (!data?.chain) return false;
+      const extracting = Object.values(data.chain)
+        .some(slots => slots.some(s => s.status === 'EXTRACTING' || s.status === 'UPLOADED'));
+      return extracting ? 3000 : false;
+    },
+  });
+  const chainSlotsData = chainSlotsQuery.data as ChainStatus | undefined;
+
+  const reExtractMutation = useReExtract();
+  const deleteMutation    = useDeleteDocument();
+  const deletePOMutation  = useDeletePO();
+
+  const updatePOMutation = useMutation({
+    mutationFn: (patch: Partial<PurchaseOrder>) => updatePO(id!, patch),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrder', id] });
+      queryClient.invalidateQueries({ queryKey: ['chain-validation', id] });
+      queryClient.invalidateQueries({ queryKey: ['chain-status', id] });
+      showToast('Saved', 'success');
+    },
+    onError: () => showToast('Save failed', 'error'),
+  });
+
+  // Auto-open review modal when ?review= param is set
+  useEffect(() => {
+    const reviewParam = searchParams.get('review');
+    if (reviewParam) setReviewDocId(reviewParam);
+  }, [searchParams]);
+
+  // Toast when extraction polling completes
   const prevExtractingRef = useRef(false);
-
-  // Find selected slot for preview metadata
-  const selectedEntry = chainData
-    ? (() => {
-        for (const [docType, slots] of Object.entries(chainData.chain as Record<string, ApiChainSlot[]>)) {
-          const found = slots.find((s: ApiChainSlot) => s.document_id === selectedDocId);
-          if (found) return [docType, found] as const;
-        }
-        return undefined;
-      })()
-    : undefined;
-  const selectedSlot = selectedEntry ? selectedEntry[1] : null;
-  const selectedDocType = selectedEntry ? (selectedEntry[0] as DocumentType) : null;
-
-  // Auto-refetch chain status when extracting
-  const hasExtracting = chainData
-    ? Object.values(chainData.chain as Record<string, ApiChainSlot[]>).some((slots) =>
-        slots.some((s: ApiChainSlot) => s.status === 'EXTRACTING' || s.status === 'UPLOADED')
-      )
-    : false;
+  const chainSlots = (chainSlotsData?.chain ?? {}) as Record<string, ChainSlot[]>;
+  const hasExtracting = Object.values(chainSlots)
+    .some(slots => slots.some(s => s.status === 'EXTRACTING' || s.status === 'UPLOADED'));
 
   useEffect(() => {
-    // Show toast when extraction finishes
-    if (prevExtractingRef.current && !hasExtracting && chainData) {
-      const allSlots = Object.values(chainData.chain as Record<string, ApiChainSlot[]>).flat();
-      const hasFailed       = allSlots.some((s: ApiChainSlot) => s.status === 'EXTRACTION_FAILED');
-      const hasPendingModel = allSlots.some((s: ApiChainSlot) => s.status === 'PENDING_MODEL');
-      const hasPending      = allSlots.some((s: ApiChainSlot) => s.status === 'PENDING_REVIEW');
-
-      if (hasFailed && !hasPending)
+    if (prevExtractingRef.current && !hasExtracting && chainSlotsData) {
+      const allSlots = Object.values(chainSlots).flat();
+      if (allSlots.some(s => s.status === 'EXTRACTION_FAILED'))
         showToast('Extraction failed — open the document to enter manually.', 'error');
-      else if (hasFailed && hasPending)
-        showToast('Extraction finished — one or more documents need attention.', 'warn');
-      else if (hasPendingModel)
-        showToast('AI model unavailable — document will retry when service is back.', 'warn');
-      else if (hasPending)
+      else if (allSlots.some(s => s.status === 'PENDING_REVIEW'))
         showToast('Extraction complete — documents are ready to review.', 'success');
     }
     prevExtractingRef.current = hasExtracting;
-  }, [hasExtracting, chainData]);
+  }, [hasExtracting, chainSlotsData]);
 
-  useEffect(() => {
-    if (!hasExtracting) return;
-    const interval = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
-      queryClient.invalidateQueries({ queryKey: ['purchaseOrder', id] });
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [hasExtracting, id, queryClient]);
-
-  // Scroll to and highlight document card when navigated from search results
-  useEffect(() => {
-    if (!highlightDocId || !chainData) return;
-    const el = document.getElementById(highlightDocId);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [highlightDocId, chainData]);
-
-  useEffect(() => {
-    if (reviewParam && !reviewDocId) {
-      setReviewDocId(reviewParam);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // only on mount
-
-  // Fetch chain validation whenever PO id changes
-  useEffect(() => {
-    if (!id) return;
-    getChainValidation(id)
-      .then(setChainValidation)
-      .catch(() => showToast('Could not load chain validation. Please refresh.', 'error'));
-  }, [id]);
-
-  const refreshChainValidation = () => {
-    if (!id) return;
-    getChainValidation(id).then(setChainValidation).catch(() => {});
+  const handleExport = async () => {
+    setExporting(true);
+    try { await exportPOAsExcel(id!, po!.po_number, 'separate'); }
+    catch { showToast('Export failed', 'error'); }
+    finally { setExporting(false); }
   };
 
-  const handleSoSaveAndValidate = async () => {
-    if (!id) return;
-    if (!soInput.trim()) { setSoEditing(false); return; }
-    try {
-      await updateSoNumber(id, soInput.trim());
-      setSoEditing(false);
-      const updated = await getChainValidation(id);
-      setChainValidation(updated);
-      // Also refresh the PO data so the displayed SO badge updates
-      queryClient.invalidateQueries({ queryKey: ['purchaseOrder', id] });
-    } catch {
-      showToast('Failed to save SO number. Please try again.', 'error');
-    }
-  };
-
-  if (poLoading || chainLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 size={32} className="animate-spin text-gray-400" />
-      </div>
-    );
-  }
-
-  if (!po) {
-    return (
-      <div className="text-center py-20 text-gray-400">
-        Purchase order not found.
-      </div>
-    );
-  }
-
-  const handleReExtract = (docId: string) => {
-    setReExtractConfirm(docId);
-  };
-
-  const confirmReExtract = () => {
-    if (!reExtractConfirm) return;
-    reExtractMutation.mutate(reExtractConfirm, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
-        refreshChainValidation();
-        setReExtractConfirm(null);
-        showToast('Re-extraction started — document will update shortly.', 'info');
-      },
-      onError: () => {
-        setReExtractConfirm(null);
-        showToast('Failed to start re-extraction. Please try again.', 'error');
-      },
-    });
-  };
-
-  const handleDelete = (docId: string) => {
-    setDeleteDocConfirm(docId);
-  };
-
-  const confirmDeleteDoc = () => {
-    if (!deleteDocConfirm) return;
-    deleteMutation.mutate(deleteDocConfirm, {
-      onSuccess: () => {
-        if (selectedDocId === deleteDocConfirm) setSelectedDocId(null);
-        queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
-        refreshChainValidation();
-        setDeleteDocConfirm(null);
-      },
-      onError: () => setDeleteDocConfirm(null),
-    });
-  };
-
-  const handleDeletePO = () => setDeletePOConfirm(true);
-
-  const confirmDeletePO = () => {
-    deletePOMutation.mutate(id!, {
-      onSuccess: () => navigate('/purchase-orders'),
-    });
-  };
-
-  const handleManualEntry = (docId: string) => {
-    manualEntryMutation.mutate(docId, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
-        refreshChainValidation();
-        setReviewDocId(docId);
-        showToast('Manual entry mode — fill in the fields from the document.', 'info');
-      },
-      onError: () => {
-        showToast('Could not open manual entry. Please try again.', 'error');
-      },
-    });
-  };
-
-  // Extract error messages
-  const actionError = reExtractMutation.isError || deleteMutation.isError || manualEntryMutation.isError
-    ? (() => {
-        const err = (reExtractMutation.error || deleteMutation.error || manualEntryMutation.error) as any;
-        const detail = err?.response?.data?.detail;
-        if (typeof detail === 'string') return detail;
-        if (Array.isArray(detail) && detail[0]?.msg) return detail[0].msg;
-        return err?.message || 'Operation failed. Please try again.';
-      })()
-    : '';
-
-  const statusColors: Record<string, string> = {
-    INITIATED: 'bg-gray-100 text-gray-700',
-    IN_PROGRESS: 'bg-blue-100 text-blue-700',
-    NEAR_COMPLETE: 'bg-amber-100 text-amber-700',
-    COMPLETE: 'bg-green-100 text-green-700',
-    CANCELLED: 'bg-red-100 text-red-700',
-  };
-
+  // Derived values
+  const chain = chainSlots;
+  const missingSlots    = chainValidation?.missing_slots ?? [];
   const referenceChecks = chainValidation?.reference_checks ?? [];
-  const timelineSlots = chainValidation
-    ? buildSlots(
-        chainValidation.missing_slots,
-        (type) => setUploadType(type as DocumentType),
-        (docId) => setSelectedDocId(docId),
-        chainData?.chain as Record<string, ApiChainSlot[]> | undefined,
-        referenceChecks,
-      )
-    : [];
-  const fallbackCompletenessPct = timelineSlots.length > 0
-    ? Math.round((timelineSlots.filter((slot) => slot.state === 'verified').length / timelineSlots.length) * 100)
-    : 0;
-  const chainCompletenessPct = chainValidation?.completeness_pct ?? fallbackCompletenessPct;
+  const billedSoFar     = (chainValidation?.billing.stages ?? [])
+    .reduce((sum, s) => sum + (s.invoiced_amount ?? 0), 0);
+
+  // Pending review count for Documents tab badge
+  const pendingCount = Object.values(chain)
+    .flat()
+    .filter(s => s.status === 'PENDING_REVIEW')
+    .length;
+
+  // Find doc type for a given docId
+  function findDocType(docId: string): string | null {
+    for (const [dt, slots] of Object.entries(chain)) {
+      if (slots.some(s => s.document_id === docId)) return dt;
+    }
+    return null;
+  }
+
+  function findDocTypeLabel(docId: string) {
+    const dt = findDocType(docId);
+    return dt ? (DOC_TYPE_LABELS[dt as DocumentType] ?? dt) : 'document';
+  }
+
+  function findDocFilename(docId: string): string | null {
+    for (const slots of Object.values(chain)) {
+      const found = slots.find(s => s.document_id === docId);
+      if (found) return (found as any).filename ?? null;
+    }
+    return null;
+  }
+
+  const handleViewDoc = (docId: string) => {
+    setSelectedDocId(docId);
+    setSelectedDocType(findDocType(docId));
+  };
+
+  const invalidateChain = () => {
+    queryClient.invalidateQueries({ queryKey: ['chain-validation', id] });
+    queryClient.invalidateQueries({ queryKey: ['chain-status', id] });
+    queryClient.invalidateQueries({ queryKey: ['purchaseOrder', id] });
+  };
+
+  if (poLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="animate-spin text-gray-400" size={28} />
+      </div>
+    );
+  }
+  if (!po) return <div className="p-8 text-gray-500">PO not found.</div>;
 
   return (
-    <div className="flex flex-col gap-4 h-full">
-      {/* Breadcrumb */}
-      {po && (
-        <Breadcrumb items={[
-          { label: 'Purchase Orders', to: '/purchase-orders' },
-          { label: po.po_number },
-        ]} />
-      )}
+    <div className="flex flex-col bg-[--paper] min-h-full">
 
-      {/* Header */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 hover:bg-gray-100 rounded-lg"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div className="flex-1 min-w-0">
-          <h2 className="text-2xl font-bold truncate">{po.po_number}</h2>
-          <p className="text-sm text-gray-500">
-            {po.customer_name ?? po.customer_sky_id ?? ''}{' '}
-            {po.customer_sky_id ? `(${po.customer_sky_id})` : ''}
-          </p>
+      {/* Breadcrumb */}
+      <div className="bg-white border-b border-[--veil] px-6 py-2.5">
+        <Breadcrumb items={[{ label: 'Purchase Orders', to: '/purchase-orders' }, { label: po.po_number }]} />
+      </div>
+
+      {/* ── PO Header ── */}
+      <div className="bg-white border-b border-[--veil] px-6 py-4 flex items-start gap-4 flex-wrap">
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-1.5 flex-wrap">
+            <span className="font-mono text-base font-bold text-[--accent]">{po.po_number}</span>
+            <span className={clsx(
+              'text-[10px] font-bold px-2.5 py-1 rounded-full border',
+              po.status === 'COMPLETE'   ? 'bg-green-50 text-green-700 border-green-300'
+              : po.status === 'CANCELLED' ? 'bg-red-50 text-red-700 border-red-300'
+              : 'bg-amber-50 text-amber-700 border-amber-300',
+            )}>
+              ● {po.status.replace('_', ' ')}
+            </span>
+            {chainValidation && (
+              <span className={clsx(
+                'text-[10px] font-bold px-2.5 py-1 rounded-full border',
+                (chainValidation.completeness_pct ?? 0) >= 100
+                  ? 'bg-green-50 text-green-700 border-green-300'
+                  : 'bg-blue-50 text-blue-700 border-blue-300',
+              )}>
+                ⬡ Chain {Math.round(chainValidation.completeness_pct ?? 0)}%
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 text-sm flex-wrap">
+            <span className="font-medium text-[--ink]">{po.customer_name}</span>
+            <span className="text-gray-300">·</span>
+            <span className="font-bold text-[--ink]">₹{Number(po.total_amount ?? 0).toLocaleString('en-IN')}</span>
+            {po.so_number && (
+              <>
+                <span className="text-gray-300">·</span>
+                <span className="text-xs text-gray-500">SO: <span className="font-mono">{po.so_number}</span></span>
+              </>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex gap-2 items-center">
           <Link
             to={`/purchase-orders/${id}/profile`}
-            className="flex items-center gap-1.5 text-sm text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50"
+            className="text-xs font-semibold px-3 py-2 rounded-lg border border-[--veil] text-gray-600 hover:bg-gray-50 transition-colors"
           >
-            <BarChart2 size={14} /> View Profile
+            ↗ Profile
           </Link>
           <button
             onClick={handleExport}
             disabled={exporting}
-            title="Export PO data to Excel"
-            className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="text-xs font-semibold px-3 py-2 rounded-lg border border-[--veil] text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5 disabled:opacity-50"
           >
-            <Download size={14} className={exporting ? 'animate-bounce' : ''} />
-            {exporting ? 'Exporting…' : 'Export'}
+            {exporting ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+            Export
           </button>
+        </div>
+      </div>
+
+      {/* ── Tab strip ── */}
+      <div className="bg-white border-b border-[--veil] px-6 flex gap-0">
+        {([
+          ['overview',  'Overview',  null],
+          ['documents', 'Documents', pendingCount > 0 ? pendingCount : null],
+          ['billing',   'Billing',   null],
+        ] as [Tab, string, number | null][]).map(([tab, label, badge]) => (
           <button
-            onClick={handleDeletePO}
-            disabled={deletePOMutation.isPending}
-            className="flex items-center gap-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-red-200 disabled:opacity-50"
-            title="Delete this PO and all documents"
-          >
-            <Trash2 size={14} />
-            {deletePOMutation.isPending ? 'Deleting…' : 'Delete PO'}
-          </button>
-          <span
+            key={tab}
+            onClick={() => setActiveTab(tab)}
             className={clsx(
-              'text-xs font-medium px-3 py-1 rounded-full',
-              statusColors[po.status] ?? 'bg-gray-100 text-gray-700'
+              'px-5 py-3 text-xs font-semibold border-b-2 -mb-px transition-colors flex items-center gap-1.5',
+              activeTab === tab
+                ? 'text-[--accent] border-[--accent]'
+                : 'text-gray-400 border-transparent hover:text-[--ink]',
             )}
           >
-            {po.status.replace('_', ' ')}
-          </span>
-          {po.total_amount != null && (
-            <span className="text-sm font-medium text-gray-700">
-              {po.currency} {po.total_amount.toLocaleString()}
-            </span>
-          )}
-
-          {/* SO Number badge + inline edit */}
-          {soEditing ? (
-            <div className="flex items-center gap-1">
-              <input
-                type="text"
-                value={soInput}
-                onChange={(e) => setSoInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSoSaveAndValidate();
-                  }
-                  if (e.key === 'Escape') setSoEditing(false);
-                }}
-                placeholder="SO number"
-                autoFocus
-                className="text-xs px-2 py-1 border rounded-lg w-36 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-              />
-              <button
-                onClick={handleSoSaveAndValidate}
-                className="p-1 text-green-600 hover:bg-green-50 rounded"
-                title="Save"
-              >
-                <Check size={14} />
-              </button>
-              <button
-                onClick={() => setSoEditing(false)}
-                className="p-1 text-gray-400 hover:bg-gray-100 rounded"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => { setSoInput(po.so_number ?? ''); setSoEditing(true); }}
-              className={clsx(
-                'inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border',
-                po.so_number
-                  ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                  : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-              )}
-              title="Click to edit SO number"
-            >
-              <PenLine size={11} />
-              {po.so_number ? `SO: ${po.so_number}` : 'SO: Not set'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Chain Status Bar */}
-      {chainData && <ChainStatusBar chain={chainData.chain} />}
-
-      {/* Chain complete banner */}
-      {chainData?.completeness_pct === 100 && (
-        <ChainCompleteBanner poId={id!} profilePath={`/purchase-orders/${id}/profile`} />
-      )}
-
-      {/* Chain validation status banner */}
-      {chainValidation && (
-        <div className={clsx(
-          'rounded-lg p-3 border flex items-center justify-between',
-          chainValidation.chain_status === 'mismatch'  ? 'bg-red-50 border-red-200' :
-          chainValidation.chain_status === 'complete' || chainValidation.chain_status === 'verified'
-            ? 'bg-green-50 border-green-200' :
-          'bg-amber-50 border-amber-200'
-        )}>
-          <div>
-            <p className={clsx(
-              'text-sm font-semibold',
-              chainValidation.chain_status === 'mismatch'  ? 'text-red-800' :
-              chainValidation.chain_status === 'complete' || chainValidation.chain_status === 'verified'
-                ? 'text-green-800' : 'text-amber-800'
-            )}>
-              {chainValidation.chain_status === 'complete' || chainValidation.chain_status === 'verified'
-                ? '✓ Chain Complete'
-                : chainValidation.chain_status === 'mismatch'
-                ? '✗ Reference Mismatch'
-                : '⚠ Chain Incomplete'}
-            </p>
-            {chainValidation.missing_slots.length > 0 && (
-              <p className="text-xs text-gray-500 mt-0.5">
-                Missing: {chainValidation.missing_slots.map(s => s.replace(/_/g, ' ')).join(' · ')}
-              </p>
+            {label}
+            {badge != null && (
+              <span className="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                {badge}
+              </span>
             )}
-            <p className="text-xs text-gray-500 mt-0.5">{chainCompletenessPct}% complete</p>
-          </div>
-        </div>
-      )}
-
-      {/* Two-column chain validation view */}
-      {chainValidation && (
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-slate-200 mb-4">Document Chain</h3>
-            <ChainTimeline slots={timelineSlots} />
-          </div>
-          <div className="flex flex-col gap-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-slate-200 mb-3">Reference Validation</h3>
-              <ReferenceValidationPanel checks={referenceChecks} />
-            </div>
-            <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-slate-200 mb-3">Billing</h3>
-              <BillingCompletenessPanel
-                billing={chainValidation.billing}
-                poTotal={po.total_amount}
-                billingType={po.billing_type ?? 'full'}
-                currency={po.currency === 'INR' ? '₹' : po.currency}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Action error banner */}
-      {actionError && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex items-center justify-between">
-          <span>{typeof actionError === 'string' ? actionError : JSON.stringify(actionError)}</span>
-          <button
-            onClick={() => {
-              reExtractMutation.reset();
-              deleteMutation.reset();
-              manualEntryMutation.reset();
-            }}
-            className="text-red-500 hover:text-red-700 text-xs font-medium ml-4"
-          >
-            Dismiss
           </button>
-        </div>
-      )}
-
-      {/* Two-column layout */}
-      <div className="flex gap-4 flex-1 min-h-0">
-        {/* Left: Document Cards */}
-        <div className="w-[55%] space-y-3 overflow-y-auto pr-1">
-          {CHAIN_ORDER.map((docType) => {
-            const slots: ApiChainSlot[] = chainData?.chain?.[docType] ?? [];
-            return (
-              <div key={docType} className="space-y-2">
-                {slots.length === 0 ? (
-                  /* No documents yet – show empty card */
-                  <DocumentCard
-                    documentType={docType}
-                    slot={null}
-                    isSelected={false}
-                    onSelect={(docId) => setSelectedDocId(docId)}
-                    onUpload={() => setUploadType(docType)}
-                    onReview={(docId) => setReviewDocId(docId)}
-                    onReExtract={handleReExtract}
-                    onDelete={handleDelete}
-                    onManualEntry={handleManualEntry}
-                    onEdit={(docId) => setEditDocId(docId)}
-                  />
-                ) : (
-                  <>
-                    {slots.map((slot, idx) => (
-                      <DocumentCard
-                        key={slot.document_id ?? `${docType}-${idx}`}
-                        documentType={docType}
-                        slot={slot}
-                        isSelected={
-                          selectedDocId != null &&
-                          slot.document_id === selectedDocId
-                        }
-                        highlighted={slot.document_id === highlightDocId}
-                        onSelect={(docId) => setSelectedDocId(docId)}
-                        onUpload={() => setUploadType(docType)}
-                        onReview={(docId) => setReviewDocId(docId)}
-                        onReExtract={handleReExtract}
-                        onDelete={handleDelete}
-                        onManualEntry={handleManualEntry}
-                        onEdit={(docId) => setEditDocId(docId)}
-                        showLabel={idx === 0}
-                        docIndex={slots.length > 1 ? idx + 1 : undefined}
-                      />
-                    ))}
-                    {/* Always show "Add another" button when docs exist */}
-                    <button
-                      onClick={() => setUploadType(docType)}
-                      className="w-full border-2 border-dashed border-gray-300 hover:border-blue-400 rounded-lg py-2 text-xs text-gray-400 hover:text-blue-600 transition-colors"
-                    >
-                      + Add another
-                    </button>
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Right: PDF Preview */}
-        <div className="w-[45%] min-w-0">
-          <PDFPreviewPanel
-            documentId={selectedDocId}
-            refNumber={selectedSlot?.ref_no}
-            documentType={selectedDocType}
-          />
-        </div>
+        ))}
+        <button
+          onClick={() => setDeletePOConfirm(true)}
+          className="ml-auto px-5 py-3 text-xs font-semibold text-red-400 hover:text-red-600 border-b-2 border-transparent -mb-px transition-colors"
+        >
+          Delete
+        </button>
       </div>
 
-      {/* Upload modal */}
+      {/* ── Tab content ── */}
+      <div className="flex-1 px-6 py-5 max-w-5xl w-full">
+
+        {/* ══ OVERVIEW ══ */}
+        {activeTab === 'overview' && (
+          <div>
+            <OrderSettingsCard
+              scenario={po.order_scenario}
+              billingType={po.billing_type ?? 'full'}
+              billedSoFar={billedSoFar}
+              milestoneCount={(po.billing_milestones ?? []).length}
+              poTotal={Number(po.total_amount ?? 0)}
+              onScenarioChange={val => updatePOMutation.mutate({ order_scenario: val })}
+              onBillingTypeChange={val => updatePOMutation.mutate({ billing_type: val })}
+            />
+
+            <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-2 flex items-center gap-2">
+              Document Chain
+              <span className="flex-1 h-px bg-[--veil]" />
+            </div>
+            <div className="mb-5">
+              <LightChainTimeline
+                chain={chain}
+                missingSlots={missingSlots}
+                referenceChecks={referenceChecks}
+              />
+            </div>
+
+            <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-2 flex items-center gap-2">
+              Reference Validation
+              <span className="flex-1 h-px bg-[--veil]" />
+            </div>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {referenceChecks.length === 0 && (
+                <span className="text-xs text-gray-400">No reference data — upload documents to validate</span>
+              )}
+              {referenceChecks.map((rc, i) => (
+                <span
+                  key={i}
+                  className={clsx(
+                    'text-xs font-medium px-3 py-1.5 rounded-lg border flex items-center gap-1.5',
+                    rc.result === 'pass'     && 'bg-green-50 border-green-300 text-green-700',
+                    rc.result === 'mismatch' && 'bg-red-50 border-red-300 text-red-700',
+                    rc.result === 'skip'     && 'bg-gray-50 border-gray-200 text-gray-500',
+                  )}
+                >
+                  {rc.result === 'pass' ? '✓' : rc.result === 'mismatch' ? '✗' : '○'}
+                  {' '}{rc.check}
+                </span>
+              ))}
+            </div>
+
+            <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-2 flex items-center gap-2">
+              Billing Summary
+              <span className="flex-1 h-px bg-[--veil]" />
+            </div>
+            <div className="bg-white border border-[--veil] rounded-xl p-4">
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                {[
+                  { label: 'PO Total',      val: `₹${Number(po.total_amount ?? 0).toLocaleString('en-IN')}`, cls: '' },
+                  { label: 'Billed So Far', val: `₹${billedSoFar.toLocaleString('en-IN')}`,                  cls: 'text-amber-700' },
+                  { label: 'Outstanding',   val: `₹${Math.max(0, Number(po.total_amount ?? 0) - billedSoFar).toLocaleString('en-IN')}`, cls: 'text-red-600' },
+                ].map(k => (
+                  <div key={k.label} className="border border-[--veil] rounded-lg p-3">
+                    <div className="text-[9px] font-bold uppercase tracking-wide text-gray-400">{k.label}</div>
+                    <div className={clsx('text-sm font-bold mt-1', k.cls || 'text-[--ink]')}>{k.val}</div>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setActiveTab('billing')}
+                className="text-xs font-semibold text-[--accent] hover:underline"
+              >
+                → View full billing detail
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ══ DOCUMENTS ══ */}
+        {activeTab === 'documents' && (
+          <div className="flex flex-col gap-2">
+            <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1 flex items-center gap-2">
+              {CHAIN_ORDER.length} Document Types
+              <span className="flex-1 h-px bg-[--veil]" />
+            </div>
+            {CHAIN_ORDER.map(docType => {
+              const slots = chain[docType] ?? [];
+              const slot  = slots[0] ?? null;
+              return (
+                <DocCard
+                  key={docType}
+                  label={DOC_TYPE_LABELS[docType] ?? docType}
+                  slot={slot}
+                  onUpload={() => setUploadType(docType as DocumentType)}
+                  onReview={docId => setReviewDocId(docId)}
+                  onView={docId => handleViewDoc(docId)}
+                  onReExtract={docId => setReExtractConfirm(docId)}
+                  onEditFields={docId => setEditDocId(docId)}
+                  onDelete={docId => setDeleteDocConfirm(docId)}
+                />
+              );
+            })}
+          </div>
+        )}
+
+        {/* ══ BILLING ══ */}
+        {activeTab === 'billing' && (
+          <BillingTab
+            po={po}
+            chainValidation={chainValidation}
+            onUpdate={patch => updatePOMutation.mutate(patch)}
+          />
+        )}
+      </div>
+
+      {/* ── PDF popup modal ── */}
+      {selectedDocId && (() => {
+        const previewUrl  = getPreviewUrl(selectedDocId);
+        const downloadUrl = getDownloadUrl(selectedDocId);
+        const label = selectedDocType
+          ? (DOC_TYPE_LABELS[selectedDocType as DocumentType] ?? selectedDocType)
+          : 'Document';
+        const slot = Object.values(chain).flat().find(s => s.document_id === selectedDocId);
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+            onClick={() => setSelectedDocId(null)}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl flex flex-col"
+              style={{ width: '90vw', height: '90vh' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 shrink-0">
+                <div>
+                  <span className="font-semibold text-sm">{label}</span>
+                  {slot?.ref_no && (
+                    <span className="ml-2 font-mono text-xs text-gray-500">{slot.ref_no}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <a
+                    href={downloadUrl}
+                    download
+                    className="text-xs font-semibold text-[--accent] flex items-center gap-1 hover:underline"
+                  >
+                    <Download size={12} /> Download
+                  </a>
+                  <button
+                    onClick={() => setSelectedDocId(null)}
+                    className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 min-h-0">
+                <PDFViewer url={previewUrl} />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Upload modal ── */}
       {uploadType && (
         <UploadZone
           poId={id!}
           documentType={uploadType}
+          onClose={() => setUploadType(null)}
           onSuccess={() => {
             setUploadType(null);
-            queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
-            refreshChainValidation();
+            invalidateChain();
           }}
-          onClose={() => setUploadType(null)}
         />
       )}
 
-      {/* Review modal */}
+      {/* ── Review modal ── */}
       {reviewDocId && (
         <ReviewModal
           documentId={reviewDocId}
-          onClose={() => setReviewDocId(null)}
+          mode="review"
+          onClose={() => {
+            setReviewDocId(null);
+            invalidateChain();
+          }}
           onVerified={() => {
             setReviewDocId(null);
-            queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
-            queryClient.invalidateQueries({ queryKey: ['documents', 'status', 'PENDING_REVIEW'] });
-            refreshChainValidation();
-            showToast('Document verified and saved.', 'success');
+            invalidateChain();
           }}
         />
       )}
 
-      {/* Edit fields modal (VERIFIED documents) */}
+      {/* ── Edit fields modal ── */}
       {editDocId && (
         <ReviewModal
           documentId={editDocId}
           mode="edit"
           onClose={() => setEditDocId(null)}
-          onVerified={() => {}}
+          onVerified={() => {
+            setEditDocId(null);
+            invalidateChain();
+          }}
           onSaved={() => {
             setEditDocId(null);
-            queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
-            refreshChainValidation();
-            showToast('Changes saved successfully.', 'success');
+            invalidateChain();
+            showToast('Changes saved', 'success');
           }}
         />
       )}
 
-      {/* Re-extract confirmation modal */}
+      {/* ── Re-extract confirm ── */}
       {reExtractConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 space-y-4">
-            <div className="flex items-center gap-3 text-amber-700">
-              <AlertTriangle size={20} />
-              <h3 className="font-semibold text-base">Re-extract this document?</h3>
-            </div>
-            <p className="text-sm text-gray-600">
-              This will re-run AI extraction and <strong>overwrite any manual corrections</strong> you have made. This cannot be undone.
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="font-bold text-[--ink] mb-1">
+              Re-extract {findDocTypeLabel(reExtractConfirm)}?
+            </h3>
+            {findDocFilename(reExtractConfirm) && (
+              <p className="font-mono text-xs text-gray-500 bg-gray-50 rounded px-2 py-1 mb-3">
+                {findDocFilename(reExtractConfirm)}
+              </p>
+            )}
+            <p className="text-sm text-gray-500 mb-4">
+              The document will be reprocessed by the AI. Existing extracted data will be replaced.
             </p>
-            <div className="flex justify-end gap-3">
+            <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setReExtractConfirm(null)}
-                className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-sm text-gray-600 border border-[--veil] rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
-                onClick={confirmReExtract}
-                disabled={reExtractMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50"
+                onClick={() => {
+                  reExtractMutation.mutate(reExtractConfirm, {
+                    onSuccess: () => {
+                      setReExtractConfirm(null);
+                      invalidateChain();
+                      showToast('Re-extraction queued', 'success');
+                    },
+                    onError: () => showToast('Re-extraction failed', 'error'),
+                  });
+                }}
+                className="px-4 py-2 text-sm font-semibold bg-[--accent] text-white rounded-lg hover:bg-[--accent]/90"
               >
-                {reExtractMutation.isPending ? 'Re-extracting…' : 'Yes, Re-extract'}
+                Re-extract
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete PO confirmation modal */}
-      {deletePOConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 space-y-4">
-            <div className="flex items-center gap-3 text-red-700">
-              <Trash2 size={20} />
-              <h3 className="font-semibold text-base">Delete PO "{po.po_number}"?</h3>
-            </div>
-            <p className="text-sm text-gray-600">
-              This will permanently delete this PO and all{' '}
-              <strong>{Object.values(chainData?.chain ?? {}).flat().length} uploaded document(s)</strong>.
-              This cannot be undone.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setDeletePOConfirm(false)}
-                className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDeletePO}
-                disabled={deletePOMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
-              >
-                {deletePOMutation.isPending ? 'Deleting…' : 'Yes, Delete PO'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete document confirmation modal */}
+      {/* ── Delete document confirm ── */}
       {deleteDocConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 space-y-4">
-            <div className="flex items-center gap-3 text-red-700">
-              <Trash2 size={20} />
-              <h3 className="font-semibold text-base">Delete this document?</h3>
-            </div>
-            <p className="text-sm text-gray-600">
-              This will permanently delete the document. You can re-upload after.
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="font-bold text-[--ink] mb-1">
+              Delete {findDocTypeLabel(deleteDocConfirm)}?
+            </h3>
+            {findDocFilename(deleteDocConfirm) && (
+              <p className="font-mono text-xs text-gray-500 bg-gray-50 rounded px-2 py-1 mb-3">
+                {findDocFilename(deleteDocConfirm)}
+              </p>
+            )}
+            <p className="text-sm text-gray-500 mb-4">
+              This will permanently delete the document. You can re-upload at any time.
             </p>
-            <div className="flex justify-end gap-3">
+            <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setDeleteDocConfirm(null)}
-                className="px-4 py-2 text-sm border rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-sm text-gray-600 border border-[--veil] rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
-                onClick={confirmDeleteDoc}
-                disabled={deleteMutation.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                onClick={() => {
+                  deleteMutation.mutate(deleteDocConfirm, {
+                    onSuccess: () => {
+                      setDeleteDocConfirm(null);
+                      invalidateChain();
+                      showToast('Document deleted', 'success');
+                    },
+                    onError: () => showToast('Delete failed', 'error'),
+                  });
+                }}
+                className="px-4 py-2 text-sm font-semibold bg-[--signal] text-white rounded-lg hover:bg-[--signal]/90"
               >
-                {deleteMutation.isPending ? 'Deleting…' : 'Yes, Delete'}
+                Yes, Delete
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* ── Delete PO confirm ── */}
+      {deletePOConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="font-bold text-red-600 mb-2">Delete this Purchase Order?</h3>
+            <p className="font-mono text-xs text-gray-500 bg-gray-50 rounded px-2 py-1 mb-3">
+              {po.po_number}
+            </p>
+            <p className="text-sm text-gray-500 mb-4">
+              This will permanently delete the PO and all associated documents. This cannot be undone.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setDeletePOConfirm(false)}
+                className="px-4 py-2 text-sm text-gray-600 border border-[--veil] rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deletePOMutation.mutate(id!, {
+                    onSuccess: () => navigate('/purchase-orders'),
+                    onError: () => showToast('Delete failed', 'error'),
+                  });
+                }}
+                className="px-4 py-2 text-sm font-semibold bg-[--signal] text-white rounded-lg hover:bg-[--signal]/90"
+              >
+                Yes, Delete PO
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-function ChainCompleteBanner({ poId, profilePath }: { poId: string; profilePath: string }) {
-  const bannerKey = `chain-complete-dismissed-${poId}`;
-  const [dismissed, setDismissed] = useState(() => {
-    try { return sessionStorage.getItem(bannerKey) === '1'; } catch { return false; }
-  });
-  if (dismissed) return null;
-  return (
-    <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-4 flex items-center justify-between">
-      <span className="text-sm text-green-800 font-medium">
-        ✓ All documents complete —{' '}
-        <Link to={profilePath} className="underline hover:text-green-900">View Profile →</Link>
-      </span>
-      <button
-        onClick={() => {
-          try { sessionStorage.setItem(bannerKey, '1'); } catch {}
-          setDismissed(true);
-        }}
-        className="text-green-600 hover:text-green-800 ml-4"
-      >
-        <X size={16} />
-      </button>
-    </div>
-  );
-}
-
