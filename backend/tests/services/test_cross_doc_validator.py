@@ -9,6 +9,7 @@ from app.services.cross_doc_validator import (
     check_vpo_ref_on_vdc,
     check_vdc_ref_on_vinv,
     check_date_sequence,
+    check_hsn_consistency,
 )
 from datetime import date as _date
 
@@ -239,3 +240,34 @@ def test_date_sequence_skips_none_dates():
         {"document_type": "COMPANY_INVOICE","doc_date": _date(2026, 1, 1)},
     ]
     assert check_date_sequence(docs) == []
+
+
+# --- 3F: HSN consistency ---
+
+def test_hsn_consistent_across_docs_returns_empty():
+    docs = [
+        {"document_type": "CUSTOMER_PO",    "order_items": [{"part_no": "FG-120G", "hsn_code": "84733099"}]},
+        {"document_type": "COMPANY_INVOICE","order_items": [{"part_no": "FG-120G", "hsn_code": "84733099"}]},
+    ]
+    assert check_hsn_consistency(docs) == []
+
+def test_hsn_inconsistent_returns_violation():
+    docs = [
+        {"document_type": "CUSTOMER_PO",    "order_items": [{"part_no": "FG-120G", "hsn_code": "84733099"}]},
+        {"document_type": "COMPANY_INVOICE","order_items": [{"part_no": "FG-120G", "hsn_code": "85176990"}]},
+    ]
+    violations = check_hsn_consistency(docs)
+    assert len(violations) == 1
+    assert violations[0]["part_no"] == "FG-120G"
+    assert set(violations[0]["hsn_values"]) == {"84733099", "85176990"}
+    assert violations[0]["result"] == ReferenceCheckResult.WARNING
+
+def test_hsn_no_items_returns_empty():
+    assert check_hsn_consistency([{"document_type": "CUSTOMER_PO", "order_items": []}]) == []
+
+def test_hsn_only_one_doc_with_hsn_returns_empty():
+    docs = [
+        {"document_type": "CUSTOMER_PO",    "order_items": [{"part_no": "FG-120G", "hsn_code": "84733099"}]},
+        {"document_type": "COMPANY_INVOICE","order_items": [{"part_no": "FG-120G", "hsn_code": ""}]},
+    ]
+    assert check_hsn_consistency(docs) == []

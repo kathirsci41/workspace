@@ -188,3 +188,28 @@ def check_date_sequence(
                         "result": ReferenceCheckResult.WARNING,
                     })
     return violations
+
+
+# ── Module 3F: HSN Code Consistency ─────────────────────────────────────────
+
+def check_hsn_consistency(
+    loop_docs: list[dict],
+) -> list[dict]:
+    """
+    Check that the same part_no has the same HSN code across all documents in a loop.
+    loop_docs: [{"document_type": str, "order_items": [{"part_no": str, "hsn_code": str}]}]
+    Returns list of violations — empty = consistent.
+    """
+    part_hsn: dict[str, set[str]] = {}
+    for doc in loop_docs:
+        for item in (doc.get("order_items") or []):
+            part_no = str(item.get("part_no") or "").upper().strip()
+            hsn = str(item.get("hsn_code") or "").strip()
+            if part_no and hsn:
+                part_hsn.setdefault(part_no, set()).add(hsn)
+
+    return [
+        {"part_no": part_no, "hsn_values": sorted(hsn_set), "result": ReferenceCheckResult.WARNING}
+        for part_no, hsn_set in part_hsn.items()
+        if len(hsn_set) > 1
+    ]
