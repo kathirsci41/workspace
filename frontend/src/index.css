@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --ink:    #1C1B1A;
+  --paper:  #FAF7F1;
+  --accent: #3B4FA3;
+  --signal: #C2410C;
+  --veil:   #E8E1D3;
+}
+
 body {
   @apply bg-gray-50 text-gray-900;
 }

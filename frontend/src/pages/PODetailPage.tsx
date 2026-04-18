@@ -4,8 +4,8 @@ import { Download, Loader2 } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
 import { usePurchaseOrder, useDeletePO } from '@/hooks/usePurchaseOrders';
-import { exportPOAsExcel, getChainValidation, updatePO } from '@/api/purchaseOrders';
-import type { ChainStatusResponse } from '@/api/purchaseOrders';
+import { exportPOAsExcel, getChainValidation, getChainStatus, updatePO } from '@/api/purchaseOrders';
+import type { ChainStatus } from '@/types';
 import { useReExtract } from '@/hooks/useExtraction';
 import { useDeleteDocument } from '@/hooks/useDocuments';
 import Breadcrumb from '@/components/Breadcrumb';
@@ -43,21 +43,28 @@ export default function PODetailPage() {
 
   const { data: po, isLoading: poLoading } = usePurchaseOrder(id!);
 
-  // Chain status via useQuery — refetch while any slot is extracting
+  // /chain — validation data (reference checks, billing, missing slots, completeness_pct)
   const chainQuery = useQuery({
-    queryKey: ['chain-status', id],
+    queryKey: ['chain-validation', id],
     queryFn: () => getChainValidation(id!),
     enabled: !!id,
+  });
+  const chainValidation = chainQuery.data ?? null;
+
+  // /chain-status — document slot data (chain: Record<string, ChainSlot[]>)
+  const chainSlotsQuery = useQuery({
+    queryKey: ['chain-status', id],
+    queryFn: () => getChainStatus(id!),
+    enabled: !!id,
     refetchInterval: (query) => {
-      const data = query.state.data as ChainStatusResponse | undefined;
-      if (!data) return false;
-      const extracting = Object.values(data.chain as Record<string, ChainSlot[]>)
+      const data = query.state.data as ChainStatus | undefined;
+      if (!data?.chain) return false;
+      const extracting = Object.values(data.chain)
         .some(slots => slots.some(s => s.status === 'EXTRACTING' || s.status === 'UPLOADED'));
       return extracting ? 3000 : false;
     },
   });
-  const chainData       = chainQuery.data as ChainStatusResponse | undefined;
-  const chainValidation = chainData ?? null;
+  const chainSlotsData = chainSlotsQuery.data as ChainStatus | undefined;
 
   const reExtractMutation = useReExtract();
   const deleteMutation    = useDeleteDocument();
@@ -67,6 +74,7 @@ export default function PODetailPage() {
     mutationFn: (patch: Partial<PurchaseOrder>) => updatePO(id!, patch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-order', id] });
+      queryClient.invalidateQueries({ queryKey: ['chain-validation', id] });
       queryClient.invalidateQueries({ queryKey: ['chain-status', id] });
       showToast('Saved', 'success');
     },
@@ -81,20 +89,20 @@ export default function PODetailPage() {
 
   // Toast when extraction polling completes
   const prevExtractingRef = useRef(false);
-  const chain = (chainData?.chain ?? {}) as Record<string, ChainSlot[]>;
-  const hasExtracting = Object.values(chain)
+  const chainSlots = (chainSlotsData?.chain ?? {}) as Record<string, ChainSlot[]>;
+  const hasExtracting = Object.values(chainSlots)
     .some(slots => slots.some(s => s.status === 'EXTRACTING' || s.status === 'UPLOADED'));
 
   useEffect(() => {
-    if (prevExtractingRef.current && !hasExtracting && chainData) {
-      const allSlots = Object.values(chain).flat();
+    if (prevExtractingRef.current && !hasExtracting && chainSlotsData) {
+      const allSlots = Object.values(chainSlots).flat();
       if (allSlots.some(s => s.status === 'EXTRACTION_FAILED'))
         showToast('Extraction failed — open the document to enter manually.', 'error');
       else if (allSlots.some(s => s.status === 'PENDING_REVIEW'))
         showToast('Extraction complete — documents are ready to review.', 'success');
     }
     prevExtractingRef.current = hasExtracting;
-  }, [hasExtracting, chainData]);
+  }, [hasExtracting, chainSlotsData]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -104,9 +112,10 @@ export default function PODetailPage() {
   };
 
   // Derived values
-  const missingSlots    = chainData?.missing_slots ?? [];
-  const referenceChecks = chainData?.reference_checks ?? [];
-  const billedSoFar     = (chainData?.billing.stages ?? [])
+  const chain = chainSlots;
+  const missingSlots    = chainValidation?.missing_slots ?? [];
+  const referenceChecks = chainValidation?.reference_checks ?? [];
+  const billedSoFar     = (chainValidation?.billing.stages ?? [])
     .reduce((sum, s) => sum + (s.invoiced_amount ?? 0), 0);
 
   // Pending review count for Documents tab badge
@@ -142,6 +151,7 @@ export default function PODetailPage() {
   };
 
   const invalidateChain = () => {
+    queryClient.invalidateQueries({ queryKey: ['chain-validation', id] });
     queryClient.invalidateQueries({ queryKey: ['chain-status', id] });
     queryClient.invalidateQueries({ queryKey: ['purchase-order', id] });
   };
@@ -176,14 +186,14 @@ export default function PODetailPage() {
             )}>
               ● {po.status.replace('_', ' ')}
             </span>
-            {chainData && (
+            {chainValidation && (
               <span className={clsx(
                 'text-[10px] font-bold px-2.5 py-1 rounded-full border',
-                (chainData.completeness_pct ?? 0) >= 100
+                (chainValidation.completeness_pct ?? 0) >= 100
                   ? 'bg-green-50 text-green-700 border-green-300'
                   : 'bg-blue-50 text-blue-700 border-blue-300',
               )}>
-                ⬡ Chain {Math.round(chainData.completeness_pct ?? 0)}%
+                ⬡ Chain {Math.round(chainValidation.completeness_pct ?? 0)}%
               </span>
             )}
           </div>
