@@ -57,6 +57,38 @@ def parse_json_safe(text: str, context: str = "") -> dict:
     return {}
 
 
+def unwrap_field_confidences(fields: dict) -> dict:
+    """Unwrap LLM confidence-wrapped scalar values.
+
+    The extraction prompt asks the LLM to return each scalar field as
+    {"value": <extracted>, "confidence": 0.0-1.0}. This function:
+    - Replaces each such dict with its bare value in-place
+    - Collects all confidence scores into fields["_field_confidences"]
+    - Leaves arrays, None values, and plain scalars unchanged
+    """
+    field_confidences: dict[str, float] = {}
+    for key in list(fields.keys()):
+        val = fields[key]
+        if (
+            isinstance(val, dict)
+            and "value" in val
+            and "confidence" in val
+            and not isinstance(val.get("value"), list)
+        ):
+            try:
+                confidence = round(float(val["confidence"]), 3)
+            except (TypeError, ValueError):
+                confidence = 0.5
+            field_confidences[key] = confidence
+            fields[key] = val["value"]
+    if field_confidences:
+        fields["_field_confidences"] = {
+            **fields.get("_field_confidences", {}),
+            **field_confidences,
+        }
+    return fields
+
+
 def clean_json(text: str) -> str:
     """Clean common JSON issues from LLM output."""
     # Remove trailing commas before } or ]

@@ -34,6 +34,7 @@ from app.services.extraction.providers.base import (
 from app.services.extraction.providers.base import ExtractionResult
 from app.services.extraction.providers.digital_provider import DigitalLayer1Provider
 from app.services.extraction.field_validator import validate_extracted_fields
+from app.services.extraction.providers.json_utils import unwrap_field_confidences
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +112,8 @@ class ExtractionPipeline:
         result: ExtractionResult = await self.layer2.run_extraction(
             markdown, doc_type, customer_hint
         )
-        return validate_extracted_fields(result.fields, doc_type)
+        fields = unwrap_field_confidences(result.fields)
+        return validate_extracted_fields(fields, doc_type)
 
     # ------------------------------------------------------------------
     # Health check
