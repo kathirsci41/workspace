@@ -34,7 +34,6 @@ TEST_RESULTS.md
 reports/
 
 # Runtime outputs
-debug_markdown/
 logs/
 *.log
 *.log.*
@@ -68,3 +67,4 @@ backend/nul
 # Internal / non-production files
 client-mail.md
 benchmark/
+DPP/
