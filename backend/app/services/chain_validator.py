@@ -1,6 +1,4 @@
-# backend/app/services/chain_validator.py
 """Orchestrates chain presence, reference validation, and billing completeness."""
-import enum
 from app.models.purchase_order import OrderScenario, ChainStatus, BillingType
 from app.models.document import DocumentType
 from app.services.po_service import get_scenario_chain
@@ -30,14 +28,6 @@ from app.services.cross_doc_validator import (
     check_hsn_consistency,
     check_order_item_coverage,
 )
-
-
-class SlotState(str, enum.Enum):
-    WAITING = "waiting"
-    RECEIVED = "received"
-    VERIFIED = "verified"
-    MISMATCH = "mismatch"
-    CANCELLED = "cancelled"
 
 
 def compute_chain_status(

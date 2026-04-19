@@ -1,8 +1,9 @@
+import json
 from uuid import UUID
-from datetime import date
+from datetime import date, datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, distinct, delete as sa_delete, exists, not_
-from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy.orm import selectinload
 from fastapi import HTTPException
 
 from app.models.customer import Customer
@@ -411,7 +412,6 @@ async def close_order(db: AsyncSession, po_id: UUID, note: str | None = None) ->
     This is a one-way operation. Once closed, the order cannot be re-opened
     through the normal UI (admin API only).
     """
-    from datetime import datetime, timezone
     po = await get_po(db, po_id)
 
     if po.manually_completed:
@@ -870,8 +870,6 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
     field_comparisons = [fc for fc in field_comparisons if not (fc.source_value is None and fc.compared_value is None)]
 
     # ── Item-level comparison engine ───────────────────────────────────────────
-    import json as _json
-
     def _get_items(doc_type: DocumentType) -> list[dict]:
         doc_list = docs_by_type.get(doc_type, [])
         if not doc_list:
@@ -883,7 +881,7 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
         if not raw:
             return []
         try:
-            items = raw if isinstance(raw, list) else _json.loads(raw)
+            items = raw if isinstance(raw, list) else json.loads(raw)
             return items if isinstance(items, list) else []
         except Exception:
             return []

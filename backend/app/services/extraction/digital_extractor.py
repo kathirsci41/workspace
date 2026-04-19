@@ -12,7 +12,6 @@ GPU cost: zero
 
 import logging
 import re
-from typing import Optional
 import fitz  # PyMuPDF
 import pdfplumber
 

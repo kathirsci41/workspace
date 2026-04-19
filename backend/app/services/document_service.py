@@ -2,7 +2,7 @@ import io
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, UploadFile
 import fitz  # PyMuPDF
 

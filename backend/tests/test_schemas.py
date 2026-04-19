@@ -235,10 +235,10 @@ class TestChainStatusResponse:
         r = ChainStatusResponse(
             po_id=uuid4(),
             po_number="PO-001",
-            completeness_pct=66.7,
+            completeness_pct=66,
             chain={"CUSTOMER_PO": [ChainSlot(status="COMPLETED")]},
         )
-        assert r.completeness_pct == 66.7
+        assert r.completeness_pct == 66
         assert "CUSTOMER_PO" in r.chain
 
 

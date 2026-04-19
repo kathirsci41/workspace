@@ -38,7 +38,7 @@ class TestRejectClearsReferenceIndex:
         db.commit = AsyncMock()
         db.refresh = AsyncMock()
 
-        with patch("app.api.v1.extraction._update_chain_async", new_callable=AsyncMock):
+        with patch("app.api.v1.extraction.update_chain_completeness", new_callable=AsyncMock):
             await reject_metadata(doc_id, db)
 
         assert len(deleted_doc_ids) > 0, "Expected DELETE on reference_index but none was executed"

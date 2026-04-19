@@ -2,7 +2,6 @@ from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from uuid import UUID
 from datetime import datetime
 from typing import Optional
-import re
 
 
 class CustomerCreate(BaseModel):

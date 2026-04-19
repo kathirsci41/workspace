@@ -17,7 +17,7 @@ from app.services.extraction.pdf_converter import PDFConverter
 from app.services.extraction.ocr_client import OCRClient
 from app.services.extraction.response_parser import ResponseParser
 from app.services.extraction.prompts import (
-    build_prompt, get_primary_field, get_date_field,
+    get_primary_field, get_date_field,
     get_searchable_fields, EXTRACTION_PROMPTS,
 )
 from app.services.extraction.field_validator import validate_extracted_fields
@@ -143,7 +143,7 @@ async def _run_pipeline_async(
 
         await pipeline.release_vram()
         if not settings.ocr_extractor_base_url:
-            _time.sleep(5)
+            await asyncio.sleep(5)
             await pipeline.wait_until_ready()
 
     # Layer 2 extraction

@@ -12,10 +12,8 @@ Input:  raw PNG bytes (from pdf_converter.py)
 Output: cleaned PNG bytes (ready for qwen2.5vl)
 """
 
-import io
 import logging
 import numpy as np
-from PIL import Image
 
 logger = logging.getLogger(__name__)
 

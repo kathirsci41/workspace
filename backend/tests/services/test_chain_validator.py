@@ -1,4 +1,4 @@
-from app.services.chain_validator import compute_chain_status, SlotState
+from app.services.chain_validator import compute_chain_status
 from app.models.purchase_order import OrderScenario, ChainStatus
 from app.models.document import DocumentType
 
