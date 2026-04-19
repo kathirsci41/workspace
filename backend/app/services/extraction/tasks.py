@@ -28,6 +28,7 @@ from app.services.extraction.hybrid_router import HybridRouter, ExtractionRoute
 from app.services.extraction.digital_extractor import DigitalExtractor
 from app.services.extraction.glm_ocr_prompts import EXTRACTION_SCHEMAS
 from app.services.extraction.so_validator import validate_so_number
+from app.services.extraction.providers.json_utils import unwrap_field_confidences
 from app.services.po_service import CHAIN_DOC_TYPES, get_scenario_chain
 from app.models.purchase_order import OrderScenario
 from app.config import settings
@@ -348,6 +349,9 @@ def extract_document(self, document_id: str):
                 logger.warning(
                     f"[SO Validation] {doc_type} {document_id}: {so_errors}"
                 )
+
+            # Ensure no confidence-wrapped dicts leak into stored data
+            extracted_data = unwrap_field_confidences(extracted_data)
 
             # 10. Create/update metadata
             existing_meta = db.query(DocumentMetadata).filter(
