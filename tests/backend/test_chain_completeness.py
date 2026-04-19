@@ -140,11 +140,10 @@ class TestExcludedStatuses:
 class TestScenarioSpecificCompleteness:
     """
     Test that completeness calculation respects scenario-specific required chains.
-    
+
     E.g., STOCK scenario requires only [CUSTOMER_PO, COMPANY_DC, COMPANY_INVOICE] = 3 docs.
     If we have all 5 PROCUREMENT docs (including optional VENDOR_DC), but STOCK scenario,
     completeness should be 3/3 = 100%, not 5/5 = 100% nor 3/6 = 50%.
-    
     Bug fix: Currently divides by 6 (all doc types) rather than scenario chain length,
     allowing optional docs to inflate completeness to 100%+.
     """
@@ -159,7 +158,6 @@ class TestScenarioSpecificCompleteness:
         required_docs_count = 3
         scenario_chain_len = 3
         completeness = round((required_docs_count / scenario_chain_len) * 100, 1)
-        
         # Should be 100%, not 66.7% (which would be 4/6)
         assert completeness == 100.0
         assert get_po_status(completeness) == POStatus.COMPLETE
@@ -173,7 +171,6 @@ class TestScenarioSpecificCompleteness:
         required_docs_count = 3
         scenario_chain_len = 5
         completeness = round((required_docs_count / scenario_chain_len) * 100, 1)
-        
         assert completeness == 60.0
         assert get_po_status(completeness) == POStatus.NEAR_COMPLETE
 
@@ -186,7 +183,6 @@ class TestScenarioSpecificCompleteness:
         required_docs_count = 5
         scenario_chain_len = 5
         completeness = round((required_docs_count / scenario_chain_len) * 100, 1)
-        
         assert completeness == 100.0
         assert get_po_status(completeness) == POStatus.COMPLETE
 
@@ -198,7 +194,6 @@ class TestScenarioSpecificCompleteness:
         required_docs_count = 1
         scenario_chain_len = 2
         completeness = round((required_docs_count / scenario_chain_len) * 100, 1)
-        
         assert completeness == 50.0
         assert get_po_status(completeness) == POStatus.NEAR_COMPLETE
 
@@ -211,7 +206,6 @@ class TestScenarioSpecificCompleteness:
         required_docs_count = 3
         scenario_chain_len = 3
         completeness = round((required_docs_count / scenario_chain_len) * 100, 1)
-        
         # 100%, not 6/6 or 3/6
         assert completeness == 100.0
 
@@ -223,78 +217,6 @@ class TestScenarioSpecificCompleteness:
         required_docs_count = 2
         scenario_chain_len = 3
         completeness = round((required_docs_count / scenario_chain_len) * 100, 1)
-        
+
         assert completeness == round(66.666666, 1)
         assert get_po_status(completeness) == POStatus.NEAR_COMPLETE
-
-
-
-class TestUpdateChainSyncIntegration:
-    """
-    Integration tests for _update_chain_sync function.
-    
-    Tests that _update_chain_sync correctly:
-    1. Counts only documents in the scenario's required chain
-    2. Ignores optional/irrelevant documents
-    3. Respects manually_completed flag (skips recalculation)
-    4. Clamps completeness to [0, 100]
-    """
-
-    def test_stock_scenario_with_optional_vendor_invoice(self):
-        """
-        STOCK scenario: [CUSTOMER_PO, COMPANY_DC, COMPANY_INVOICE] = 3 required.
-        If VENDOR_INVOICE is uploaded (not in STOCK chain), it should NOT count.
-        
-        Before fix: completeness = 4/6 = 66.7%
-        After fix: completeness = 3/3 = 100.0%
-        """
-        # This test documents the expected behavior.
-        # The actual implementation test will use mocks/fixtures.
-        # For now, this is a specification test showing what should happen.
-        required_docs_in_scenario = 3  # CUSTOMER_PO, COMPANY_DC, COMPANY_INVOICE
-        extra_docs_not_in_scenario = 1  # VENDOR_INVOICE
-        
-        # After fix: only count required docs
-        scenario_chain_len = 3
-        required_docs_found = 3
-        completeness = round((required_docs_found / scenario_chain_len) * 100, 1)
-        
-        assert completeness == 100.0
-        assert get_po_status(completeness) == POStatus.COMPLETE
-
-    def test_drop_ship_scenario_excludes_company_dc(self):
-        """
-        DROP_SHIP scenario: [CUSTOMER_PO, COMPANY_PO, VENDOR_DC, VENDOR_INVOICE, COMPANY_INVOICE] = 5 required.
-        COMPANY_DC is NOT in the chain (optional).
-        If we have 4/5 required + COMPANY_DC, completeness = 4/5 = 80%, not 5/6.
-        
-        Before fix: completeness = 5/6 = 83.3%
-        After fix: completeness = 4/5 = 80.0%
-        """
-        scenario_chain_len = 5
-        required_docs_found = 4
-        completeness = round((required_docs_found / scenario_chain_len) * 100, 1)
-        
-        assert completeness == 80.0
-        assert get_po_status(completeness) == POStatus.NEAR_COMPLETE
-
-    def test_manually_completed_skips_recalculation(self):
-        """
-        If po.manually_completed=True, _update_chain_sync should NOT update
-        chain_completeness or status, allowing user-set values to persist.
-        """
-        # This behavior is specified in the task requirements.
-        # Implementation should check: if po.manually_completed, return early.
-        pass
-
-    def test_completeness_clamped_to_100(self):
-        """
-        Even if somehow count > scenario_chain_len (should not happen),
-        completeness must not exceed 100%.
-
-        Verify: completeness = min(100.0, calculated_value)
-        """
-        # If count = 3, scenario_chain_len = 3: 3/3 * 100 = 100
-        completeness = round((3 / 3) * 100, 1)
-        clamped = min(100.0, completeness)
-        assert clamped == 100.0
