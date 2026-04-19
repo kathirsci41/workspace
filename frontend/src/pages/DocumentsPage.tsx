@@ -149,7 +149,7 @@ export default function DocumentsPage() {
               className={clsx(
                 'px-3 py-1 text-xs rounded-full border font-medium transition-colors',
                 datePreset === preset.value
-                  ? 'bg-blue-600 text-white border-blue-600'
+                  ? 'bg-accent text-white border-accent'
                   : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
               )}
             >
@@ -180,7 +180,7 @@ export default function DocumentsPage() {
       {/* Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-600">
+          <thead className="bg-veil/30 text-ink/60">
             <tr>
               <th className="text-left px-5 py-3 font-medium">Type</th>
               <th className="text-left px-5 py-3 font-medium">Filename</th>
