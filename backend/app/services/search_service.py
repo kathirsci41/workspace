@@ -6,6 +6,7 @@ from app.models import (
     Customer, PurchaseOrder, Document, DocumentMetadata,
     ReferenceIndex,
 )
+from app.schemas.extraction import _clean_ref_string
 
 
 def _search_sort_key(item: dict, q_lower: str) -> int:
@@ -135,7 +136,7 @@ async def global_search(
             seen_ids.add(doc.id)
             doc_type_label = doc.document_type.value.replace("_", " ").title()
             delivery_address = (
-                meta.extracted_data.get("delivery_address") if meta.extracted_data else None
+                _clean_ref_string(meta.extracted_data.get("delivery_address")) if meta.extracted_data else None
             )
             results.append({
                 "result_type": "document",

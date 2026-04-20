@@ -24,6 +24,7 @@ from app.schemas.po_profile import (
     ItemMatch,
     ParsedAddress,
 )
+from app.schemas.extraction import _clean_ref_string
 from app.services.storage_service import StorageService
 from app.config import settings
 
@@ -526,6 +527,15 @@ async def update_chain_completeness(db: AsyncSession, po_id: UUID) -> float:
 def _build_profile_document(doc: Document) -> POProfileDocument:
     """Convert a Document + its metadata into a POProfileDocument."""
     meta = doc.doc_metadata
+    raw_ed = meta.extracted_data if meta else None
+    cleaned_ed: dict | None = None
+    if raw_ed:
+        cleaned_ed = {}
+        for k, val in raw_ed.items():
+            if isinstance(val, list):
+                cleaned_ed[k] = [_clean_ref_string(item) if isinstance(item, str) else item for item in val]
+            else:
+                cleaned_ed[k] = _clean_ref_string(val)
     return POProfileDocument(
         document_id=doc.id,
         status=doc.status.value,
@@ -538,7 +548,7 @@ def _build_profile_document(doc: Document) -> POProfileDocument:
         confidence_score=meta.confidence_score if meta else None,
         field_confidences=meta.field_confidences if meta else None,
         extraction_route=meta.extraction_route if meta else None,
-        extracted_data=meta.extracted_data if meta else None,
+        extracted_data=cleaned_ed,
         verified_at=meta.verified_at if meta else None,
         uploaded_at=doc.created_at,
     )
@@ -574,7 +584,7 @@ def _get_extracted_po_number(
     meta = docs[0].doc_metadata
     if not meta or not meta.extracted_data:
         return None
-    return meta.extracted_data.get("po_number")
+    return _clean_ref_string(meta.extracted_data.get("po_number"))
 
 
 async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
@@ -738,11 +748,11 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
                 message=f"No PO reference found in {doc_type.value.replace('_', ' ').title()}",
                 severity="warning",
             ))
-        elif expected_ref and meta.po_ref_no != expected_ref:
+        elif expected_ref and _clean_ref_string(meta.po_ref_no) != expected_ref:
             discrepancies.append(POProfileDiscrepancy(
                 type="PO_REF_MISMATCH",
                 doc_type=doc_type.value,
-                message=f"PO reference mismatch — document has '{meta.po_ref_no}', expected '{expected_ref}'",
+                message=f"PO reference mismatch — document has '{_clean_ref_string(meta.po_ref_no)}', expected '{expected_ref}'",
                 severity="warning",
             ))
 
@@ -764,7 +774,7 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
         meta = doc_list[0].doc_metadata
         if not meta or not meta.extracted_data:
             return None
-        val = meta.extracted_data.get(field)
+        val = _clean_ref_string(meta.extracted_data.get(field))
         return str(val).strip() if val is not None else None
 
     def _amount_match(a: str | None, b: str | None, tolerance: float = 0.01) -> bool | None:
@@ -981,12 +991,12 @@ async def get_po_profile(db: AsyncSession, po_id: UUID) -> POProfileResponse:
     if po.fulfillment_type != FulfillmentType.STOCK:
         for company_po_doc in docs_by_type.get(DocumentType.COMPANY_PO, []):
             meta = company_po_doc.doc_metadata
-            vendor_po_ref = meta.primary_ref_no if meta else None
+            vendor_po_ref = _clean_ref_string(meta.primary_ref_no) if meta else None
             if not vendor_po_ref:
                 continue
 
             vendor_name = (
-                meta.extracted_data.get("vendor_name")
+                _clean_ref_string(meta.extracted_data.get("vendor_name"))
                 if meta and meta.extracted_data
                 else None
             )

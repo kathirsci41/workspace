@@ -19,6 +19,7 @@ from app.models.document import Document, DocumentType
 from app.services import po_service
 from app.services import export_service
 from app.services.chain_validator import compute_chain_status
+from app.schemas.extraction import _clean_ref_string
 
 router = APIRouter()
 
@@ -143,17 +144,33 @@ async def get_chain_status_v2(
         if doc.document_type == DocumentType.COMPANY_PO and doc.vpo_numbers:
             vpo_numbers.extend(doc.vpo_numbers)
 
+    def _invoice_amount(doc: Document) -> float:
+        """Get total_amount for a COMPANY_INVOICE, falling back to extracted_data."""
+        if not doc.doc_metadata:
+            return 0.0
+        if doc.doc_metadata.total_amount:
+            return float(doc.doc_metadata.total_amount)
+        ed = doc.doc_metadata.extracted_data or {}
+        raw = _clean_ref_string(ed.get("total_amount") or ed.get("grand_total"))
+        if raw is not None:
+            try:
+                return float(str(raw).replace(",", "").strip())
+            except (ValueError, TypeError):
+                pass
+        return 0.0
+
     # Invoiced total: sum of COMPANY_INVOICE metadata total_amount
     invoiced_total = sum(
-        float(doc.doc_metadata.total_amount or 0)
+        _invoice_amount(doc)
         for doc in po.documents
         if doc.document_type == DocumentType.COMPANY_INVOICE and doc.doc_metadata
     )
 
     def _ed(doc: Document, key: str):
-        """Safe getter for extracted_data fields."""
+        """Safe getter for extracted_data fields. Unwraps legacy confidence dicts."""
         if doc.doc_metadata and doc.doc_metadata.extracted_data:
-            return doc.doc_metadata.extracted_data.get(key)
+            val = doc.doc_metadata.extracted_data.get(key)
+            return _clean_ref_string(val)
         return None
 
     docs_payload = [
@@ -162,9 +179,9 @@ async def get_chain_status_v2(
             "so_number": doc.so_number,
             "vpo_numbers": doc.vpo_numbers or [],
             "extraction_ok": doc.extraction_ok,
-            "cpo_ref": doc.doc_metadata.po_ref_no if doc.doc_metadata else None,
+            "cpo_ref": _clean_ref_string(doc.doc_metadata.po_ref_no) if doc.doc_metadata else None,
             "billing_stage": doc.billing_stage,
-            "amount": float(doc.doc_metadata.total_amount or 0) if doc.doc_metadata else 0,
+            "amount": _invoice_amount(doc) if doc.document_type == DocumentType.COMPANY_INVOICE else float(doc.doc_metadata.total_amount or 0) if doc.doc_metadata else 0,
             "delivery_address": _ed(doc, "delivery_address"),
             "customer_gstin": _ed(doc, "customer_gstin"),
             "vendor_gstin":   _ed(doc, "vendor_gstin"),
@@ -172,7 +189,7 @@ async def get_chain_status_v2(
             "vendor_name":    _ed(doc, "vendor_name"),
             "serial_numbers": _ed(doc, "serial_numbers") or [],
             "dc_number": (
-                doc.doc_metadata.primary_ref_no
+                _clean_ref_string(doc.doc_metadata.primary_ref_no)
                 if doc.doc_metadata and doc.document_type in (
                     DocumentType.COMPANY_DC, DocumentType.VENDOR_DC
                 )
@@ -202,6 +219,9 @@ async def get_chain_status_v2(
     # Fall back to stored chain_completeness when scenario produces no required slots
     if result["completeness_pct"] == 0 and po.chain_completeness:
         result["completeness_pct"] = int(po.chain_completeness)
+
+    # Always expose invoiced_total so frontend can show "Billed So Far" for full billing
+    result["billing"]["invoiced_total"] = invoiced_total
 
     # Update chain_status on PO in the background (best-effort, non-blocking)
     try:

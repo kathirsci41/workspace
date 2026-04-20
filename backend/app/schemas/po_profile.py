@@ -4,7 +4,9 @@ import uuid
 from datetime import date, datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+
+from app.schemas.extraction import _clean_ref_string
 
 
 class POProfileDocument(BaseModel):
@@ -17,6 +19,11 @@ class POProfileDocument(BaseModel):
     original_filename: str | None = None
     primary_ref_no: str | None = None
     po_ref_no: str | None = None
+
+    @field_validator("primary_ref_no", "po_ref_no", mode="before")
+    @classmethod
+    def unwrap_ref_fields(cls, v):
+        return _clean_ref_string(v)
     doc_date: date | None = None
     total_amount: float | None = None
     confidence_score: float | None = None

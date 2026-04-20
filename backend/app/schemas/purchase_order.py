@@ -1,7 +1,9 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from uuid import UUID
 from datetime import date, datetime
 from typing import Literal, Optional
+
+from app.schemas.extraction import _clean_ref_string
 
 
 class POCreate(BaseModel):
@@ -78,6 +80,11 @@ class ChainSlot(BaseModel):
     extraction_route: Optional[str] = None         # Phase 1
     has_validation_errors: Optional[bool] = None   # Phase 6
     slot_message: Optional[str] = None             # Why this slot is pending/failed
+
+    @field_validator("ref_no", mode="before")
+    @classmethod
+    def unwrap_ref_no(cls, v):
+        return _clean_ref_string(v)
 
 
 class ChainStatusResponse(BaseModel):
