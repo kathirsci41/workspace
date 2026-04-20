@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Download, Loader2, CheckCircle2, Lock } from 'lucide-react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { usePOProfile, useUpdatePO } from '@/hooks/usePurchaseOrders';
+import { usePOProfile } from '@/hooks/usePurchaseOrders';
 import { exportPOAsExcel, closeOrder } from '@/api/purchaseOrders';
 import { useToast } from '@/context/ToastContext';
 import { ProfileDocumentSection } from '@/components/ProfileDocumentSection';
@@ -61,7 +61,6 @@ export function POProfilePage() {
   const [closeNote, setCloseNote] = useState('');
   const showToast = useToast();
   const queryClient = useQueryClient();
-  const updatePO = useUpdatePO();
 
   const closeOrderMutation = useMutation({
     mutationFn: () => closeOrder(id!, closeNote.trim() || undefined),
@@ -171,112 +170,6 @@ export function POProfilePage() {
           {profile.so_number && <div><span className="text-gray-400">SO Number</span> &nbsp;{profile.so_number}</div>}
           {profile.po_date && <div><span className="text-gray-400">PO Date</span> &nbsp;{new Date(profile.po_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>}
           {profile.total_amount != null && <div><span className="text-gray-400">Amount</span> &nbsp;₹{profile.total_amount.toLocaleString('en-IN')}</div>}
-        </div>
-
-        {/* Order scenario selector */}
-        <div className="flex items-center gap-3 pt-0.5 flex-wrap">
-          <span className="text-xs text-gray-400">Scenario</span>
-          {(
-            [
-              { value: 'unknown',      label: 'Unknown',      colour: 'bg-gray-100 text-gray-500 border-gray-300' },
-              { value: 'procurement',  label: 'Procurement',  colour: 'bg-blue-100 text-blue-700 border-blue-300' },
-              { value: 'stock',        label: 'Stock',        colour: 'bg-purple-100 text-purple-700 border-purple-300' },
-              { value: 'drop_ship',    label: 'Drop-ship',    colour: 'bg-amber-100 text-amber-700 border-amber-300' },
-              { value: 'service_amc',  label: 'Service/AMC',  colour: 'bg-teal-100 text-teal-700 border-teal-300' },
-            ] as const
-          ).map(({ value, label, colour }) => (
-            <button
-              key={value}
-              onClick={() => {
-                if (profile.order_scenario === value) return;
-                updatePO.mutate(
-                  { id: id!, body: { order_scenario: value } },
-                  {
-                    onSuccess: () => {
-                      queryClient.invalidateQueries({ queryKey: ['poProfile', id] });
-                      queryClient.invalidateQueries({ queryKey: ['chainStatus', id] });
-                    },
-                  }
-                );
-              }}
-              disabled={updatePO.isPending}
-              className={`text-xs px-2.5 py-0.5 rounded-full font-medium border transition-colors ${
-                profile.order_scenario === value
-                  ? colour + ' ring-1 ring-offset-1 ring-current'
-                  : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* GST type + invoice split */}
-        <div className="flex items-center gap-4 pt-0.5 flex-wrap">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">GST</span>
-            {(['unknown', 'igst', 'cgst_sgst'] as const).map((v) => (
-              <button
-                key={v}
-                onClick={() => {
-                  if (profile.gst_type === v) return;
-                  updatePO.mutate(
-                    { id: id!, body: { gst_type: v } },
-                    { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['poProfile', id] }) }
-                  );
-                }}
-                disabled={updatePO.isPending}
-                className={`text-xs px-2 py-0.5 rounded-full font-medium border transition-colors ${
-                  profile.gst_type === v
-                    ? 'bg-indigo-100 text-indigo-700 border-indigo-300'
-                    : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                {v === 'unknown' ? '—' : v === 'igst' ? 'IGST' : 'CGST+SGST'}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">Invoices</span>
-            <button
-              onClick={() => {
-                updatePO.mutate(
-                  { id: id!, body: { invoice_split: !profile.invoice_split } },
-                  { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['poProfile', id] }) }
-                );
-              }}
-              disabled={updatePO.isPending}
-              className={`text-xs px-2.5 py-0.5 rounded-full font-medium border transition-colors ${
-                profile.invoice_split
-                  ? 'bg-orange-100 text-orange-700 border-orange-300'
-                  : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              {profile.invoice_split ? 'Split billing' : 'Single invoice'}
-            </button>
-          </div>
-        </div>
-
-        {/* Items verified toggle */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">Items</span>
-          <button
-            onClick={() => {
-              updatePO.mutate(
-                { id: id!, body: { items_verified: !profile.items_verified } },
-                { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['poProfile', id] }) }
-              );
-            }}
-            disabled={updatePO.isPending}
-            className={`flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-medium border transition-colors ${
-              profile.items_verified
-                ? 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200'
-                : 'bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200'
-            }`}
-          >
-            {profile.items_verified && <CheckCircle2 size={11} />}
-            {profile.items_verified ? 'Items Verified' : 'Mark Verified'}
-          </button>
         </div>
 
         <ChainStatusBar chain={chain} />

@@ -115,8 +115,9 @@ export default function PODetailPage() {
   const chain = chainSlots;
   const missingSlots    = chainValidation?.missing_slots ?? [];
   const referenceChecks = chainValidation?.reference_checks ?? [];
-  const billedSoFar     = (chainValidation?.billing.stages ?? [])
-    .reduce((sum, s) => sum + (s.invoiced_amount ?? 0), 0);
+  const billedSoFar     = (chainValidation?.billing.stages ?? []).length > 0
+    ? (chainValidation?.billing.stages ?? []).reduce((sum, s) => sum + (s.invoiced_amount ?? 0), 0)
+    : (chainValidation?.billing.invoiced_total ?? 0);
 
   // Pending review count for Documents tab badge
   const pendingCount = Object.values(chain)
@@ -272,8 +273,14 @@ export default function PODetailPage() {
               billedSoFar={billedSoFar}
               milestoneCount={(po.billing_milestones ?? []).length}
               poTotal={Number(po.total_amount ?? 0)}
+              gstType={po.gst_type ?? 'unknown'}
+              invoiceSplit={po.invoice_split ?? false}
+              itemsVerified={po.items_verified ?? false}
               onScenarioChange={val => updatePOMutation.mutate({ order_scenario: val })}
               onBillingTypeChange={val => updatePOMutation.mutate({ billing_type: val })}
+              onGstTypeChange={val => updatePOMutation.mutate({ gst_type: val })}
+              onInvoiceSplitChange={val => updatePOMutation.mutate({ invoice_split: val })}
+              onItemsVerifiedChange={val => updatePOMutation.mutate({ items_verified: val })}
             />
 
             <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-2 flex items-center gap-2">
