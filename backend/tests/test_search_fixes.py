@@ -61,3 +61,42 @@ class TestFuzzySearchFallback:
         assert _search_sort_key(prefix, q)   == 1
         assert _search_sort_key(contains, q) == 2
         assert _search_sort_key(fuzzy, q)    == 3
+
+
+class TestAdvancedSearchRefCleanup:
+    """Advanced search should normalize legacy confidence-wrapped refs."""
+
+    @pytest.mark.asyncio
+    async def test_advanced_search_cleans_primary_ref_no_for_metadata_results(self):
+        """Address/metadata-only search must not leak {'value', 'confidence'} reprs."""
+        from app.services.search_service import advanced_search
+        from app.models.document import DocumentType
+
+        doc = MagicMock()
+        doc.id = uuid4()
+        doc.document_type = DocumentType.COMPANY_DC
+
+        meta = MagicMock()
+        meta.primary_ref_no = "{'value': '1DNT2526DC2915', 'confidence': 1.0}"
+        meta.confidence_score = 87.5
+
+        po = MagicMock()
+        po.id = uuid4()
+        po.po_number = "PO-2026-SF005"
+
+        cust = MagicMock()
+        cust.name = "SHRIRAM FINANCE"
+
+        db = MagicMock()
+        doc_result = MagicMock()
+        doc_result.all.return_value = [(doc, meta, po, cust)]
+        db.execute = AsyncMock(return_value=doc_result)
+
+        result = await advanced_search(
+            db,
+            delivery_address="Hyderabad",
+            document_type="COMPANY_DC",
+        )
+
+        assert result["results"][0]["ref_number"] == "1DNT2526DC2915"
+        assert result["results"][0]["display_name"] == "Company Dc — 1DNT2526DC2915"

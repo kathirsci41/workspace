@@ -19,6 +19,8 @@ Handles the full document chain — Customer PO, Company PO, Vendor DC, Vendor I
 
 **OCR endpoint:** RunPod remote (`https://<id>.proxy.runpod.net/`) or local Ollama at `http://localhost:11434`
 
+**Current architecture docs:** see [`docs/architecture/README.md`](docs/architecture/README.md) for the maintained current-state architecture set. Some older repo docs and version labels are behind the current codebase.
+
 ---
 
 ## Features

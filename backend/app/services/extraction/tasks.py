@@ -292,6 +292,10 @@ def extract_document(self, document_id: str):
             parser = ResponseParser()
             confidence = parser.calculate_confidence(extracted_data, schema_fields)
 
+            # Unwrap confidence-wrapped scalars before field extraction so
+            # primary_ref_no / po_ref_no / total_amount columns get clean values.
+            extracted_data = unwrap_field_confidences(extracted_data)
+
             # 9. Extract key fields
             primary_field = get_primary_field(doc_type)
             date_field = get_date_field(doc_type)
@@ -350,7 +354,7 @@ def extract_document(self, document_id: str):
                     f"[SO Validation] {doc_type} {document_id}: {so_errors}"
                 )
 
-            # Ensure no confidence-wrapped dicts leak into stored data
+            # unwrap_field_confidences already called above — no-op here for safety
             extracted_data = unwrap_field_confidences(extracted_data)
 
             # 10. Create/update metadata

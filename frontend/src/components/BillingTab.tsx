@@ -44,9 +44,14 @@ export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
   const stages = chainValidation?.billing.stages ?? [];
   const total = Number(po.total_amount ?? 0);
 
-  const billedSoFar = stages.reduce((sum, s) => sum + (s.invoiced_amount ?? 0), 0);
+  const stageBilledSoFar = stages.reduce((sum, s) => sum + (s.invoiced_amount ?? 0), 0);
+  const billedSoFar = stages.length > 0
+    ? stageBilledSoFar
+    : Number(chainValidation?.billing.invoiced_total ?? 0);
   const outstanding = Math.max(0, total - billedSoFar);
   const billedPct   = total > 0 ? Math.round((billedSoFar / total) * 100) : 0;
+  const invoiceCount = stages.length > 0 ? stages.length : billedSoFar > 0 ? 1 : 0;
+  const hasInvoiceBreakdown = stages.length > 0;
 
   const [editingMilestones, setEditingMilestones] = useState(false);
   type DraftMilestone = BillingMilestone & { _id: number };
@@ -110,7 +115,7 @@ export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
         <KpiCard
           label="Billed So Far"
           value={`₹${billedSoFar.toLocaleString('en-IN')}`}
-          sub={`${billedPct}% · ${stages.length} invoice${stages.length !== 1 ? 's' : ''}`}
+          sub={`${billedPct}% · ${invoiceCount} invoice${invoiceCount !== 1 ? 's' : ''}`}
           variant={billedPct >= 100 ? 'ok' : billedPct > 0 ? 'warn' : 'neutral'}
         />
         <KpiCard
@@ -148,10 +153,17 @@ export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
               </tr>
             </thead>
             <tbody>
-              {stages.length === 0 && (
+              {!hasInvoiceBreakdown && billedSoFar === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-400">
                     No invoices uploaded yet
+                  </td>
+                </tr>
+              )}
+              {!hasInvoiceBreakdown && billedSoFar > 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-400">
+                    Invoices are billed, but stage-level details are unavailable in this view
                   </td>
                 </tr>
               )}

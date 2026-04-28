@@ -141,7 +141,7 @@ async def global_search(
             results.append({
                 "result_type": "document",
                 "id": doc.id,
-                "ref_number": meta.primary_ref_no or "",
+                "ref_number": _clean_ref_string(meta.primary_ref_no) or "",
                 "display_name": f"{doc_type_label} → {delivery_address or 'Address match'}",
                 "document_type": doc.document_type.value,
                 "po_number": po.po_number,
@@ -332,7 +332,7 @@ async def advanced_search(
             if doc.id not in seen_ids:
                 seen_ids.add(doc.id)
                 doc_type_label = doc.document_type.value.replace("_", " ").title()
-                ref_no = meta.primary_ref_no if meta else doc.original_filename
+                ref_no = _clean_ref_string(meta.primary_ref_no) if meta else doc.original_filename
                 results.append({
                     "result_type": "document",
                     "id": doc.id,

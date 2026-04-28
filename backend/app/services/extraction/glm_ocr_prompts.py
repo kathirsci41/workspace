@@ -38,41 +38,42 @@ ANTI_CONFUSION_RULES = {
 
     "COMPANY_DC": """
 CRITICAL EXTRACTION RULES:
-1. po_reference = the value from the field labeled "Customer Order No." ONLY (e.g. "IGKPO/106399/2526")
-   po_reference is NEVER a date — dates like "30/01/2026" belong in dc_date, NOT po_reference
-2. dc_date = the value from the field labeled "DC Date" (e.g. "30/01/2026")
-3. The field labeled "Reference" contains a PERSON'S NAME — never put it in po_reference
-4. so_number starts with "1OTM" — do not confuse with dc_number which starts with "1DNT"
-5. delivery_address is the customer's delivery address or name (labeled "Delivery To")
-6. billing_address is the customer's billing address block (labeled "Customer's Billing Address" or "Bill To")
-7. order_items MUST be a JSON array — one object per row in the items table
-   Serial numbers printed inside the description cell should be captured in the description field
+This is our STANDARD COMPANY DELIVERY CHALLAN layout. Prioritize exact label mapping.
+1. dc_number = value from "DC No." or "DC Number" and usually starts with "1DNT".
+2. dc_date = value from "DC Date" only.
+3. po_reference = value from "Customer Order No." only (example: "IGKPO/106399/2526").
+    po_reference is NEVER a date, NEVER a person name, and NEVER GST/CIN.
+4. so_number = value from "Sales Order No." or "SO No." and usually starts with "1OTM".
+    Do not confuse so_number with dc_number.
+5. Ignore any field labeled "Reference" when extracting po_reference. "Reference" is usually a person/contact.
+6. delivery_address = customer ship-to block (labels like "Delivery To", "Ship To", "Consignee").
+7. billing_address = customer billing block (labels like "Customer's Billing Address", "Bill To").
+8. order_items MUST be a JSON array with one object per visible row.
+    Keep row order exactly as printed. Do not merge adjacent rows.
+    If serial numbers are printed inside description text, keep them in description.
+9. If the same header field appears multiple times, pick the clearest complete value (no truncation).
+10. If a required value is not explicitly printed, return null. Do not infer.
 """,
 
     "COMPANY_INVOICE": """
 CRITICAL EXTRACTION RULES:
-1. invoice_number starts with "1ITR" (product invoices) or "1ISR" (service invoices)
-2. If you see "11TR", "IT1R", or "11SR", "IT1SR" — that IS "1ITR" or "1ISR" — OCR confusion between I and 1
-3. so_number starts with "1OTM" — if you see "10TM", that IS "1OTM" — OCR confusion between O and 0
-   so_number appears labeled "SO No. :" on the header line — always extract it
-4. po_reference: Look for the field labeled "Customer Order No." in the document header
-   These header fields may appear on ONE combined line or on SEPARATE lines — handle both:
-   Combined: "Invoice No. : 1ITR2526001748  Customer Order No. : 323-24/Elite HO/AI  SO No. : 1OTM2526001448"
-   Separate:
-     Invoice No. : 1ITR2526001789
-     Customer Order No. : BHAS-PO-IT-2025/26-022
-     SO No. : 1OTM2526001544
-   po_reference = the value after "Customer Order No. :" — e.g. "323-24/Elite HO/AI" or "BHAS-PO-IT-2025/26-022"
-   so_number = the value after "SO No. :" — e.g. "1OTM2526001544"
-   Other examples of po_reference: "IGKPO/106399/2526", "BSIF/059.", "4500174759", "BHAS-PO-IT-2025/26-022"
-   ALWAYS extract po_reference — even if it contains words, slashes, hyphens, or spaces
-   It is NOT a CIN number (CIN looks like U74999TN1997PTC039039)
-5. total_amount is the grand total AFTER tax — the largest amount on the invoice
-6. taxable_amount: the pre-tax total labeled "Nett Amount", "Total Value", or "Taxable Amount"
-7. tax_amount: sum of all tax lines (SGST + CGST combined, or labeled "Tax Amount"). Return total tax paid.
-8. dc_reference: look for any "DC No:" label on the invoice. Extract the DC number (e.g. 1DNT2526DC2986). null if not present.
-9. coverage_period: for AMC/service invoices only, extract the service period (e.g. "23/11/2025 to 22/11/2026"). null for product invoices.
-10. order_items MUST be a JSON array — one object per row in the items table. Some invoices may have just 1 bundled item — still return an array with 1 object.
+This is our STANDARD COMPANY INVOICE layout. Use strict label-to-field mapping.
+1. invoice_number = value from "Invoice No." only. Usually starts with "1ITR" (product) or "1ISR" (service).
+2. If OCR reads "11TR", "IT1R", "11SR", or "IT1SR", treat as "1ITR" or "1ISR".
+3. so_number = value from "SO No." only. Usually starts with "1OTM".
+    If OCR reads "10TM", treat as "1OTM".
+4. po_reference = value from "Customer Order No." only.
+    It may contain slashes, hyphens, spaces, and letters. It is NOT a CIN/GSTIN.
+5. customer_name = billed customer name (buyer). Do not use our company name as customer_name.
+6. invoice_date = value from "Invoice Date" only. invoice_due_date = value from "Invoice Due Date" only.
+7. taxable_amount = pre-tax amount (labels like "Nett Amount", "Total Value", "Taxable Amount").
+8. tax_amount = total tax paid (IGST, or CGST+SGST combined). Return one combined number.
+9. total_amount = final grand total after tax. Prefer the explicit final total field over any computed subtotal.
+10. dc_reference = DC number linked on the invoice (labels like "DC No", "DC Ref", "Delivery Challan"). null if missing.
+11. coverage_period = service period only for AMC/service invoices; otherwise null.
+12. order_items MUST be a JSON array with one object per printed row. Keep order as printed.
+13. If header fields appear on one combined line, split by labels and map each label to the correct field.
+14. If a value is not explicitly printed, return null. Do not infer.
 """,
 
     "VENDOR_INVOICE": """
@@ -141,16 +142,22 @@ CRITICAL EXTRACTION RULES:
 
     "COMPANY_PO": """
 CRITICAL EXTRACTION RULES:
-1. po_number is OUR company's PO number issued to the vendor — labeled 'Order No.' or 'PO No.', starts with '1PTR' (e.g. 1PTR2526000467)
-2. po_date is labeled 'Order Date' or 'PO Date'
-3. vendor_name is the name of the supplier/vendor this PO is addressed to
-4. total_amount is the pre-tax net amount — labeled 'Net Amount' in the footer. Do NOT use the column total.
-5. vendor_gstin is in the vendor's address block — 15-character GST identification number
-6. delivery_due_date is labeled 'Delivery Due Date'
-7. delivery_address is the shipping/delivery location (labeled 'Shipping Location' or 'Delivery Address')
-8. order_items MUST be a JSON array — one object per row in the items table
-   Each object: sr_no, part_no (product code), description, hsn_code, qty (number), uom, unit_price (number), total_price (number), serial_numbers (null)
-   Use null for any key not present in this document
+This is our STANDARD COMPANY PURCHASE ORDER layout. Use exact label-driven extraction.
+1. po_number = our issued PO number from "Order No." or "PO No." and usually starts with "1PTR".
+2. po_date = value from "Order Date" or "PO Date" only.
+3. vendor_name = supplier name in the vendor/supplier block (labels like "Supplier", "Vendor", "M/s", "To").
+    Do not use customer names, ship-to names, or consignee names as vendor_name.
+4. vendor_gstin = 15-character GSTIN from vendor address block only.
+5. delivery_due_date = value from "Delivery Due Date" only.
+6. delivery_address = shipping location block (labels like "Shipping Location", "Delivery Address", "Ship To").
+7. total_amount = pre-tax net amount from footer total (prefer labels "Net Amount" or equivalent pre-tax total).
+    Do NOT use per-row totals and do NOT use post-tax grand total when both are present.
+8. payment_terms = payment condition text from terms/footer section.
+9. order_items MUST be a JSON array with one object per printed row.
+    Required keys per object: sr_no, part_no, description, hsn_code, qty, uom, unit_price, total_price, serial_numbers.
+    Keep row order exactly as printed. Do not merge or split rows unless clearly separated in the table.
+10. If multi-page, extract header fields from the first complete header occurrence and aggregate all item rows across pages.
+11. If any value is missing or unclear, return null. Do not infer.
 """,
 }
 
