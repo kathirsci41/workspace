@@ -78,10 +78,47 @@ class Settings(BaseSettings):
     # Debug
     debug: bool = False
 
+    # Benchmark mode (safety gates for local-only testing)
+    benchmark_mode_enabled: bool = False
+    benchmark_ollama_endpoint: str = "http://localhost:11434"
+
     model_config = {
         "env_file": str(_PROJECT_ROOT / ".env"),
         "env_file_encoding": "utf-8",
     }
+
+    def validate_benchmark_config(self) -> None:
+        """Ensure benchmarks cannot leak customer data to external services"""
+        if not self.benchmark_mode_enabled:
+            return  # Benchmark mode disabled, no validation needed
+
+        # Only allow local endpoints
+        local_endpoints = [
+            "http://localhost:11434",
+            "http://127.0.0.1:11434",
+        ]
+
+        is_local = any(
+            self.benchmark_ollama_endpoint.startswith(endpoint)
+            for endpoint in local_endpoints
+        )
+
+        if not is_local:
+            raise RuntimeError(
+                f"SECURITY: Benchmark mode requires local Ollama endpoint only.\n"
+                f"  Configured: {self.benchmark_ollama_endpoint}\n"
+                f"  Allowed: {local_endpoints}\n"
+                f"  Reason: Prevents accidental customer data exfiltration to external services.\n"
+                f"  Fix: Set BENCHMARK_OLLAMA_ENDPOINT to http://localhost:11434 in .env"
+            )
+
+        # Log for audit trail
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            "BENCHMARK MODE ACTIVE - Using synthetic data only. "
+            "No customer documents will be processed."
+        )
 
 
 settings = Settings()

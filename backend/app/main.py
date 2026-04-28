@@ -14,6 +14,9 @@ setup_logging("app")
 
 logger = logging.getLogger("app.api")
 
+# Validate benchmark configuration on startup
+settings.validate_benchmark_config()
+
 app = FastAPI(
     title="Document Platform V3.0",
     description="Centric Document Management",

@@ -68,3 +68,19 @@ backend/nul
 client-mail.md
 benchmark/
 DPP/
+
+# Test artifacts with customer data (security)
+backend/debug_markdown/
+backend/tests/test_results/
+backend/tests/e4b_test_data/
+backend/tests/*.benchmark
+test_results/
+benchmark_sample_*.csv
+
+# OCR outputs (may contain PII)
+*.ocr.md
+*.ocr.txt
+
+# Debug files
+debug_*/
+*.debug.*
