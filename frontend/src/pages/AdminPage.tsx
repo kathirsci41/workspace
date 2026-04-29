@@ -181,6 +181,10 @@ export default function AdminPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [requeuing, setRequeuing]         = useState(false);
   const [requeueResult, setRequeueResult] = useState<{ requeued: number } | null>(null);
+  const [requeueFailing, setRequeueFailing] = useState(false);
+  const [requeueFailResult, setRequeueFailResult] = useState<{ requeued: number } | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<{ updated: number } | null>(null);
 
   const handleRequeue = async () => {
     setRequeuing(true);
@@ -193,6 +197,34 @@ export default function AdminPage() {
       // toast shown by axios interceptor
     } finally {
       setRequeuing(false);
+    }
+  };
+
+  const handleRequeueFailed = async () => {
+    setRequeueFailing(true);
+    setRequeueFailResult(null);
+    try {
+      const { data } = await client.post('/api/v1/admin/requeue-failed?limit=20');
+      setRequeueFailResult({ requeued: data.requeued });
+      await refreshAll();
+    } catch {
+      // toast shown by axios interceptor
+    } finally {
+      setRequeueFailing(false);
+    }
+  };
+
+  const handleBackfillCpoRefs = async () => {
+    setBackfilling(true);
+    setBackfillResult(null);
+    try {
+      const { data } = await client.post('/api/v1/admin/backfill-cpo-refs');
+      setBackfillResult({ updated: data.updated });
+      await refreshAll();
+    } catch {
+      // toast shown by axios interceptor
+    } finally {
+      setBackfilling(false);
     }
   };
 
@@ -308,6 +340,37 @@ export default function AdminPage() {
           >
             <RefreshCw size={14} className={requeuing ? 'animate-spin' : ''} />
             {requeuing ? 'Requeuing…' : 'Requeue Pending'}
+          </button>
+          {requeueFailResult && (
+            <span className="text-xs text-red-600">
+              ✓{' '}
+              {requeueFailResult.requeued === 0
+                ? 'No failed documents to retry'
+                : `Retried ${requeueFailResult.requeued} document${requeueFailResult.requeued > 1 ? 's' : ''}`}
+            </span>
+          )}
+          <button
+            onClick={handleRequeueFailed}
+            disabled={requeueFailing || refreshing}
+            title="Retry extraction on failed documents"
+            className="flex items-center gap-2 text-sm px-3 py-1.5 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={requeueFailing ? 'animate-spin' : ''} />
+            {requeueFailing ? 'Retrying…' : 'Retry Failed'}
+          </button>
+          {backfillResult && (
+            <span className="text-xs text-purple-600">
+              ✓ Backfilled {backfillResult.updated} PO{backfillResult.updated > 1 ? 's' : ''}
+            </span>
+          )}
+          <button
+            onClick={handleBackfillCpoRefs}
+            disabled={backfilling || refreshing}
+            title="Populate customer_po_ref for existing documents"
+            className="flex items-center gap-2 text-sm px-3 py-1.5 border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={backfilling ? 'animate-spin' : ''} />
+            {backfilling ? 'Backfilling…' : 'Backfill CPO Refs'}
           </button>
           <button
             onClick={() => refreshAll()}

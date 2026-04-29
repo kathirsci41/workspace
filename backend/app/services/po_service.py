@@ -345,7 +345,6 @@ def _slot_message(doc) -> str | None:
 
 async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse:
     """Get the 6-document chain status for a PO."""
-    import sys; print(f"DEBUG: get_chain_status called for po_id={po_id}", file=sys.stderr, flush=True)
     po = await get_po(db, po_id)
 
     chain: dict[str, list[ChainSlot]] = {}
@@ -381,7 +380,7 @@ async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse
                 ChainSlot(
                     status=doc.status.value,
                     document_id=doc.id,
-                    ref_no=doc.doc_metadata.primary_ref_no if doc.doc_metadata else None,
+                    ref_no=_clean_ref_string(doc.doc_metadata.primary_ref_no) if doc.doc_metadata else None,
                     uploaded_at=doc.created_at,
                     confidence=doc.doc_metadata.confidence_score if doc.doc_metadata else None,
                     extraction_route=(
@@ -456,6 +455,8 @@ async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse
                 amount = data.get("total_amount")
                 if amount is not None:
                     try:
+                        if isinstance(amount, dict) and "value" in amount:
+                            amount = amount["value"]
                         amount = float(amount) if isinstance(amount, str) else amount
                         invoice_stages.append({
                             "stage": i + 1,

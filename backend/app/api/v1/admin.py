@@ -297,3 +297,30 @@ async def requeue_failed_extractions(
         extract_document.delay(doc_id)
 
     return {"requeued": len(doc_ids), "document_ids": doc_ids}
+
+
+@router.post("/backfill-cpo-refs")
+async def backfill_cpo_refs(db: AsyncSession = Depends(get_db)):
+    """Populate customer_po_ref for POs with CUSTOMER_PO documents but NULL ref."""
+    from app.schemas.extraction import _clean_ref_string
+
+    result = await db.execute(
+        select(Document)
+        .options(selectinload(Document.doc_metadata))
+        .where(
+            Document.document_type == DocumentType.CUSTOMER_PO,
+            Document.status == DocumentStatus.VERIFIED,
+        )
+    )
+    docs = result.scalars().all()
+    updated = 0
+    for doc in docs:
+        if not doc.doc_metadata or not doc.doc_metadata.primary_ref_no:
+            continue
+        po = await db.get(PurchaseOrder, doc.po_id)
+        if po and not po.customer_po_ref:
+            po.customer_po_ref = str(_clean_ref_string(doc.doc_metadata.primary_ref_no))
+            updated += 1
+
+    await db.commit()
+    return {"updated": updated}

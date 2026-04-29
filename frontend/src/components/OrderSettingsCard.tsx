@@ -55,6 +55,18 @@ export default function OrderSettingsCard({
     ? Math.round((billedSoFar / poTotal) * 100)
     : 0;
 
+  const handleBillingTypeChange = (newType: BillingType) => {
+    if (newType === billingType) return;
+    const hasInvoices = billedSoFar > 0;
+    if (hasInvoices) {
+      const ok = window.confirm(
+        `Changing billing type from "${billingType}" to "${newType}" will recalculate chain completeness using a different formula. This may change the displayed completion percentage. Continue?`
+      );
+      if (!ok) return;
+    }
+    onBillingTypeChange(newType);
+  };
+
   return (
     <div className="bg-white border border-[--veil] rounded-xl p-4 mb-5 space-y-4">
 
@@ -110,7 +122,7 @@ export default function OrderSettingsCard({
             {BILLING_TYPES.map(bt => (
               <button
                 key={bt.value}
-                onClick={() => onBillingTypeChange(bt.value)}
+                onClick={() => handleBillingTypeChange(bt.value)}
                 className={clsx(
                   'flex-1 text-xs font-semibold py-2 rounded-lg border transition-colors',
                   billingType === bt.value

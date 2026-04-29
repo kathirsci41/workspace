@@ -87,6 +87,7 @@ async def build_order_context(po_id: str | uuid.UUID, db: AsyncSession) -> str:
         documents=docs_payload,
         requires_install_report=po.requires_install_report,
         invoiced_total=invoiced_total,
+        customer_po_ref=getattr(po, 'customer_po_ref', None),
     )
 
     if chain["missing_slots"]:

@@ -41,6 +41,7 @@ def compute_chain_status(
     documents: list[dict],
     requires_install_report: bool,
     invoiced_total: float = 0.0,
+    customer_po_ref: str | None = None,
 ) -> dict:
     """Compute full chain validation result.
 
@@ -99,7 +100,7 @@ def compute_chain_status(
             extracted_cpo = doc.get("cpo_ref") if ok else None
             cpo_result = check_cpo_reference(
                 extracted_cpo_ref=extracted_cpo,
-                expected_po_number=po_number,
+                expected_po_number=customer_po_ref or po_number,
             )
             if cpo_result == ReferenceCheckResult.SKIP:
                 cpo_skip_reason = "extraction_failed" if not ok else "no_extracted_value"
@@ -119,7 +120,7 @@ def compute_chain_status(
                 "check": "cpo_reference",
                 "result": cpo_result,
                 "extracted": extracted_cpo,
-                "expected": po_number,
+                "expected": customer_po_ref or po_number,
                 "skip_reason": cpo_skip_reason,
             })
             if so_result == ReferenceCheckResult.MISMATCH:

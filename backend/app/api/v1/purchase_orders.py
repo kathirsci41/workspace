@@ -216,6 +216,7 @@ async def get_chain_status_v2(
         documents=docs_payload,
         requires_install_report=po.requires_install_report,
         invoiced_total=invoiced_total,
+        customer_po_ref=po.customer_po_ref,
     )
 
     # Fall back to stored chain_completeness when scenario produces no required slots
