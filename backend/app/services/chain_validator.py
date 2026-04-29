@@ -42,8 +42,7 @@ def compute_chain_status(
     requires_install_report: bool,
     invoiced_total: float = 0.0,
 ) -> dict:
-    """
-    Compute full chain validation result.
+    """Compute full chain validation result.
 
     documents: list of dicts with keys:
       document_type, so_number, vpo_numbers, extraction_ok, cpo_ref,
@@ -446,6 +445,21 @@ def compute_chain_status(
     billing_result: dict = {"overall": BillingStatus.PENDING}
     billing_complete = False
 
+    # Build invoice stages for FULL/RECURRING (even if po_total is None)
+    invoice_stages = []
+    if billing_type not in (BillingType.STAGED,) or not billing_milestones:
+        for i, doc in enumerate(documents):
+            if doc.get("document_type") == DocumentType.COMPANY_INVOICE and doc.get("amount"):
+                amount = doc.get("amount", 0)
+                invoice_stages.append({
+                    "stage": i + 1,
+                    "expected_amount": round(amount, 2),
+                    "invoiced_amount": round(amount, 2),
+                    "status": "paid" if amount > 0 else "pending",
+                    "document_id": doc.get("id"),
+                    "ref_no": doc.get("ref_no"),
+                })
+
     if po_total:
         if billing_type == BillingType.STAGED and billing_milestones:
             stage_invoices = [
@@ -460,8 +474,20 @@ def compute_chain_status(
             billing_complete = billing_result["overall"] == BillingStatus.COMPLETE
         else:
             billing_status = check_full_billing(invoiced_total, po_total)
-            billing_result = {"overall": billing_status}
+            billing_result = {
+                "overall": billing_status,
+                "invoiced_total": invoiced_total,
+                "stages": invoice_stages,
+            }
             billing_complete = billing_status == BillingStatus.COMPLETE
+    else:
+        # No po_total: still populate invoiced_total and stages for FULL/RECURRING
+        if billing_type != BillingType.STAGED or not billing_milestones:
+            billing_result = {
+                "overall": BillingStatus.PENDING,
+                "invoiced_total": invoiced_total,
+                "stages": invoice_stages,
+            }
 
     # Determine chain_status — MISMATCH takes priority over INCOMPLETE
     if has_mismatch:
@@ -477,6 +503,7 @@ def compute_chain_status(
     verified_slots = total_slots - len(missing_slots)
     completeness_pct = round(verified_slots / total_slots * 100) if total_slots > 0 else 0
 
+    import sys; print(f"[CHAIN_VALIDATOR] RETURNING: billing_result keys={billing_result.keys()}", file=sys.stderr, flush=True)
     return {
         "chain_status": chain_status,
         "completeness_pct": completeness_pct,

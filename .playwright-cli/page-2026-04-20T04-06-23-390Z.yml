@@ -1,0 +1,144 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - heading "DocPlatform" [level=1] [ref=e6]
+    - navigation [ref=e7]:
+      - link "Dashboard" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - img [ref=e9]
+        - text: Dashboard
+      - link "Customers" [ref=e14] [cursor=pointer]:
+        - /url: /customers
+        - img [ref=e15]
+        - text: Customers
+      - link "Purchase Orders" [ref=e20] [cursor=pointer]:
+        - /url: /purchase-orders
+        - img [ref=e21]
+        - text: Purchase Orders
+      - link "Documents" [ref=e24] [cursor=pointer]:
+        - /url: /documents
+        - img [ref=e25]
+        - text: Documents
+      - link "Search" [ref=e29] [cursor=pointer]:
+        - /url: /search
+        - img [ref=e30]
+        - text: Search
+      - link "Assistant" [ref=e33] [cursor=pointer]:
+        - /url: /chat
+        - img [ref=e34]
+        - text: Assistant
+      - link "System" [active] [ref=e36] [cursor=pointer]:
+        - /url: /admin
+        - img [ref=e37]
+        - text: System
+    - generic [ref=e40]:
+      - button "Collapse" [ref=e41] [cursor=pointer]:
+        - img [ref=e42]
+        - generic [ref=e44]: Collapse
+      - generic [ref=e45]: DocPlatform v2.2.0
+  - generic [ref=e46]:
+    - banner [ref=e47]:
+      - generic [ref=e49]:
+        - img [ref=e50]
+        - textbox "Search invoice, DC, PO, customer..." [ref=e53]
+    - main [ref=e54]:
+      - generic [ref=e1319]:
+        - generic [ref=e1320]:
+          - heading "Admin Console" [level=2] [ref=e1321]
+          - generic [ref=e1322]:
+            - button "Requeue Pending" [ref=e1323] [cursor=pointer]:
+              - img [ref=e1324]
+              - text: Requeue Pending
+            - button "Refresh all" [ref=e1329] [cursor=pointer]:
+              - img [ref=e1330]
+              - text: Refresh all
+        - generic [ref=e1335]:
+          - generic [ref=e1336]:
+            - heading "System Health" [level=3] [ref=e1337]
+            - generic [ref=e1338]: Updated 9:36:21 am
+          - generic [ref=e1339]:
+            - generic [ref=e1341]:
+              - generic [ref=e1342]:
+                - img [ref=e1343]
+                - generic [ref=e1347]: database
+              - img [ref=e1348]
+            - generic [ref=e1352]:
+              - generic [ref=e1353]:
+                - img [ref=e1354]
+                - generic [ref=e1357]: redis
+              - img [ref=e1358]
+            - generic [ref=e1362]:
+              - generic [ref=e1363]:
+                - img [ref=e1364]
+                - generic [ref=e1367]: model endpoint
+              - img [ref=e1368]
+            - generic [ref=e1372]:
+              - generic [ref=e1373]:
+                - img [ref=e1374]
+                - generic [ref=e1378]: models loaded
+              - img [ref=e1379]
+            - generic [ref=e1383]:
+              - generic [ref=e1384]:
+                - img [ref=e1385]
+                - generic [ref=e1387]: storage
+              - img [ref=e1388]
+        - generic [ref=e1391]:
+          - generic [ref=e1392]:
+            - heading "Document Pipeline" [level=3] [ref=e1393]
+            - generic [ref=e1394]: Updated 9:36:21 am
+          - paragraph [ref=e1395]: Click any counter to view those documents.
+          - generic [ref=e1396]:
+            - button "0 Uploaded" [ref=e1397] [cursor=pointer]:
+              - generic [ref=e1398]: "0"
+              - generic [ref=e1399]: Uploaded
+            - img [ref=e1400]
+            - button "0 Extracting" [ref=e1402] [cursor=pointer]:
+              - generic [ref=e1403]: "0"
+              - generic [ref=e1404]: Extracting
+            - img [ref=e1405]
+            - button "20 Pending Review" [ref=e1407] [cursor=pointer]:
+              - generic [ref=e1408]: "20"
+              - generic [ref=e1409]: Pending Review
+            - img [ref=e1410]
+            - button "9 Verified" [ref=e1412] [cursor=pointer]:
+              - generic [ref=e1413]: "9"
+              - generic [ref=e1414]: Verified
+            - button "0 Failed" [ref=e1416] [cursor=pointer]:
+              - generic [ref=e1417]: "0"
+              - generic [ref=e1418]: Failed
+            - button "0 Rejected" [ref=e1419] [cursor=pointer]:
+              - generic [ref=e1420]: "0"
+              - generic [ref=e1421]: Rejected
+          - generic [ref=e1422]:
+            - generic [ref=e1423]: 29 total documents
+            - generic [ref=e1424]: 11 purchase orders
+            - generic [ref=e1425]:
+              - img [ref=e1426]
+              - generic [ref=e1431]: "9"
+              - text: customers
+        - generic [ref=e1432]:
+          - generic [ref=e1433]:
+            - generic [ref=e1434]:
+              - heading "Extraction Failures" [level=3] [ref=e1435]
+              - generic [ref=e1436]: Updated 9:36:21 am
+            - generic [ref=e1437]:
+              - img [ref=e1438]
+              - generic [ref=e1441]: No extraction failures
+          - generic [ref=e1442]:
+            - generic [ref=e1443]:
+              - heading "Currently Active" [level=3] [ref=e1444]
+              - generic [ref=e1445]: Updated 9:36:21 am
+            - generic [ref=e1447]: No documents currently processing
+        - generic [ref=e1448]:
+          - generic [ref=e1449]:
+            - heading "Celery Queue" [level=3] [ref=e1450]
+            - generic [ref=e1451]: Updated 9:36:22 am
+          - generic [ref=e1452]:
+            - generic [ref=e1453]:
+              - generic [ref=e1454]: "1"
+              - generic [ref=e1455]: Workers Online
+            - generic [ref=e1456]:
+              - generic [ref=e1457]: "0"
+              - generic [ref=e1458]: Active Tasks
+            - generic [ref=e1459]:
+              - generic [ref=e1460]: "0"
+              - generic [ref=e1461]: Queued Tasks

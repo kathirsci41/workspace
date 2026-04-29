@@ -12,6 +12,7 @@ class POCreate(BaseModel):
     po_date: Optional[date] = None
     total_amount: Optional[float] = None
     notes: Optional[str] = None
+    customer_po_ref: Optional[str] = None
 
 
 class POUpdate(BaseModel):
@@ -21,6 +22,7 @@ class POUpdate(BaseModel):
     notes: Optional[str] = None
     status: Optional[str] = None
     so_number: Optional[str] = None
+    customer_po_ref: Optional[str] = None
     fulfillment_type: Optional[Literal['procurement', 'stock']] = None
     items_verified: Optional[bool] = None
     order_scenario: Optional[Literal['unknown', 'procurement', 'stock', 'drop_ship', 'service_amc']] = None
@@ -44,6 +46,7 @@ class POResponse(BaseModel):
     chain_completeness: float
     notes: Optional[str] = None
     so_number: Optional[str] = None
+    customer_po_ref: Optional[str] = None
     fulfillment_type: Optional[str] = "procurement"
     items_verified: bool = False
     order_scenario: str = "unknown"
@@ -92,6 +95,11 @@ class ChainStatusResponse(BaseModel):
     po_number: str
     completeness_pct: int
     chain: dict[str, list[ChainSlot]]
+    billing: dict = {}  # {overall: str, stages?: [...]}
+    missing_slots: list[str] = []
+    missing_vendor_invoices: list[str] = []
+    reference_checks: list[dict] = []
+    chain_status: str = "incomplete"
 
 
 class SONumberUpdate(BaseModel):

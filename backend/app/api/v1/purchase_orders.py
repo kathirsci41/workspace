@@ -175,11 +175,13 @@ async def get_chain_status_v2(
 
     docs_payload = [
         {
+            "id": str(doc.id),
             "document_type": doc.document_type,
             "so_number": doc.so_number,
             "vpo_numbers": doc.vpo_numbers or [],
             "extraction_ok": doc.extraction_ok,
             "cpo_ref": _clean_ref_string(doc.doc_metadata.po_ref_no) if doc.doc_metadata else None,
+            "ref_no": doc.doc_metadata.primary_ref_no if doc.doc_metadata else None,
             "billing_stage": doc.billing_stage,
             "amount": _invoice_amount(doc) if doc.document_type == DocumentType.COMPANY_INVOICE else float(doc.doc_metadata.total_amount or 0) if doc.doc_metadata else 0,
             "delivery_address": _ed(doc, "delivery_address"),

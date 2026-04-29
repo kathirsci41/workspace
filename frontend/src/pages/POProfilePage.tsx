@@ -168,6 +168,7 @@ export function POProfilePage() {
         <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-xs text-gray-600">
           <div><span className="text-gray-400">Customer</span> &nbsp;{profile.customer_name} ({profile.customer_sky_id})</div>
           {profile.so_number && <div><span className="text-gray-400">SO Number</span> &nbsp;{profile.so_number}</div>}
+          {profile.customer_po_ref && <div><span className="text-gray-400">Customer PO Ref</span> &nbsp;{profile.customer_po_ref}</div>}
           {profile.po_date && <div><span className="text-gray-400">PO Date</span> &nbsp;{new Date(profile.po_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>}
           {profile.total_amount != null && <div><span className="text-gray-400">Amount</span> &nbsp;₹{profile.total_amount.toLocaleString('en-IN')}</div>}
         </div>

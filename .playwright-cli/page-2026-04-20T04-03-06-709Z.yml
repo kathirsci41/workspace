@@ -1,0 +1,156 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - heading "DocPlatform" [level=1] [ref=e6]
+      - navigation [ref=e7]:
+        - link "Dashboard" [ref=e8] [cursor=pointer]:
+          - /url: /
+          - img [ref=e9]
+          - text: Dashboard
+        - link "Customers" [ref=e14] [cursor=pointer]:
+          - /url: /customers
+          - img [ref=e15]
+          - text: Customers
+        - link "Purchase Orders" [ref=e20] [cursor=pointer]:
+          - /url: /purchase-orders
+          - img [ref=e21]
+          - text: Purchase Orders
+        - link "Documents" [ref=e24] [cursor=pointer]:
+          - /url: /documents
+          - img [ref=e25]
+          - text: Documents
+        - link "Search" [ref=e29] [cursor=pointer]:
+          - /url: /search
+          - img [ref=e30]
+          - text: Search
+        - link "Assistant" [ref=e33] [cursor=pointer]:
+          - /url: /chat
+          - img [ref=e34]
+          - text: Assistant
+        - link "System" [ref=e36] [cursor=pointer]:
+          - /url: /admin
+          - img [ref=e37]
+          - text: System
+      - generic [ref=e40]:
+        - button "Collapse" [ref=e41] [cursor=pointer]:
+          - img [ref=e42]
+          - generic [ref=e44]: Collapse
+        - generic [ref=e45]: DocPlatform v2.2.0
+    - generic [ref=e46]:
+      - banner [ref=e47]:
+        - generic [ref=e49]:
+          - img [ref=e50]
+          - textbox "Search invoice, DC, PO, customer..." [ref=e53]
+      - main [ref=e54]:
+        - generic [ref=e683]:
+          - navigation [ref=e685]:
+            - link "Purchase Orders" [ref=e687] [cursor=pointer]:
+              - /url: /purchase-orders
+            - generic [ref=e688]:
+              - img [ref=e689]
+              - generic [ref=e691]: PO-2026-SF005
+          - generic [ref=e692]:
+            - generic [ref=e693]:
+              - generic [ref=e694]:
+                - generic [ref=e695]: PO-2026-SF005
+                - generic [ref=e696]: ● COMPLETE
+              - generic [ref=e697]:
+                - generic [ref=e698]: SHRIRAM FINANCE
+                - generic [ref=e699]: ·
+                - generic [ref=e700]: ₹0
+            - generic [ref=e701]:
+              - link "↗ Profile" [ref=e702] [cursor=pointer]:
+                - /url: /purchase-orders/bfb2824d-41cc-477b-a6c6-cfeb8778215a/profile
+              - button "Export" [ref=e703] [cursor=pointer]:
+                - img [ref=e704]
+                - text: Export
+          - generic [ref=e707]:
+            - button "Overview" [ref=e708] [cursor=pointer]
+            - button "Documents 5" [ref=e709] [cursor=pointer]:
+              - text: Documents
+              - generic [ref=e710]: "5"
+            - button "Billing" [ref=e711] [cursor=pointer]
+            - button "Delete" [ref=e712] [cursor=pointer]
+          - generic [ref=e714]:
+            - generic [ref=e715]:
+              - generic [ref=e716]:
+                - generic [ref=e717]: Order Scenario
+                - generic [ref=e718]:
+                  - generic [ref=e719]:
+                    - text: 📦 PROCUREMENT
+                    - generic [ref=e720]: AUTO
+                  - button "Change ▾" [ref=e721] [cursor=pointer]
+              - generic [ref=e722]:
+                - generic [ref=e723]: Billing Type
+                - generic [ref=e724]:
+                  - button "Full" [ref=e725] [cursor=pointer]
+                  - button "Staged" [ref=e726] [cursor=pointer]
+                  - button "Recurring" [ref=e727] [cursor=pointer]
+                - generic [ref=e728]: ₹0 billed so far
+            - generic [ref=e729]: Document Chain
+            - generic [ref=e732]:
+              - generic [ref=e733]:
+                - generic [ref=e734]:
+                  - generic [ref=e735]: "!"
+                  - generic [ref=e736]: Customer PO
+                  - generic "PWFA251127016" [ref=e737]
+                  - generic [ref=e738]: Review
+                - generic [ref=e739]: →
+              - generic [ref=e740]:
+                - generic [ref=e741]:
+                  - generic [ref=e742]: "!"
+                  - generic [ref=e743]: Company PO
+                  - 'generic "{''value'': ''1PTR2526000400'', ''confidence'': 1.0}" [ref=e744]'
+                  - generic [ref=e745]: Review
+                - generic [ref=e746]: →
+              - generic [ref=e747]:
+                - generic [ref=e748]:
+                  - generic [ref=e749]: —
+                  - generic [ref=e750]: Vendor DC
+                  - generic [ref=e751]: Missing
+                - generic [ref=e752]: →
+              - generic [ref=e753]:
+                - generic [ref=e754]:
+                  - generic [ref=e755]: "!"
+                  - generic [ref=e756]: Vendor Invoice
+                  - 'generic "{''value'': ''C190224835'', ''confidence'': 1.0}" [ref=e757]'
+                  - generic [ref=e758]: Review
+                - generic [ref=e759]: →
+              - generic [ref=e760]:
+                - generic [ref=e761]:
+                  - generic [ref=e762]: "!"
+                  - generic [ref=e763]: Company DC
+                  - 'generic "{''value'': ''1DNT2526DC2915'', ''confidence'': 1.0}" [ref=e764]'
+                  - generic [ref=e765]: Review
+                - generic [ref=e766]: →
+              - generic [ref=e768]:
+                - generic [ref=e769]: "!"
+                - generic [ref=e770]: Company Invoice
+                - 'generic "{''value'': ''1ITR2526001785'', ''confidence'': 1.0}" [ref=e771]'
+                - generic [ref=e772]: Review
+            - generic [ref=e773]: Reference Validation
+            - generic [ref=e776]: No reference data — upload documents to validate
+            - generic [ref=e777]: Billing Summary
+            - generic [ref=e779]:
+              - generic [ref=e780]:
+                - generic [ref=e781]:
+                  - generic [ref=e782]: PO Total
+                  - generic [ref=e783]: ₹0
+                - generic [ref=e784]:
+                  - generic [ref=e785]: Billed So Far
+                  - generic [ref=e786]: ₹0
+                - generic [ref=e787]:
+                  - generic [ref=e788]: Outstanding
+                  - generic [ref=e789]: ₹0
+              - button "→ View full billing detail" [ref=e790] [cursor=pointer]
+  - generic:
+    - generic [ref=e791]:
+      - img [ref=e793]
+      - paragraph [ref=e797]: Server error — please try again.
+      - button [ref=e798] [cursor=pointer]:
+        - img [ref=e799]
+    - generic [ref=e802]:
+      - img [ref=e804]
+      - paragraph [ref=e808]: Server error — please try again.
+      - button [ref=e809] [cursor=pointer]:
+        - img [ref=e810]

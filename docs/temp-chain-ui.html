@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PO Chain View</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; }
+
+    /* Layout */
+    .shell { display: flex; height: 100vh; }
+    .sidebar { width: 220px; background: #161b27; border-right: 1px solid #1e2535; padding: 16px 0; flex-shrink: 0; }
+    .sidebar-logo { padding: 0 16px 16px; font-weight: 700; font-size: 14px; color: #60a5fa; border-bottom: 1px solid #1e2535; margin-bottom: 8px; }
+    .nav-item { padding: 8px 16px; font-size: 13px; color: #94a3b8; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .nav-item.active { background: #263957; color: #60a5fa; border-right: 2px solid #60a5fa; }
+    .main { flex: 1; overflow-y: auto; }
+
+    /* Topbar */
+    .topbar { background: #161b27; border-bottom: 1px solid #1e2535; padding: 12px 24px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #64748b; }
+    .topbar a { color: #60a5fa; text-decoration: none; }
+    .topbar span { color: #e2e8f0; }
+
+    /* Page content */
+    .page { padding: 24px; }
+
+    /* PO Header */
+    .po-header { background: #161b27; border: 1px solid #1e2535; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; }
+    .po-header-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+    .po-title { font-size: 18px; font-weight: 600; color: #f1f5f9; }
+    .po-subtitle { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .badges { display: flex; gap: 8px; }
+    .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+    .badge-blue { background: #1e3a5f; color: #60a5fa; }
+    .badge-orange { background: #3d2000; color: #fb923c; }
+    .badge-green { background: #0d2d1a; color: #4ade80; }
+    .badge-yellow { background: #2d2200; color: #fbbf24; }
+
+    .po-meta { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+    .meta-item label { font-size: 11px; color: #64748b; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .meta-item .value { font-size: 13px; color: #e2e8f0; font-weight: 500; }
+    .meta-item .so-input { background: #0f1117; border: 1px solid #2d3748; border-radius: 6px; padding: 4px 8px; font-size: 13px; color: #fbbf24; width: 100%; outline: none; }
+    .meta-item .so-input:focus { border-color: #60a5fa; }
+
+    /* Chain Status Banner */
+    .chain-banner { border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+    .chain-banner.incomplete { background: #1f1500; border: 1px solid #451a00; }
+    .chain-banner.complete { background: #0a1f12; border: 1px solid #14532d; }
+    .chain-banner-left { display: flex; align-items: center; gap: 12px; }
+    .chain-banner-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .incomplete .chain-banner-icon { background: #451a00; }
+    .complete .chain-banner-icon { background: #14532d; }
+    .chain-banner-title { font-size: 14px; font-weight: 600; }
+    .incomplete .chain-banner-title { color: #fb923c; }
+    .complete .chain-banner-title { color: #4ade80; }
+    .chain-banner-sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+    .progress-bar { width: 200px; height: 6px; background: #1e2535; border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #f97316, #fbbf24); width: 60%; }
+
+    /* Two column layout */
+    .two-col { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+
+    /* Document Chain */
+    .card { background: #161b27; border: 1px solid #1e2535; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+    .card-title { font-size: 14px; font-weight: 600; color: #f1f5f9; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+    .card-title span { font-size: 12px; color: #64748b; font-weight: 400; }
+
+    /* Chain steps */
+    .chain-steps { position: relative; }
+    .chain-step { display: flex; gap: 16px; margin-bottom: 0; position: relative; }
+    .chain-step:not(:last-child) .step-connector { position: absolute; left: 19px; top: 40px; width: 2px; height: calc(100% + 2px); background: #1e2535; z-index: 0; }
+    .step-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; z-index: 1; position: relative; border: 2px solid transparent; }
+    .step-icon.done { background: #0d2d1a; border-color: #16a34a; }
+    .step-icon.error { background: #2d0e0e; border-color: #dc2626; }
+    .step-icon.pending { background: #1a1f2e; border-color: #2d3748; }
+    .step-icon.partial { background: #2d1a00; border-color: #d97706; }
+
+    .step-body { flex: 1; padding-bottom: 20px; }
+    .step-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .step-name { font-size: 13px; font-weight: 600; color: #e2e8f0; }
+    .step-status { font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600; }
+    .status-done { background: #0d2d1a; color: #4ade80; }
+    .status-pending { background: #1a1f2e; color: #64748b; }
+    .status-error { background: #2d0e0e; color: #f87171; }
+    .status-partial { background: #2d1a00; color: #fbbf24; }
+
+    .step-doc { background: #0f1117; border: 1px solid #1e2535; border-radius: 6px; padding: 8px 12px; margin-top: 6px; display: flex; align-items: center; justify-content: space-between; }
+    .doc-ref { font-size: 12px; color: #94a3b8; }
+    .doc-ref strong { color: #e2e8f0; }
+    .doc-action { font-size: 11px; color: #60a5fa; cursor: pointer; }
+
+    .step-subgroup { margin-top: 8px; }
+    .subgroup-label { font-size: 11px; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .vpo-slot { background: #0f1117; border: 1px solid #1e2535; border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; }
+    .vpo-slot-header { display: flex; align-items: center; justify-content: space-between; }
+    .vpo-slot-name { font-size: 12px; color: #94a3b8; }
+    .vpo-slot-name strong { color: #e2e8f0; }
+    .vpo-invoice { background: #0a1520; border: 1px solid #1e3a5f; border-radius: 4px; padding: 6px 10px; margin-top: 6px; display: flex; justify-content: space-between; align-items: center; }
+    .vpo-invoice-ref { font-size: 11px; color: #60a5fa; }
+    .vpo-missing { font-size: 11px; color: #64748b; font-style: italic; margin-top: 4px; }
+
+    /* Validation panel */
+    .validation-section { margin-bottom: 16px; }
+    .validation-title { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .validation-check { display: flex; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid #1e2535; }
+    .validation-check:last-child { border-bottom: none; }
+    .check-icon { font-size: 13px; margin-top: 1px; flex-shrink: 0; }
+    .check-body { flex: 1; }
+    .check-label { font-size: 12px; color: #e2e8f0; font-weight: 500; }
+    .check-detail { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .check-detail .match { color: #4ade80; }
+    .check-detail .mismatch { color: #f87171; }
+
+    /* Billing panel */
+    .billing-type-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .billing-stages { display: flex; flex-direction: column; gap: 8px; }
+    .billing-stage { display: flex; align-items: center; gap: 10px; }
+    .stage-bar-wrap { flex: 1; height: 6px; background: #1e2535; border-radius: 3px; overflow: hidden; }
+    .stage-bar { height: 100%; border-radius: 3px; }
+    .stage-bar.paid { background: #16a34a; }
+    .stage-bar.pending { background: #374151; }
+    .stage-label { font-size: 11px; color: #94a3b8; width: 90px; }
+    .stage-amount { font-size: 11px; color: #e2e8f0; width: 80px; text-align: right; }
+    .billing-total { display: flex; justify-content: space-between; padding-top: 10px; margin-top: 4px; border-top: 1px solid #1e2535; font-size: 12px; }
+    .billing-total .label { color: #64748b; }
+    .billing-total .amount { color: #f1f5f9; font-weight: 600; }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">Skylark DPP</div>
+    <div class="nav-item">📊 Dashboard</div>
+    <div class="nav-item active">📋 Purchase Orders</div>
+    <div class="nav-item">📄 Documents</div>
+    <div class="nav-item">👥 Customers</div>
+    <div class="nav-item">⚙️ System</div>
+  </div>
+
+  <div class="main">
+    <!-- Topbar breadcrumb -->
+    <div class="topbar">
+      <a href="#">Purchase Orders</a> / <span>PWFA251127016</span>
+    </div>
+
+    <div class="page">
+
+      <!-- PO Header -->
+      <div class="po-header">
+        <div class="po-header-top">
+          <div>
+            <div class="po-title">PWFA251127016</div>
+            <div class="po-subtitle">Shriram Finance Ltd · Received 27 Nov 2025</div>
+          </div>
+          <div class="badges">
+            <span class="badge badge-blue">PROCUREMENT</span>
+            <span class="badge badge-orange">STAGED BILLING</span>
+            <span class="badge badge-yellow">INCOMPLETE</span>
+          </div>
+        </div>
+        <div class="po-meta">
+          <div class="meta-item">
+            <label>Customer PO</label>
+            <div class="value">PWFA251127016</div>
+          </div>
+          <div class="meta-item">
+            <label>SO Number <span style="color:#fbbf24">✎</span></label>
+            <input class="so-input" value="1OTM2526001429" placeholder="Enter SO number…" />
+          </div>
+          <div class="meta-item">
+            <label>Customer</label>
+            <div class="value">Shriram Finance Ltd</div>
+          </div>
+          <div class="meta-item">
+            <label>PO Value</label>
+            <div class="value">₹5,03,137.00</div>
+          </div>
+          <div class="meta-item">
+            <label>Requires Install Report</label>
+            <div class="value" style="color:#fbbf24">Yes</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chain Banner -->
+      <div class="chain-banner incomplete">
+        <div class="chain-banner-left">
+          <div class="chain-banner-icon">⚠️</div>
+          <div>
+            <div class="chain-banner-title">Chain Incomplete — 3 of 5 documents received</div>
+            <div class="chain-banner-sub">Waiting for: Vendor Invoice (Redington) · Installation Report</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px; color:#64748b; margin-bottom:4px; text-align:right">60% complete</div>
+          <div class="progress-bar"><div class="progress-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+
+        <!-- Left: Document Chain -->
+        <div>
+          <div class="card">
+            <div class="card-title">Document Chain <span>PROCUREMENT scenario · 1 vendor</span></div>
+            <div class="chain-steps">
+
+              <!-- Step 1: CPO -->
+              <div class="chain-step">
+                <div class="step-connector"></div>
+                <div class="step-icon done">📥</div>
+                <div class="step-body">
+                  <div class="step-header">
+                    <div class="step-name">Customer PO</div>
+                    <span class="step-status status-done">✓ Uploaded</span>
+                  </div>
+                  <div class="step-doc">
+                    <div class="doc-ref"><strong>PWFA251127016</strong> · 27 Nov 2025 · ₹5,03,137</div>
+                    <span class="doc-action">View →</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 2: VPO + Vendor Invoice -->
+              <div class="chain-step">
+                <div class="step-connector"></div>
+                <div class="step-icon partial">🏭</div>
+                <div class="step-body">
+                  <div class="step-header">
+                    <div class="step-name">Vendor Orders</div>
+                    <span class="step-status status-partial">1 VPO · Invoice pending</span>
+                  </div>
+                  <div class="step-subgroup">
+                    <div class="subgroup-label">VPO slots (1 vendor)</div>
+                    <div class="vpo-slot">
+                      <div class="vpo-slot-header">
+                        <div class="vpo-slot-name"><strong>1PTR2526000400</strong> · Redington India</div>
+                        <span class="step-status status-error">Invoice missing</span>
+                      </div>
+                      <div class="vpo-missing">⚠ Vendor invoice not yet received</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 3: Company DC -->
+              <div class="chain-step">
+                <div class="step-connector"></div>
+                <div class="step-icon done">🚚</div>
+                <div class="step-body">
+                  <div class="step-header">
+                    <div class="step-name">Company Delivery Challan</div>
+                    <span class="step-status status-done">✓ Verified</span>
+                  </div>
+                  <div class="step-doc">
+                    <div class="doc-ref"><strong>1DNT2526001234</strong> · SO: <span style="color:#4ade80">1OTM2526001429 ✓</span></div>
+                    <span class="doc-action">View →</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 4: Installation Report -->
+              <div class="chain-step">
+                <div class="step-connector"></div>
+                <div class="step-icon pending">🔧</div>
+                <div class="step-body">
+                  <div class="step-header">
+                    <div class="step-name">Installation Report</div>
+                    <span class="step-status status-pending">Pending</span>
+                  </div>
+                  <div class="step-doc" style="border-style:dashed; border-color:#2d3748;">
+                    <div class="doc-ref" style="color:#475569">Required by customer · not yet uploaded</div>
+                    <span class="doc-action">Upload →</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Step 5: Company Invoice -->
+              <div class="chain-step">
+                <div class="step-icon done">🧾</div>
+                <div class="step-body">
+                  <div class="step-header">
+                    <div class="step-name">Company Invoice</div>
+                    <span class="step-status status-done">✓ Verified</span>
+                  </div>
+                  <div class="step-doc">
+                    <div class="doc-ref"><strong>1ITR2526001785</strong> · CPO ref: <span style="color:#4ade80">PWFA251127016 ✓</span> · SO: <span style="color:#4ade80">1OTM2526001429 ✓</span></div>
+                    <span class="doc-action">View →</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Validation + Billing -->
+        <div>
+
+          <!-- Cross-doc validation -->
+          <div class="card">
+            <div class="card-title">Reference Validation</div>
+
+            <div class="validation-section">
+              <div class="validation-title">SO Number Checks</div>
+              <div class="validation-check">
+                <div class="check-icon">✅</div>
+                <div class="check-body">
+                  <div class="check-label">Company DC → SO match</div>
+                  <div class="check-detail">DC carries <span class="match">1OTM2526001429</span> = entered SO</div>
+                </div>
+              </div>
+              <div class="validation-check">
+                <div class="check-icon">✅</div>
+                <div class="check-body">
+                  <div class="check-label">Company Invoice → SO match</div>
+                  <div class="check-detail">Invoice carries <span class="match">1OTM2526001429</span> = entered SO</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="validation-section">
+              <div class="validation-title">CPO Reference Checks</div>
+              <div class="validation-check">
+                <div class="check-icon">✅</div>
+                <div class="check-body">
+                  <div class="check-label">Invoice → CPO reference</div>
+                  <div class="check-detail">Invoice customer_order_no = <span class="match">PWFA251127016 ✓</span></div>
+                </div>
+              </div>
+              <div class="validation-check">
+                <div class="check-icon">✅</div>
+                <div class="check-body">
+                  <div class="check-label">DC → CPO reference</div>
+                  <div class="check-detail">DC customer_order_no = <span class="match">PWFA251127016 ✓</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="validation-section">
+              <div class="validation-title">VPO Checks</div>
+              <div class="validation-check">
+                <div class="check-icon">⏳</div>
+                <div class="check-body">
+                  <div class="check-label">Redington invoice pending</div>
+                  <div class="check-detail">Waiting for invoice referencing <span style="color:#fbbf24">1PTR2526000400</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Billing -->
+          <div class="card">
+            <div class="card-title">Billing Completeness <span>STAGED · 2 milestones</span></div>
+            <div class="billing-type-row">
+              <span class="badge badge-orange" style="font-size:11px">40% Advance + 60% Delivery</span>
+              <span style="font-size:12px; color:#4ade80">₹2,01,254 invoiced</span>
+            </div>
+            <div class="billing-stages">
+              <div class="billing-stage">
+                <div class="stage-label" style="font-size:11px; color:#4ade80">Stage 1 · 40%</div>
+                <div class="stage-bar-wrap"><div class="stage-bar paid" style="width:100%"></div></div>
+                <div class="stage-amount">₹2,01,254 ✓</div>
+              </div>
+              <div class="billing-stage">
+                <div class="stage-label" style="font-size:11px; color:#64748b">Stage 2 · 60%</div>
+                <div class="stage-bar-wrap"><div class="stage-bar pending" style="width:0%"></div></div>
+                <div class="stage-amount" style="color:#64748b">₹3,01,882 —</div>
+              </div>
+            </div>
+            <div class="billing-total">
+              <span class="label">Total PO Value</span>
+              <span class="amount">₹5,03,137.00</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

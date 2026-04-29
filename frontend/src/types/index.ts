@@ -60,6 +60,7 @@ export interface PurchaseOrder {
   status: POStatus;
   chain_completeness: number;
   so_number: string | null;
+  customer_po_ref?: string | null;
   notes: string | null;
   fulfillment_type: 'procurement' | 'stock';
   items_verified: boolean;

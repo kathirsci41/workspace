@@ -1,0 +1,481 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - heading "DocPlatform" [level=1] [ref=e6]
+    - navigation [ref=e7]:
+      - link "Dashboard" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - img [ref=e9]
+        - text: Dashboard
+      - link "Customers" [ref=e14] [cursor=pointer]:
+        - /url: /customers
+        - img [ref=e15]
+        - text: Customers
+      - link "Purchase Orders" [ref=e20] [cursor=pointer]:
+        - /url: /purchase-orders
+        - img [ref=e21]
+        - text: Purchase Orders
+      - link "Documents" [active] [ref=e24] [cursor=pointer]:
+        - /url: /documents
+        - img [ref=e25]
+        - text: Documents
+      - link "Search" [ref=e29] [cursor=pointer]:
+        - /url: /search
+        - img [ref=e30]
+        - text: Search
+      - link "Assistant" [ref=e33] [cursor=pointer]:
+        - /url: /chat
+        - img [ref=e34]
+        - text: Assistant
+      - link "System" [ref=e36] [cursor=pointer]:
+        - /url: /admin
+        - img [ref=e37]
+        - text: System
+    - generic [ref=e40]:
+      - button "Collapse" [ref=e41] [cursor=pointer]:
+        - img [ref=e42]
+        - generic [ref=e44]: Collapse
+      - generic [ref=e45]: DocPlatform v2.2.0
+  - generic [ref=e46]:
+    - banner [ref=e47]:
+      - generic [ref=e49]:
+        - img [ref=e50]
+        - textbox "Search invoice, DC, PO, customer..." [ref=e53]
+    - main [ref=e54]:
+      - generic [ref=e837]:
+        - generic [ref=e838]:
+          - heading "Documents" [level=2] [ref=e839]
+          - generic [ref=e840]: 29 documents
+        - generic [ref=e841]:
+          - generic [ref=e842]:
+            - combobox [ref=e843]:
+              - option "All Types" [selected]
+              - option "Customer PO"
+              - option "Company PO"
+              - option "Vendor DC"
+              - option "Vendor Invoice"
+              - option "Company DC"
+              - option "Company Invoice"
+            - combobox [ref=e844]:
+              - option "All Statuses" [selected]
+              - option "Pending Review"
+              - option "Verified"
+              - option "Extraction Failed"
+              - option "Rejected"
+              - option "Uploaded"
+              - option "Extracting"
+            - combobox [ref=e845]:
+              - option "All Customers" [selected]
+              - option "Amasqis"
+              - option "Billion Honour"
+              - option "Brand Ventures"
+              - option "Elite"
+              - option "MANDO"
+              - option "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE"
+              - option "QA Test Customer"
+              - option "SHRIRAM FINANCE"
+              - option "Weels"
+          - generic [ref=e846]:
+            - generic [ref=e847]: "Uploaded:"
+            - button "Last 7 days" [ref=e848] [cursor=pointer]
+            - button "Last 30 days" [ref=e849] [cursor=pointer]
+            - button "Custom" [ref=e850] [cursor=pointer]
+        - table [ref=e852]:
+          - rowgroup [ref=e853]:
+            - row "Type Filename Ref No PO Number Customer Status Uploaded" [ref=e854]:
+              - columnheader "Type" [ref=e855]
+              - columnheader "Filename" [ref=e856]
+              - columnheader "Ref No" [ref=e857]
+              - columnheader "PO Number" [ref=e858]
+              - columnheader "Customer" [ref=e859]
+              - columnheader "Status" [ref=e860]
+              - columnheader "Uploaded" [ref=e861]
+              - columnheader [ref=e862]
+          - rowgroup [ref=e863]:
+            - 'row "CUSTOMER PO PWFA260320016.pdf {''value'': ''PWFA260320016'', ''confidence'': 1.0} PO-2026-SF004 SHRIRAM FINANCE PENDING REVIEW 9/4/2026 Review → Open PO" [ref=e864]':
+              - cell "CUSTOMER PO" [ref=e865]
+              - cell "PWFA260320016.pdf" [ref=e866]
+              - 'cell "{''value'': ''PWFA260320016'', ''confidence'': 1.0}" [ref=e867]'
+              - cell "PO-2026-SF004" [ref=e868]
+              - cell "SHRIRAM FINANCE" [ref=e869]
+              - cell "PENDING REVIEW" [ref=e870]
+              - cell "9/4/2026" [ref=e871]
+              - cell "Review → Open PO" [ref=e872]:
+                - generic [ref=e873]:
+                  - button "Review →" [ref=e874] [cursor=pointer]
+                  - button "Open PO" [ref=e875] [cursor=pointer]:
+                    - img [ref=e876]
+                    - text: Open PO
+            - 'row "COMPANY INVOICE TRADE - INVOICE 1ITR2526001785.pdf {''value'': ''1ITR2526001785'', ''confidence'': 1.0} PO-2026-SF005 SHRIRAM FINANCE PENDING REVIEW 18/4/2026 Review → Open PO" [ref=e880]':
+              - cell "COMPANY INVOICE" [ref=e881]
+              - cell "TRADE - INVOICE 1ITR2526001785.pdf" [ref=e882]
+              - 'cell "{''value'': ''1ITR2526001785'', ''confidence'': 1.0}" [ref=e883]'
+              - cell "PO-2026-SF005" [ref=e884]
+              - cell "SHRIRAM FINANCE" [ref=e885]
+              - cell "PENDING REVIEW" [ref=e886]
+              - cell "18/4/2026" [ref=e887]
+              - cell "Review → Open PO" [ref=e888]:
+                - generic [ref=e889]:
+                  - button "Review →" [ref=e890] [cursor=pointer]
+                  - button "Open PO" [ref=e891] [cursor=pointer]:
+                    - img [ref=e892]
+                    - text: Open PO
+            - row "CUSTOMER PO TRADE - CUSTOMER PO.pdf PWFA251127016 PO-2026-SF005 SHRIRAM FINANCE PENDING REVIEW 18/4/2026 Review → Open PO" [ref=e896]:
+              - cell "CUSTOMER PO" [ref=e897]
+              - cell "TRADE - CUSTOMER PO.pdf" [ref=e898]
+              - cell "PWFA251127016" [ref=e899]
+              - cell "PO-2026-SF005" [ref=e900]
+              - cell "SHRIRAM FINANCE" [ref=e901]
+              - cell "PENDING REVIEW" [ref=e902]
+              - cell "18/4/2026" [ref=e903]
+              - cell "Review → Open PO" [ref=e904]:
+                - generic [ref=e905]:
+                  - button "Review →" [ref=e906] [cursor=pointer]
+                  - button "Open PO" [ref=e907] [cursor=pointer]:
+                    - img [ref=e908]
+                    - text: Open PO
+            - 'row "COMPANY PO TRADE - PURCHASE ORDER.pdf {''value'': ''1PTR2526000400'', ''confidence'': 1.0} PO-2026-SF005 SHRIRAM FINANCE PENDING REVIEW 18/4/2026 Review → Open PO" [ref=e912]':
+              - cell "COMPANY PO" [ref=e913]
+              - cell "TRADE - PURCHASE ORDER.pdf" [ref=e914]
+              - 'cell "{''value'': ''1PTR2526000400'', ''confidence'': 1.0}" [ref=e915]'
+              - cell "PO-2026-SF005" [ref=e916]
+              - cell "SHRIRAM FINANCE" [ref=e917]
+              - cell "PENDING REVIEW" [ref=e918]
+              - cell "18/4/2026" [ref=e919]
+              - cell "Review → Open PO" [ref=e920]:
+                - generic [ref=e921]:
+                  - button "Review →" [ref=e922] [cursor=pointer]
+                  - button "Open PO" [ref=e923] [cursor=pointer]:
+                    - img [ref=e924]
+                    - text: Open PO
+            - 'row "VENDOR INVOICE TRADE -VENDOR BILL - C190224835.pdf {''value'': ''C190224835'', ''confidence'': 1.0} PO-2026-SF005 SHRIRAM FINANCE PENDING REVIEW 18/4/2026 Review → Open PO" [ref=e928]':
+              - cell "VENDOR INVOICE" [ref=e929]
+              - cell "TRADE -VENDOR BILL - C190224835.pdf" [ref=e930]
+              - 'cell "{''value'': ''C190224835'', ''confidence'': 1.0}" [ref=e931]'
+              - cell "PO-2026-SF005" [ref=e932]
+              - cell "SHRIRAM FINANCE" [ref=e933]
+              - cell "PENDING REVIEW" [ref=e934]
+              - cell "18/4/2026" [ref=e935]
+              - cell "Review → Open PO" [ref=e936]:
+                - generic [ref=e937]:
+                  - button "Review →" [ref=e938] [cursor=pointer]
+                  - button "Open PO" [ref=e939] [cursor=pointer]:
+                    - img [ref=e940]
+                    - text: Open PO
+            - 'row "COMPANY DC TRADE - DC 1DNT2526DC2915.pdf {''value'': ''1DNT2526DC2915'', ''confidence'': 1.0} PO-2026-SF005 SHRIRAM FINANCE PENDING REVIEW 18/4/2026 Review → Open PO" [ref=e944]':
+              - cell "COMPANY DC" [ref=e945]
+              - cell "TRADE - DC 1DNT2526DC2915.pdf" [ref=e946]
+              - 'cell "{''value'': ''1DNT2526DC2915'', ''confidence'': 1.0}" [ref=e947]'
+              - cell "PO-2026-SF005" [ref=e948]
+              - cell "SHRIRAM FINANCE" [ref=e949]
+              - cell "PENDING REVIEW" [ref=e950]
+              - cell "18/4/2026" [ref=e951]
+              - cell "Review → Open PO" [ref=e952]:
+                - generic [ref=e953]:
+                  - button "Review →" [ref=e954] [cursor=pointer]
+                  - button "Open PO" [ref=e955] [cursor=pointer]:
+                    - img [ref=e956]
+                    - text: Open PO
+            - row "CUSTOMER PO TRADE - CUSTOMER PO.pdf PWFA251127016 PO-2026-SF003 SHRIRAM FINANCE VERIFIED 7/4/2026 Open PO" [ref=e960]:
+              - cell "CUSTOMER PO" [ref=e961]
+              - cell "TRADE - CUSTOMER PO.pdf" [ref=e962]
+              - cell "PWFA251127016" [ref=e963]
+              - cell "PO-2026-SF003" [ref=e964]
+              - cell "SHRIRAM FINANCE" [ref=e965]
+              - cell "VERIFIED" [ref=e966]
+              - cell "7/4/2026" [ref=e967]
+              - cell "Open PO" [ref=e968]:
+                - button "Open PO" [ref=e970] [cursor=pointer]:
+                  - img [ref=e971]
+                  - text: Open PO
+            - row "COMPANY PO TRADE - PURCHASE ORDER.pdf 1PTR2526000400 PO-2026-SF003 SHRIRAM FINANCE PENDING REVIEW 27/3/2026 Review → Open PO" [ref=e975]:
+              - cell "COMPANY PO" [ref=e976]
+              - cell "TRADE - PURCHASE ORDER.pdf" [ref=e977]
+              - cell "1PTR2526000400" [ref=e978]
+              - cell "PO-2026-SF003" [ref=e979]
+              - cell "SHRIRAM FINANCE" [ref=e980]
+              - cell "PENDING REVIEW" [ref=e981]
+              - cell "27/3/2026" [ref=e982]
+              - cell "Review → Open PO" [ref=e983]:
+                - generic [ref=e984]:
+                  - button "Review →" [ref=e985] [cursor=pointer]
+                  - button "Open PO" [ref=e986] [cursor=pointer]:
+                    - img [ref=e987]
+                    - text: Open PO
+            - row "COMPANY INVOICE Customer Invoice 1ITR2526001878.pdf 1ITR2526001878 SAMPLE-TEST-001 PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE PENDING REVIEW 7/4/2026 Review → Open PO" [ref=e991]:
+              - cell "COMPANY INVOICE" [ref=e992]
+              - cell "Customer Invoice 1ITR2526001878.pdf" [ref=e993]
+              - cell "1ITR2526001878" [ref=e994]
+              - cell "SAMPLE-TEST-001" [ref=e995]
+              - cell "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE" [ref=e996]
+              - cell "PENDING REVIEW" [ref=e997]
+              - cell "7/4/2026" [ref=e998]
+              - cell "Review → Open PO" [ref=e999]:
+                - generic [ref=e1000]:
+                  - button "Review →" [ref=e1001] [cursor=pointer]
+                  - button "Open PO" [ref=e1002] [cursor=pointer]:
+                    - img [ref=e1003]
+                    - text: Open PO
+            - row "COMPANY DC company_dc.pdf 1DNT2526DC3100 SAMPLE-TEST-001 PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE PENDING REVIEW 7/4/2026 Review → Open PO" [ref=e1007]:
+              - cell "COMPANY DC" [ref=e1008]
+              - cell "company_dc.pdf" [ref=e1009]
+              - cell "1DNT2526DC3100" [ref=e1010]
+              - cell "SAMPLE-TEST-001" [ref=e1011]
+              - cell "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE" [ref=e1012]
+              - cell "PENDING REVIEW" [ref=e1013]
+              - cell "7/4/2026" [ref=e1014]
+              - cell "Review → Open PO" [ref=e1015]:
+                - generic [ref=e1016]:
+                  - button "Review →" [ref=e1017] [cursor=pointer]
+                  - button "Open PO" [ref=e1018] [cursor=pointer]:
+                    - img [ref=e1019]
+                    - text: Open PO
+            - row "VENDOR INVOICE vendor_invoice.pdf 2526PSI25087738 SAMPLE-TEST-001 PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE PENDING REVIEW 7/4/2026 Review → Open PO" [ref=e1023]:
+              - cell "VENDOR INVOICE" [ref=e1024]
+              - cell "vendor_invoice.pdf" [ref=e1025]
+              - cell "2526PSI25087738" [ref=e1026]
+              - cell "SAMPLE-TEST-001" [ref=e1027]
+              - cell "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE" [ref=e1028]
+              - cell "PENDING REVIEW" [ref=e1029]
+              - cell "7/4/2026" [ref=e1030]
+              - cell "Review → Open PO" [ref=e1031]:
+                - generic [ref=e1032]:
+                  - button "Review →" [ref=e1033] [cursor=pointer]
+                  - button "Open PO" [ref=e1034] [cursor=pointer]:
+                    - img [ref=e1035]
+                    - text: Open PO
+            - row "COMPANY PO company_po.pdf 1PTR2526000467 SAMPLE-TEST-001 PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE PENDING REVIEW 7/4/2026 Review → Open PO" [ref=e1039]:
+              - cell "COMPANY PO" [ref=e1040]
+              - cell "company_po.pdf" [ref=e1041]
+              - cell "1PTR2526000467" [ref=e1042]
+              - cell "SAMPLE-TEST-001" [ref=e1043]
+              - cell "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE" [ref=e1044]
+              - cell "PENDING REVIEW" [ref=e1045]
+              - cell "7/4/2026" [ref=e1046]
+              - cell "Review → Open PO" [ref=e1047]:
+                - generic [ref=e1048]:
+                  - button "Review →" [ref=e1049] [cursor=pointer]
+                  - button "Open PO" [ref=e1050] [cursor=pointer]:
+                    - img [ref=e1051]
+                    - text: Open PO
+            - row "CUSTOMER PO customer_po.pdf — SAMPLE-TEST-001 PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE PENDING REVIEW 7/4/2026 Review → Open PO" [ref=e1055]:
+              - cell "CUSTOMER PO" [ref=e1056]
+              - cell "customer_po.pdf" [ref=e1057]
+              - cell "—" [ref=e1058]
+              - cell "SAMPLE-TEST-001" [ref=e1059]
+              - cell "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE" [ref=e1060]
+              - cell "PENDING REVIEW" [ref=e1061]
+              - cell "7/4/2026" [ref=e1062]
+              - cell "Review → Open PO" [ref=e1063]:
+                - generic [ref=e1064]:
+                  - button "Review →" [ref=e1065] [cursor=pointer]
+                  - button "Open PO" [ref=e1066] [cursor=pointer]:
+                    - img [ref=e1067]
+                    - text: Open PO
+            - row "COMPANY INVOICE Customer Invoice 1ITR2526001878.pdf 1ITR2526001878 PO-2026-AM001 Amasqis PENDING REVIEW 17/3/2026 Review → Open PO" [ref=e1071]:
+              - cell "COMPANY INVOICE" [ref=e1072]
+              - cell "Customer Invoice 1ITR2526001878.pdf" [ref=e1073]
+              - cell "1ITR2526001878" [ref=e1074]
+              - cell "PO-2026-AM001" [ref=e1075]
+              - cell "Amasqis" [ref=e1076]
+              - cell "PENDING REVIEW" [ref=e1077]
+              - cell "17/3/2026" [ref=e1078]
+              - cell "Review → Open PO" [ref=e1079]:
+                - generic [ref=e1080]:
+                  - button "Review →" [ref=e1081] [cursor=pointer]
+                  - button "Open PO" [ref=e1082] [cursor=pointer]:
+                    - img [ref=e1083]
+                    - text: Open PO
+            - row "VENDOR INVOICE Vendor Bill 2526PSI25087738.pdf — PO-2026-AM001 Amasqis PENDING REVIEW 17/3/2026 Review → Open PO" [ref=e1087]:
+              - cell "VENDOR INVOICE" [ref=e1088]
+              - cell "Vendor Bill 2526PSI25087738.pdf" [ref=e1089]
+              - cell "—" [ref=e1090]
+              - cell "PO-2026-AM001" [ref=e1091]
+              - cell "Amasqis" [ref=e1092]
+              - cell "PENDING REVIEW" [ref=e1093]
+              - cell "17/3/2026" [ref=e1094]
+              - cell "Review → Open PO" [ref=e1095]:
+                - generic [ref=e1096]:
+                  - button "Review →" [ref=e1097] [cursor=pointer]
+                  - button "Open PO" [ref=e1098] [cursor=pointer]:
+                    - img [ref=e1099]
+                    - text: Open PO
+            - row "COMPANY DC DC 1DNT2526DC3100.pdf 1DNT2526DC3100 PO-2026-AM001 Amasqis PENDING REVIEW 17/3/2026 Review → Open PO" [ref=e1103]:
+              - cell "COMPANY DC" [ref=e1104]
+              - cell "DC 1DNT2526DC3100.pdf" [ref=e1105]
+              - cell "1DNT2526DC3100" [ref=e1106]
+              - cell "PO-2026-AM001" [ref=e1107]
+              - cell "Amasqis" [ref=e1108]
+              - cell "PENDING REVIEW" [ref=e1109]
+              - cell "17/3/2026" [ref=e1110]
+              - cell "Review → Open PO" [ref=e1111]:
+                - generic [ref=e1112]:
+                  - button "Review →" [ref=e1113] [cursor=pointer]
+                  - button "Open PO" [ref=e1114] [cursor=pointer]:
+                    - img [ref=e1115]
+                    - text: Open PO
+            - row "VENDOR INVOICE TRADE - VENDOR BILL -C190224826.pdf C190224826 PO-2026-SF003 SHRIRAM FINANCE VERIFIED 27/3/2026 Open PO" [ref=e1119]:
+              - cell "VENDOR INVOICE" [ref=e1120]
+              - cell "TRADE - VENDOR BILL -C190224826.pdf" [ref=e1121]
+              - cell "C190224826" [ref=e1122]
+              - cell "PO-2026-SF003" [ref=e1123]
+              - cell "SHRIRAM FINANCE" [ref=e1124]
+              - cell "VERIFIED" [ref=e1125]
+              - cell "27/3/2026" [ref=e1126]
+              - cell "Open PO" [ref=e1127]:
+                - button "Open PO" [ref=e1129] [cursor=pointer]:
+                  - img [ref=e1130]
+                  - text: Open PO
+            - row "VENDOR INVOICE TRADE -VENDOR BILL - C190224835.pdf C190224835 PO-2026-SF003 SHRIRAM FINANCE VERIFIED 27/3/2026 Open PO" [ref=e1134]:
+              - cell "VENDOR INVOICE" [ref=e1135]
+              - cell "TRADE -VENDOR BILL - C190224835.pdf" [ref=e1136]
+              - cell "C190224835" [ref=e1137]
+              - cell "PO-2026-SF003" [ref=e1138]
+              - cell "SHRIRAM FINANCE" [ref=e1139]
+              - cell "VERIFIED" [ref=e1140]
+              - cell "27/3/2026" [ref=e1141]
+              - cell "Open PO" [ref=e1142]:
+                - button "Open PO" [ref=e1144] [cursor=pointer]:
+                  - img [ref=e1145]
+                  - text: Open PO
+            - row "COMPANY INVOICE TRADE - INVOICE 1ITR2526001785.pdf 1ITR2526001785 PO-2026-SF003 SHRIRAM FINANCE PENDING REVIEW 27/3/2026 Review → Open PO" [ref=e1149]:
+              - cell "COMPANY INVOICE" [ref=e1150]
+              - cell "TRADE - INVOICE 1ITR2526001785.pdf" [ref=e1151]
+              - cell "1ITR2526001785" [ref=e1152]
+              - cell "PO-2026-SF003" [ref=e1153]
+              - cell "SHRIRAM FINANCE" [ref=e1154]
+              - cell "PENDING REVIEW" [ref=e1155]
+              - cell "27/3/2026" [ref=e1156]
+              - cell "Review → Open PO" [ref=e1157]:
+                - generic [ref=e1158]:
+                  - button "Review →" [ref=e1159] [cursor=pointer]
+                  - button "Open PO" [ref=e1160] [cursor=pointer]:
+                    - img [ref=e1161]
+                    - text: Open PO
+            - row "COMPANY DC TRADE - DC 1DNT2526DC2915.pdf 1DNT2526DC2915 PO-2026-SF003 SHRIRAM FINANCE PENDING REVIEW 27/3/2026 Review → Open PO" [ref=e1165]:
+              - cell "COMPANY DC" [ref=e1166]
+              - cell "TRADE - DC 1DNT2526DC2915.pdf" [ref=e1167]
+              - cell "1DNT2526DC2915" [ref=e1168]
+              - cell "PO-2026-SF003" [ref=e1169]
+              - cell "SHRIRAM FINANCE" [ref=e1170]
+              - cell "PENDING REVIEW" [ref=e1171]
+              - cell "27/3/2026" [ref=e1172]
+              - cell "Review → Open PO" [ref=e1173]:
+                - generic [ref=e1174]:
+                  - button "Review →" [ref=e1175] [cursor=pointer]
+                  - button "Open PO" [ref=e1176] [cursor=pointer]:
+                    - img [ref=e1177]
+                    - text: Open PO
+            - row "COMPANY DC 1DNT2526DC.pdf 1DNT2526DC2865 PO-2026-EL001 Elite VERIFIED 20/3/2026 Open PO" [ref=e1181]:
+              - cell "COMPANY DC" [ref=e1182]
+              - cell "1DNT2526DC.pdf" [ref=e1183]
+              - cell "1DNT2526DC2865" [ref=e1184]
+              - cell "PO-2026-EL001" [ref=e1185]
+              - cell "Elite" [ref=e1186]
+              - cell "VERIFIED" [ref=e1187]
+              - cell "20/3/2026" [ref=e1188]
+              - cell "Open PO" [ref=e1189]:
+                - button "Open PO" [ref=e1191] [cursor=pointer]:
+                  - img [ref=e1192]
+                  - text: Open PO
+            - row "CUSTOMER PO PWFA260320016.pdf PWFA260320016 PO-2026-SF001 SHRIRAM FINANCE PENDING REVIEW 25/3/2026 Review → Open PO" [ref=e1196]:
+              - cell "CUSTOMER PO" [ref=e1197]
+              - cell "PWFA260320016.pdf" [ref=e1198]
+              - cell "PWFA260320016" [ref=e1199]
+              - cell "PO-2026-SF001" [ref=e1200]
+              - cell "SHRIRAM FINANCE" [ref=e1201]
+              - cell "PENDING REVIEW" [ref=e1202]
+              - cell "25/3/2026" [ref=e1203]
+              - cell "Review → Open PO" [ref=e1204]:
+                - generic [ref=e1205]:
+                  - button "Review →" [ref=e1206] [cursor=pointer]
+                  - button "Open PO" [ref=e1207] [cursor=pointer]:
+                    - img [ref=e1208]
+                    - text: Open PO
+            - row "CUSTOMER PO PWFA260323007.pdf PWFA260323007 PO-2026-SF002 SHRIRAM FINANCE PENDING REVIEW 25/3/2026 Review → Open PO" [ref=e1212]:
+              - cell "CUSTOMER PO" [ref=e1213]
+              - cell "PWFA260323007.pdf" [ref=e1214]
+              - cell "PWFA260323007" [ref=e1215]
+              - cell "PO-2026-SF002" [ref=e1216]
+              - cell "SHRIRAM FINANCE" [ref=e1217]
+              - cell "PENDING REVIEW" [ref=e1218]
+              - cell "25/3/2026" [ref=e1219]
+              - cell "Review → Open PO" [ref=e1220]:
+                - generic [ref=e1221]:
+                  - button "Review →" [ref=e1222] [cursor=pointer]
+                  - button "Open PO" [ref=e1223] [cursor=pointer]:
+                    - img [ref=e1224]
+                    - text: Open PO
+            - row "VENDOR INVOICE C240847449 1OTM2526001448-Vendor Invoice.pdf — PO-2026-EL001 Elite PENDING REVIEW 16/3/2026 Review → Open PO" [ref=e1228]:
+              - cell "VENDOR INVOICE" [ref=e1229]
+              - cell "C240847449 1OTM2526001448-Vendor Invoice.pdf" [ref=e1230]
+              - cell "—" [ref=e1231]
+              - cell "PO-2026-EL001" [ref=e1232]
+              - cell "Elite" [ref=e1233]
+              - cell "PENDING REVIEW" [ref=e1234]
+              - cell "16/3/2026" [ref=e1235]
+              - cell "Review → Open PO" [ref=e1236]:
+                - generic [ref=e1237]:
+                  - button "Review →" [ref=e1238] [cursor=pointer]
+                  - button "Open PO" [ref=e1239] [cursor=pointer]:
+                    - img [ref=e1240]
+                    - text: Open PO
+            - row "CUSTOMER PO PO (2).pdf 323-24/Hilte HO/AI PO-2026-EL001 Elite VERIFIED 13/3/2026 Open PO" [ref=e1244]:
+              - cell "CUSTOMER PO" [ref=e1245]
+              - cell "PO (2).pdf" [ref=e1246]
+              - cell "323-24/Hilte HO/AI" [ref=e1247]
+              - cell "PO-2026-EL001" [ref=e1248]
+              - cell "Elite" [ref=e1249]
+              - cell "VERIFIED" [ref=e1250]
+              - cell "13/3/2026" [ref=e1251]
+              - cell "Open PO" [ref=e1252]:
+                - button "Open PO" [ref=e1254] [cursor=pointer]:
+                  - img [ref=e1255]
+                  - text: Open PO
+            - row "CUSTOMER PO BHAS-PO-22.pdf BHAS-PO-IT-2025/26-022 PO-2026-001 Billion Honour VERIFIED 12/3/2026 Open PO" [ref=e1259]:
+              - cell "CUSTOMER PO" [ref=e1260]
+              - cell "BHAS-PO-22.pdf" [ref=e1261]
+              - cell "BHAS-PO-IT-2025/26-022" [ref=e1262]
+              - cell "PO-2026-001" [ref=e1263]
+              - cell "Billion Honour" [ref=e1264]
+              - cell "VERIFIED" [ref=e1265]
+              - cell "12/3/2026" [ref=e1266]
+              - cell "Open PO" [ref=e1267]:
+                - button "Open PO" [ref=e1269] [cursor=pointer]:
+                  - img [ref=e1270]
+                  - text: Open PO
+            - row "COMPANY INVOICE 1ITR2526001789 BILLION.pdf 1ITR2526001789 PO-2026-001 Billion Honour VERIFIED 12/3/2026 Open PO" [ref=e1274]:
+              - cell "COMPANY INVOICE" [ref=e1275]
+              - cell "1ITR2526001789 BILLION.pdf" [ref=e1276]
+              - cell "1ITR2526001789" [ref=e1277]
+              - cell "PO-2026-001" [ref=e1278]
+              - cell "Billion Honour" [ref=e1279]
+              - cell "VERIFIED" [ref=e1280]
+              - cell "12/3/2026" [ref=e1281]
+              - cell "Open PO" [ref=e1282]:
+                - button "Open PO" [ref=e1284] [cursor=pointer]:
+                  - img [ref=e1285]
+                  - text: Open PO
+            - row "COMPANY DC 1DNT2526DC2919 BILLION.pdf 1DNT2526DC2919 PO-2026-001 Billion Honour VERIFIED 12/3/2026 Open PO" [ref=e1289]:
+              - cell "COMPANY DC" [ref=e1290]
+              - cell "1DNT2526DC2919 BILLION.pdf" [ref=e1291]
+              - cell "1DNT2526DC2919" [ref=e1292]
+              - cell "PO-2026-001" [ref=e1293]
+              - cell "Billion Honour" [ref=e1294]
+              - cell "VERIFIED" [ref=e1295]
+              - cell "12/3/2026" [ref=e1296]
+              - cell "Open PO" [ref=e1297]:
+                - button "Open PO" [ref=e1299] [cursor=pointer]:
+                  - img [ref=e1300]
+                  - text: Open PO
+            - row "VENDOR INVOICE 2526PSI25079221 1OTM2526001544-Vendor invoice.pdf 2526PS125079221 PO-2026-001 Billion Honour VERIFIED 12/3/2026 Open PO" [ref=e1304]:
+              - cell "VENDOR INVOICE" [ref=e1305]
+              - cell "2526PSI25079221 1OTM2526001544-Vendor invoice.pdf" [ref=e1306]
+              - cell "2526PS125079221" [ref=e1307]
+              - cell "PO-2026-001" [ref=e1308]
+              - cell "Billion Honour" [ref=e1309]
+              - cell "VERIFIED" [ref=e1310]
+              - cell "12/3/2026" [ref=e1311]
+              - cell "Open PO" [ref=e1312]:
+                - button "Open PO" [ref=e1314] [cursor=pointer]:
+                  - img [ref=e1315]
+                  - text: Open PO

@@ -1,7 +1,7 @@
 import os
 import asyncio
 import json
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, func, select, case
 
@@ -253,6 +253,42 @@ async def requeue_pending_models(db: AsyncSession = Depends(get_db)):
         if meta:
             meta.status = MetadataStatus.PENDING
             meta.last_error = None
+        doc_ids.append(str(doc.id))
+
+    await db.commit()
+
+    for doc_id in doc_ids:
+        extract_document.delay(doc_id)
+
+    return {"requeued": len(doc_ids), "document_ids": doc_ids}
+
+
+@router.post("/requeue-failed")
+async def requeue_failed_extractions(
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(5, ge=1, le=100, description="Max documents to requeue"),
+):
+    """Re-queue failed extraction documents (up to limit)."""
+    from app.services.extraction.tasks import extract_document
+
+    result = await db.execute(
+        select(Document)
+        .where(Document.status == DocumentStatus.EXTRACTION_FAILED)
+        .limit(limit)
+    )
+    docs = result.scalars().all()
+
+    doc_ids = []
+    for doc in docs:
+        doc.status = DocumentStatus.UPLOADED
+        meta_result = await db.execute(
+            select(DocumentMetadata).where(DocumentMetadata.document_id == doc.id)
+        )
+        meta = meta_result.scalar_one_or_none()
+        if meta:
+            meta.status = MetadataStatus.PENDING
+            meta.last_error = None
+            meta.extraction_attempts = 0
         doc_ids.append(str(doc.id))
 
     await db.commit()

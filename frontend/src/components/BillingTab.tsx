@@ -54,6 +54,7 @@ export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
   const hasInvoiceBreakdown = stages.length > 0;
 
   const [editingMilestones, setEditingMilestones] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<typeof stages[0] | null>(null);
   type DraftMilestone = BillingMilestone & { _id: number };
   const toDraft = (m: BillingMilestone, i: number): DraftMilestone => ({ ...m, _id: i });
   const [draftMilestones, setDraftMilestones] = useState<DraftMilestone[]>(milestones.map(toDraft));
@@ -168,9 +169,13 @@ export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
                 </tr>
               )}
               {stages.map((s, i) => (
-                <tr key={i} className="border-b border-gray-50 last:border-0">
+                <tr
+                  key={i}
+                  onClick={() => setSelectedInvoice(s)}
+                  className="border-b border-gray-50 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors"
+                >
                   <td className="px-4 py-3 text-gray-700">Invoice {s.stage}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-600">—</td>
+                  <td className="px-4 py-3 font-mono text-xs text-gray-600">{s.ref_no ?? '—'}</td>
                   <td className="px-4 py-3 font-semibold">₹{s.invoiced_amount.toLocaleString('en-IN')}</td>
                   <td className="px-4 py-3 text-gray-500">Stage {s.stage}</td>
                   <td className="px-4 py-3">
@@ -182,6 +187,60 @@ export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
               ))}
             </tbody>
           </table>
+
+          {/* Invoice details popup */}
+          {selectedInvoice && (
+            <div className="fixed inset-0 z-40" onClick={() => setSelectedInvoice(null)}>
+              <div
+                className="absolute right-4 top-24 w-72 rounded-lg border border-gray-200 bg-white shadow-xl p-4 z-50"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <div className="font-semibold text-sm text-gray-900">
+                      {selectedInvoice.ref_no ?? `Invoice ${selectedInvoice.stage}`}
+                    </div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">
+                      Invoice #{selectedInvoice.stage}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedInvoice(null)}
+                    className="text-gray-400 hover:text-gray-600 text-lg"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="space-y-2 mb-4 border-t border-gray-100 pt-3">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Amount:</span>
+                    <span className="font-semibold">₹{selectedInvoice.invoiced_amount.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">Status:</span>
+                    <span
+                      className={clsx(
+                        'text-[9px] font-bold px-2 py-1 rounded-full',
+                        STATUS_TAG[selectedInvoice.status] ?? STATUS_TAG.pending
+                      )}
+                    >
+                      {selectedInvoice.status.charAt(0).toUpperCase() + selectedInvoice.status.slice(1)}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedInvoice.document_id && (
+                  <a
+                    href={`/documents/${selectedInvoice.document_id}`}
+                    className="block text-xs text-blue-600 hover:text-blue-700 font-semibold border-t border-gray-100 pt-3"
+                  >
+                    View Document →
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

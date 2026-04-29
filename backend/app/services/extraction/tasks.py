@@ -11,7 +11,7 @@ from celery_app import celery_app
 from app.database import get_sync_db
 from app.models import (
     Document, DocumentMetadata, ReferenceIndex,
-    DocumentStatus, MetadataStatus, PurchaseOrder, POStatus,
+    DocumentStatus, MetadataStatus, PurchaseOrder, POStatus, DocumentType,
 )
 from app.services.extraction.pdf_converter import PDFConverter
 from app.services.extraction.ocr_client import OCRClient
@@ -387,6 +387,11 @@ def extract_document(self, document_id: str):
             meta.processing_time_ms = total_time_ms
             meta.extraction_route = route.value  # 'digital' or 'scanned'
             meta.field_confidences = extracted_data.pop("_field_confidences", None)
+
+            # Auto-fill customer_po_ref on PO when CUSTOMER_PO is extracted (if not already set)
+            if doc.document_type == DocumentType.CUSTOMER_PO and primary_ref and po:
+                if not po.customer_po_ref:
+                    po.customer_po_ref = str(primary_ref)
 
             # 11. Populate ReferenceIndex
             db.query(ReferenceIndex).filter(

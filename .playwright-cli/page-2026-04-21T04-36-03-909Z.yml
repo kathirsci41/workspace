@@ -1,0 +1,357 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - heading "DocPlatform" [level=1] [ref=e6]
+    - navigation [ref=e7]:
+      - link "Dashboard" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - img [ref=e9]
+        - text: Dashboard
+      - link "Customers" [ref=e14] [cursor=pointer]:
+        - /url: /customers
+        - img [ref=e15]
+        - text: Customers
+      - link "Purchase Orders" [ref=e20] [cursor=pointer]:
+        - /url: /purchase-orders
+        - img [ref=e21]
+        - text: Purchase Orders
+      - link "Documents" [ref=e24] [cursor=pointer]:
+        - /url: /documents
+        - img [ref=e25]
+        - text: Documents
+      - link "Search" [ref=e29] [cursor=pointer]:
+        - /url: /search
+        - img [ref=e30]
+        - text: Search
+      - link "Assistant" [ref=e33] [cursor=pointer]:
+        - /url: /chat
+        - img [ref=e34]
+        - text: Assistant
+      - link "System" [ref=e36] [cursor=pointer]:
+        - /url: /admin
+        - img [ref=e37]
+        - text: System
+    - generic [ref=e40]:
+      - button "Collapse" [ref=e41] [cursor=pointer]:
+        - img [ref=e42]
+        - generic [ref=e44]: Collapse
+      - generic [ref=e45]: DocPlatform v2.2.0
+  - generic [ref=e46]:
+    - banner [ref=e47]:
+      - generic [ref=e49]:
+        - img [ref=e50]
+        - textbox "Search invoice, DC, PO, customer..." [ref=e53]
+    - main [ref=e54]:
+      - generic [ref=e639]:
+        - navigation [ref=e641]:
+          - link "Purchase Orders" [ref=e643] [cursor=pointer]:
+            - /url: /purchase-orders
+          - generic [ref=e644]:
+            - img [ref=e645]
+            - generic [ref=e647]: PO-2026-SF005
+        - generic [ref=e648]:
+          - generic [ref=e649]:
+            - generic [ref=e650]:
+              - generic [ref=e651]: PO-2026-SF005
+              - generic [ref=e652]: ● COMPLETE
+              - generic [ref=e653]: ⬡ Chain 100%
+            - generic [ref=e654]:
+              - generic [ref=e655]: SHRIRAM FINANCE
+              - generic [ref=e656]: ·
+              - generic [ref=e657]: ₹0
+          - generic [ref=e658]:
+            - link "↗ Profile" [ref=e659] [cursor=pointer]:
+              - /url: /purchase-orders/bfb2824d-41cc-477b-a6c6-cfeb8778215a/profile
+            - button "Export" [ref=e660] [cursor=pointer]:
+              - img [ref=e661]
+              - text: Export
+        - generic [ref=e664]:
+          - button "Overview" [ref=e665] [cursor=pointer]
+          - button "Documents 5" [ref=e666] [cursor=pointer]:
+            - text: Documents
+            - generic [ref=e667]: "5"
+          - button "Billing" [ref=e668] [cursor=pointer]
+          - button "Delete" [ref=e669] [cursor=pointer]
+        - generic [ref=e671]:
+          - generic [ref=e672]:
+            - generic [ref=e673]:
+              - generic [ref=e674]:
+                - generic [ref=e675]: Order Scenario
+                - generic [ref=e676]:
+                  - generic [ref=e677]:
+                    - text: 📦 PROCUREMENT
+                    - generic [ref=e678]: AUTO
+                  - button "Change ▾" [ref=e679] [cursor=pointer]
+              - generic [ref=e680]:
+                - generic [ref=e681]: Billing Type
+                - generic [ref=e682]:
+                  - button "Full" [ref=e683] [cursor=pointer]
+                  - button "Staged" [ref=e684] [cursor=pointer]
+                  - button "Recurring" [ref=e685] [cursor=pointer]
+                - generic [ref=e686]: ₹5,93,701.66 billed so far
+            - generic [ref=e687]:
+              - generic [ref=e688]:
+                - generic [ref=e689]: GST
+                - button "—" [ref=e690] [cursor=pointer]
+                - button "IGST" [ref=e691] [cursor=pointer]
+                - button "CGST+SGST" [ref=e692] [cursor=pointer]
+              - generic [ref=e693]:
+                - generic [ref=e694]: Invoices
+                - button "Single invoice" [ref=e695] [cursor=pointer]
+              - generic [ref=e696]:
+                - generic [ref=e697]: Items
+                - button "Mark Verified" [ref=e698] [cursor=pointer]
+          - generic [ref=e699]: Document Chain
+          - generic [ref=e702]:
+            - generic [ref=e703]:
+              - generic [ref=e704]:
+                - generic [ref=e705]: "!"
+                - generic [ref=e706]: Customer PO
+                - generic "PWFA251127016" [ref=e707]
+                - generic [ref=e708]: Review
+              - generic [ref=e709]: →
+            - generic [ref=e710]:
+              - generic [ref=e711]:
+                - generic [ref=e712]: "!"
+                - generic [ref=e713]: Company PO
+                - generic "1PTR2526000400" [ref=e714]
+                - generic [ref=e715]: Review
+              - generic [ref=e716]: →
+            - generic [ref=e717]:
+              - generic [ref=e718]:
+                - generic [ref=e719]: —
+                - generic [ref=e720]: Vendor DC
+                - generic [ref=e721]: Missing
+              - generic [ref=e722]: →
+            - generic [ref=e723]:
+              - generic [ref=e724]:
+                - generic [ref=e725]: "!"
+                - generic [ref=e726]: Vendor Invoice
+                - generic "C190224835" [ref=e727]
+                - generic [ref=e728]: Review
+              - generic [ref=e729]: →
+            - generic [ref=e730]:
+              - generic [ref=e731]:
+                - generic [ref=e732]: ✗
+                - generic [ref=e733]: Company DC
+                - generic "1DNT2526DC2915" [ref=e734]
+                - generic [ref=e735]: Mismatch
+              - generic [ref=e736]: →
+            - generic [ref=e738]:
+              - generic [ref=e739]: ✗
+              - generic [ref=e740]: Company Invoice
+              - generic "1ITR2526001785" [ref=e741]
+              - generic [ref=e742]: Mismatch
+          - generic [ref=e743]: Reference Validation
+          - generic [ref=e745]:
+            - generic [ref=e747]: ○ so_consistency
+            - generic [ref=e749]: ✗ cpo_reference
+            - generic [ref=e751]: ○ so_consistency
+            - generic [ref=e753]: ✗ cpo_reference
+            - generic [ref=e755]: ○ vpo_reference
+            - generic [ref=e757]: ○ delivery_address
+            - generic [ref=e759]: ○ ci_vs_cpo_total
+            - generic [ref=e761]: ○ vinv_sum_vs_vpo_total
+            - generic [ref=e763]: ○ customer_gstin_consistency
+            - generic [ref=e765]: ○ vendor_gstin_consistency
+            - generic [ref=e767]: ○ customer_name_consistency
+            - generic [ref=e769]: ○ serial_chain
+            - generic [ref=e771]: ○ dc_ref_on_ci
+            - generic [ref=e773]: ○ cpo_vs_cdc_items
+            - generic [ref=e775]: ○ vpo_vs_vinv_items
+            - generic [ref=e777]: ○ cdc_vs_ci_items
+          - generic [ref=e778]: Billing Summary
+          - generic [ref=e780]:
+            - generic [ref=e781]:
+              - generic [ref=e782]:
+                - generic [ref=e783]: PO Total
+                - generic [ref=e784]: ₹0
+              - generic [ref=e785]:
+                - generic [ref=e786]: Billed So Far
+                - generic [ref=e787]: ₹5,93,701.66
+              - generic [ref=e788]:
+                - generic [ref=e789]: Outstanding
+                - generic [ref=e790]: ₹0
+            - button "→ View full billing detail" [ref=e791] [cursor=pointer]
+        - generic [ref=e793]:
+          - generic [ref=e794]:
+            - generic [ref=e795]: Document1ITR2526001785
+            - generic [ref=e796]:
+              - link "Download" [ref=e797] [cursor=pointer]:
+                - /url: /api/v1/documents/e9d132f4-56f6-4649-883d-7c904995f40a/download
+                - img [ref=e798]
+                - text: Download
+              - button "✕" [ref=e801] [cursor=pointer]
+          - generic [ref=e803]:
+            - generic [ref=e804]:
+              - button "Zoom out" [ref=e805] [cursor=pointer]:
+                - img [ref=e806]
+              - generic [ref=e809]: 100%
+              - button "Zoom in" [ref=e810] [cursor=pointer]:
+                - img [ref=e811]
+              - button "Fit to width" [ref=e815] [cursor=pointer]:
+                - img [ref=e816]
+              - button "Rotate 90°" [ref=e822] [cursor=pointer]:
+                - img [ref=e823]
+            - generic [ref=e829]: Loading…
+        - generic [ref=e831]:
+          - generic [ref=e832]:
+            - generic [ref=e833]:
+              - heading "Review Extracted Data" [level=3] [ref=e834]
+              - generic [ref=e835]:
+                - generic [ref=e836]: COMPANY INVOICE
+                - generic [ref=e837]: 62.5% confidence
+                - generic [ref=e838]:
+                  - img [ref=e839]
+                  - text: Digital — no OCR
+                - generic [ref=e841]: v2
+            - button [ref=e842] [cursor=pointer]:
+              - img [ref=e843]
+          - generic [ref=e846]:
+            - generic [ref=e848]:
+              - generic [ref=e849]:
+                - button "Zoom out" [ref=e850] [cursor=pointer]:
+                  - img [ref=e851]
+                - generic [ref=e854]: 100%
+                - button "Zoom in" [ref=e855] [cursor=pointer]:
+                  - img [ref=e856]
+                - button "Fit to width" [ref=e860] [cursor=pointer]:
+                  - img [ref=e861]
+                - button "Rotate 90°" [ref=e867] [cursor=pointer]:
+                  - img [ref=e868]
+              - generic [ref=e874]: Loading…
+            - generic [ref=e875]:
+              - generic [ref=e876]:
+                - generic [ref=e877]: Review mode — verify extracted values
+                - button "Edit Fields" [ref=e878] [cursor=pointer]:
+                  - img [ref=e879]
+                  - text: Edit Fields
+              - generic [ref=e881]:
+                - generic [ref=e882]:
+                  - button "1 validation error — review before verifying" [ref=e883] [cursor=pointer]:
+                    - generic [ref=e884]:
+                      - img [ref=e885]
+                      - text: 1 validation error — review before verifying
+                    - img [ref=e887]
+                  - list [ref=e889]:
+                    - listitem [ref=e890]:
+                      - generic [ref=e891]: •
+                      - text: SO number not set for this PO. Please set the SO number on the PO first, then re-extract this document.
+                - generic [ref=e892]:
+                  - button "2 warnings" [ref=e893] [cursor=pointer]:
+                    - generic [ref=e894]:
+                      - img [ref=e895]
+                      - text: 2 warnings
+                    - img [ref=e897]
+                  - list [ref=e899]:
+                    - listitem [ref=e900]:
+                      - generic [ref=e901]: •
+                      - text: "invoice_date could not be parsed: 17/01/2026"
+                    - listitem [ref=e902]:
+                      - generic [ref=e903]: •
+                      - text: "total_amount is not numeric: 593701.66"
+                - generic [ref=e904]:
+                  - generic [ref=e905]:
+                    - generic [ref=e907]: Invoice No
+                    - paragraph [ref=e908]: 1ITR2526001785
+                  - generic [ref=e909]:
+                    - generic [ref=e911]: Sales Order No
+                    - paragraph [ref=e912]: 1OTM2526001429
+                  - generic [ref=e913]:
+                    - generic [ref=e915]: Customer Order No
+                    - paragraph [ref=e916]: PWFA251127016
+                  - generic [ref=e917]:
+                    - generic [ref=e919]: Customer Name
+                    - paragraph [ref=e920]: SHRIRAM FINANCE LIMITED
+                  - generic [ref=e921]:
+                    - generic [ref=e923]: Total Amount
+                    - paragraph [ref=e924]: "593701.66"
+                  - generic [ref=e925]:
+                    - generic [ref=e927]: Tax Amount
+                    - paragraph [ref=e928]: "90564.66"
+                  - generic [ref=e929]:
+                    - generic [ref=e931]: Dc Reference
+                    - paragraph [ref=e932]: Not extracted
+                  - generic [ref=e933]:
+                    - generic [ref=e935]: Invoice Date
+                    - paragraph [ref=e936]: 17/01/2026
+                  - generic [ref=e937]:
+                    - generic [ref=e939]: Taxable Amount
+                    - paragraph [ref=e940]: "503137"
+                  - generic [ref=e941]:
+                    - generic [ref=e943]: Coverage Period
+                    - paragraph [ref=e944]: Not extracted
+                  - generic [ref=e945]:
+                    - generic [ref=e947]: Invoice Due Date
+                    - paragraph [ref=e948]: Not extracted
+                - generic [ref=e949]:
+                  - generic [ref=e951]: Line Items
+                  - generic [ref=e952]:
+                    - table [ref=e954]:
+                      - rowgroup [ref=e955]:
+                        - row "Sr.No Part No Description HSN Qty UOM Unit Price Total Serial Nos" [ref=e956]:
+                          - columnheader "Sr.No" [ref=e957]
+                          - columnheader "Part No" [ref=e958]
+                          - columnheader "Description" [ref=e959]
+                          - columnheader "HSN" [ref=e960]
+                          - columnheader "Qty" [ref=e961]
+                          - columnheader "UOM" [ref=e962]
+                          - columnheader "Unit Price" [ref=e963]
+                          - columnheader "Total" [ref=e964]
+                          - columnheader "Serial Nos" [ref=e965]
+                          - columnheader [ref=e966]
+                      - rowgroup [ref=e967]:
+                        - row "1 (FG-120G) Fortigate-120G 18 x GE RJ45 ports (including 1 x MGMT port, 1 x HA port, 16 x switch ports), 8 x GE SFP slots, 4 x 10GE SFP slots,SP5 hardware accelerated, dual AC power supplies 851769 1 NM 492569 581231.42" [ref=e968]:
+                          - cell "1" [ref=e969]:
+                            - textbox [ref=e970]: "1"
+                          - cell [ref=e971]:
+                            - textbox [ref=e972]
+                          - cell "(FG-120G) Fortigate-120G 18 x GE RJ45 ports (including 1 x MGMT port, 1 x HA port, 16 x switch ports), 8 x GE SFP slots, 4 x 10GE SFP slots,SP5 hardware accelerated, dual AC power supplies" [ref=e973]:
+                            - textbox [ref=e974]: (FG-120G) Fortigate-120G 18 x GE RJ45 ports (including 1 x MGMT port, 1 x HA port, 16 x switch ports), 8 x GE SFP slots, 4 x 10GE SFP slots,SP5 hardware accelerated, dual AC power supplies
+                          - cell "851769" [ref=e975]:
+                            - textbox [ref=e976]: "851769"
+                          - cell "1" [ref=e977]:
+                            - textbox [ref=e978]: "1"
+                          - cell "NM" [ref=e979]:
+                            - textbox [ref=e980]: NM
+                          - cell "492569" [ref=e981]:
+                            - textbox [ref=e982]: "492569"
+                          - cell "581231.42" [ref=e983]:
+                            - textbox [ref=e984]: "581231.42"
+                          - cell [ref=e985]:
+                            - textbox [ref=e986]
+                          - cell [ref=e987]:
+                            - button "Remove row" [ref=e988] [cursor=pointer]:
+                              - img [ref=e989]
+                        - row "2 FN-TRAN-SXAPAC FortiGate-120G 5 Year FortiCare Elite Support (FN-TRAN-SXAPAC) FN-TRAN-SXAPAC 1 GE SFP transceiver module, short range 500m, LC connector, MMF, 850nm, -20 C to 85 C, for systems with SFP slots 851769 2 NM 5284 12470.24" [ref=e992]:
+                          - cell "2" [ref=e993]:
+                            - textbox [ref=e994]: "2"
+                          - cell "FN-TRAN-SXAPAC" [ref=e995]:
+                            - textbox [ref=e996]: FN-TRAN-SXAPAC
+                          - cell "FortiGate-120G 5 Year FortiCare Elite Support (FN-TRAN-SXAPAC) FN-TRAN-SXAPAC 1 GE SFP transceiver module, short range 500m, LC connector, MMF, 850nm, -20 C to 85 C, for systems with SFP slots" [ref=e997]:
+                            - textbox [ref=e998]: FortiGate-120G 5 Year FortiCare Elite Support (FN-TRAN-SXAPAC) FN-TRAN-SXAPAC 1 GE SFP transceiver module, short range 500m, LC connector, MMF, 850nm, -20 C to 85 C, for systems with SFP slots
+                          - cell "851769" [ref=e999]:
+                            - textbox [ref=e1000]: "851769"
+                          - cell "2" [ref=e1001]:
+                            - textbox [ref=e1002]: "2"
+                          - cell "NM" [ref=e1003]:
+                            - textbox [ref=e1004]: NM
+                          - cell "5284" [ref=e1005]:
+                            - textbox [ref=e1006]: "5284"
+                          - cell "12470.24" [ref=e1007]:
+                            - textbox [ref=e1008]: "12470.24"
+                          - cell [ref=e1009]:
+                            - textbox [ref=e1010]
+                          - cell [ref=e1011]:
+                            - button "Remove row" [ref=e1012] [cursor=pointer]:
+                              - img [ref=e1013]
+                    - button "Add Row" [ref=e1016] [cursor=pointer]:
+                      - img [ref=e1017]
+                      - text: Add Row
+              - generic [ref=e1020]:
+                - button "Reject" [ref=e1021] [cursor=pointer]:
+                  - img [ref=e1022]
+                  - text: Reject
+                - button "Cancel" [ref=e1025] [cursor=pointer]
+                - button "Verify" [ref=e1026] [cursor=pointer]:
+                  - img [ref=e1027]
+                  - text: Verify

@@ -75,6 +75,7 @@ class PurchaseOrder(TimestampMixin, Base):
     chain_completeness: Mapped[float] = mapped_column(Float, default=0.0)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     so_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    customer_po_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
     fulfillment_type: Mapped[FulfillmentType] = mapped_column(
         Enum(FulfillmentType, name="fulfillmenttype",
              values_callable=lambda obj: [e.value for e in obj]),

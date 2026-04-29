@@ -90,11 +90,14 @@ export interface ChainStatusResponse {
   }>;
   billing: {
     overall: string;
+    invoiced_total?: number;
     stages?: Array<{
       stage: number;
       expected_amount: number;
       invoiced_amount: number;
       status: string;
+      document_id?: string;
+      ref_no?: string | null;
     }>;
   };
 }

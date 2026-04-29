@@ -1,0 +1,263 @@
+<h2>PO Detail — 3 Layout Approaches</h2>
+<p class="subtitle">Each solves the hierarchy + scroll + dark-grid problems differently. Click your preferred approach.</p>
+
+<style>
+.approach-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 20px; }
+.approach-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: white;
+}
+.approach-card:hover { border-color: #6366f1; box-shadow: 0 0 0 3px #eef2ff; }
+.approach-card.selected { border-color: #6366f1; box-shadow: 0 0 0 3px #c7d2fe; }
+.approach-label {
+  padding: 14px 16px 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.approach-label .badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  text-transform: uppercase;
+}
+.badge.rec { background: #dcfce7; color: #15803d; }
+.badge.alt { background: #f3f4f6; color: #6b7280; }
+.approach-card p.desc { padding: 0 16px 10px; font-size: 12px; color: #6b7280; margin: 0; line-height: 1.5; }
+
+/* Wireframe styles */
+.wf { padding: 10px 12px 14px; }
+.wf-header {
+  background: #1e1b4b;
+  color: white;
+  border-radius: 6px 6px 0 0;
+  padding: 8px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.wf-strip {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  padding: 5px 10px;
+  font-size: 9px;
+  color: #4338ca;
+  display: flex;
+  gap: 16px;
+}
+.wf-tabs {
+  display: flex;
+  border-bottom: 2px solid #e5e7eb;
+  background: #f9fafb;
+  font-size: 9px;
+  font-weight: 600;
+}
+.wf-tab { padding: 5px 10px; color: #9ca3af; }
+.wf-tab.active { color: #4338ca; border-bottom: 2px solid #4338ca; margin-bottom: -2px; background: white; }
+.wf-body { padding: 8px 10px; font-size: 9px; color: #374151; }
+.wf-row { display: flex; gap: 6px; margin-bottom: 5px; align-items: center; }
+.wf-pill { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 3px 7px; font-size: 9px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wf-pill.green { background: #dcfce7; border-color: #86efac; }
+.wf-pill.amber { background: #fef3c7; border-color: #fcd34d; }
+.wf-pill.red   { background: #fee2e2; border-color: #fca5a5; }
+.wf-pill.gray  { background: #f9fafb; border-color: #d1d5db; color: #9ca3af; }
+.wf-divider { border: none; border-top: 1px solid #f3f4f6; margin: 6px 0; }
+.wf-chain-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.wf-chain-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 7px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.wf-chain-dot.done { background: #dcfce7; color: #15803d; }
+.wf-chain-dot.miss { background: #fee2e2; color: #b91c1c; }
+.wf-chain-dot.pend { background: #fef3c7; color: #92400e; }
+.wf-sidebar-layout { display: flex; gap: 6px; }
+.wf-sidebar { width: 70px; flex-shrink: 0; }
+.wf-main { flex: 1; }
+.wf-section { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 4px; padding: 5px 7px; margin-bottom: 4px; font-size: 9px; }
+.wf-section.dark { background: #1e293b; color: #94a3b8; border-color: #334155; }
+.wf-label { font-size: 8px; color: #9ca3af; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+
+.tradeoffs { padding: 8px 12px 12px; border-top: 1px solid #f3f4f6; }
+.tradeoffs .pro { font-size: 10px; color: #16a34a; margin-bottom: 2px; }
+.tradeoffs .con { font-size: 10px; color: #dc2626; }
+</style>
+
+<div class="approach-grid">
+
+  <!-- APPROACH A: Tabbed -->
+  <div class="approach-card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="approach-label">
+      A — Tabbed Sections
+      <span class="badge rec">My Pick</span>
+    </div>
+    <p class="desc">Compact sticky header. Three tabs: Overview (chain + validation), Documents (6 types), Billing. Nothing buried.</p>
+    <div class="wf">
+      <div class="wf-header">
+        <span>PO-2026-SF003 · Shriram Finance</span>
+        <span>IN PROGRESS</span>
+      </div>
+      <div class="wf-strip">
+        <span>SO: SF-2026-881</span>
+        <span>₹9,20,459</span>
+        <span>Chain: 67%</span>
+        <span>↗ Profile</span>
+      </div>
+      <div class="wf-tabs">
+        <div class="wf-tab active">Overview</div>
+        <div class="wf-tab">Documents</div>
+        <div class="wf-tab">Billing</div>
+        <div class="wf-tab" style="margin-left:auto;color:#ef4444">Delete</div>
+      </div>
+      <div class="wf-body">
+        <div class="wf-label">Document Chain</div>
+        <div class="wf-chain-row">
+          <div class="wf-chain-dot done">✓</div>
+          <div class="wf-chain-dot done">✓</div>
+          <div class="wf-chain-dot miss">✗</div>
+          <div class="wf-chain-dot done">✓</div>
+          <div class="wf-chain-dot pend">!</div>
+          <div class="wf-chain-dot pend">!</div>
+        </div>
+        <hr class="wf-divider" />
+        <div class="wf-label">Validation</div>
+        <div class="wf-row"><div class="wf-pill green">✓ SO consistent</div><div class="wf-pill red">✗ DC ref mismatch</div></div>
+        <div class="wf-row"><div class="wf-pill amber">⚠ Invoice pending</div></div>
+      </div>
+    </div>
+    <div class="tradeoffs">
+      <div class="pro">✓ No scroll — all info in one viewport</div>
+      <div class="pro">✓ Chain + validation always visible on Overview</div>
+      <div class="pro">✓ Documents tab is focused, no distractions</div>
+      <div class="con">✗ Requires tab-switching for billing</div>
+    </div>
+  </div>
+
+  <!-- APPROACH B: Sticky sidebar -->
+  <div class="approach-card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="approach-label">
+      B — Sticky Side Panel
+      <span class="badge alt">Alternative</span>
+    </div>
+    <p class="desc">Chain + validation pinned in a narrow left sidebar. Documents scroll freely on the right. Always-visible chain state.</p>
+    <div class="wf">
+      <div class="wf-header">
+        <span>PO-2026-SF003</span>
+        <span>↗ Profile · Export</span>
+      </div>
+      <div class="wf-strip">
+        <span>Shriram Finance · IN PROGRESS · ₹9,20,459</span>
+      </div>
+      <div class="wf-body">
+        <div class="wf-sidebar-layout">
+          <div class="wf-sidebar">
+            <div class="wf-label">Chain</div>
+            <div class="wf-section" style="padding:4px 5px">
+              <div style="font-size:8px;margin-bottom:3px">67% complete</div>
+              <div class="wf-chain-row" style="flex-direction:column;gap:3px">
+                <div style="font-size:8px;color:#16a34a">✓ Customer PO</div>
+                <div style="font-size:8px;color:#16a34a">✓ Company PO</div>
+                <div style="font-size:8px;color:#dc2626">✗ Vendor DC</div>
+                <div style="font-size:8px;color:#16a34a">✓ Vendor Inv</div>
+                <div style="font-size:8px;color:#92400e">! Company DC</div>
+                <div style="font-size:8px;color:#92400e">! Company Inv</div>
+              </div>
+            </div>
+            <div class="wf-label" style="margin-top:6px">Validation</div>
+            <div class="wf-section" style="padding:4px 5px">
+              <div style="font-size:8px;color:#dc2626">✗ DC mismatch</div>
+              <div style="font-size:8px;color:#16a34a">✓ SO match</div>
+            </div>
+          </div>
+          <div class="wf-main">
+            <div class="wf-label">Documents</div>
+            <div class="wf-section"><div style="font-size:9px">Customer PO · PWFA251127016</div><div style="font-size:8px;color:#16a34a">Verified</div></div>
+            <div class="wf-section"><div style="font-size:9px">Company PO · 1PTR2526000400</div><div style="font-size:8px;color:#16a34a">Verified</div></div>
+            <div class="wf-section gray"><div style="font-size:9px;color:#9ca3af">Vendor DC — not uploaded</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tradeoffs">
+      <div class="pro">✓ Chain always visible while working with docs</div>
+      <div class="pro">✓ No tab switching needed</div>
+      <div class="con">✗ Sidebar takes horizontal space, docs feel narrow</div>
+      <div class="con">✗ Still scrolls on long POs</div>
+    </div>
+  </div>
+
+  <!-- APPROACH C: Single scroll, structured -->
+  <div class="approach-card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="approach-label">
+      C — Structured Scroll
+      <span class="badge alt">Conservative</span>
+    </div>
+    <p class="desc">Same single-page scroll but radically cleaned up: compact header bar, merged chain+validation card, dense 2-col doc grid.</p>
+    <div class="wf">
+      <div class="wf-header">
+        <span>PO-2026-SF003 · Shriram Finance</span>
+        <span style="display:flex;gap:6px;font-size:9px;align-items:center">
+          <span style="background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px">IN PROGRESS</span>
+          <span>₹9,20,459</span>
+        </span>
+      </div>
+      <div class="wf-body">
+        <div style="display:flex;gap:6px">
+          <div class="wf-section" style="flex:1">
+            <div class="wf-label">Chain Status · 67%</div>
+            <div class="wf-chain-row">
+              <div class="wf-chain-dot done" style="width:16px;height:16px;font-size:6px">✓</div>
+              <div class="wf-chain-dot done" style="width:16px;height:16px;font-size:6px">✓</div>
+              <div class="wf-chain-dot miss" style="width:16px;height:16px;font-size:6px">✗</div>
+              <div class="wf-chain-dot done" style="width:16px;height:16px;font-size:6px">✓</div>
+              <div class="wf-chain-dot pend" style="width:16px;height:16px;font-size:6px">!</div>
+              <div class="wf-chain-dot pend" style="width:16px;height:16px;font-size:6px">!</div>
+            </div>
+          </div>
+          <div class="wf-section" style="flex:1">
+            <div class="wf-label">Validation</div>
+            <div style="font-size:8px;color:#dc2626">✗ DC ref mismatch</div>
+            <div style="font-size:8px;color:#16a34a">✓ SO consistent</div>
+          </div>
+        </div>
+        <hr class="wf-divider" />
+        <div class="wf-label">Documents · 2 × 3 grid</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+          <div class="wf-section"><div style="font-size:9px;font-weight:600">Customer PO</div><div style="font-size:8px;color:#16a34a">PWFA251127016 · Verified</div></div>
+          <div class="wf-section"><div style="font-size:9px;font-weight:600">Company PO</div><div style="font-size:8px;color:#16a34a">1PTR2526000400 · Verified</div></div>
+          <div class="wf-section" style="border-style:dashed;color:#9ca3af"><div style="font-size:9px">Vendor DC</div><div style="font-size:8px">+ Upload</div></div>
+          <div class="wf-section"><div style="font-size:9px;font-weight:600">Vendor Invoice</div><div style="font-size:8px;color:#16a34a">C190224835 · Verified</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="tradeoffs">
+      <div class="pro">✓ Least change from current — lower implementation risk</div>
+      <div class="pro">✓ 2×3 grid halves vertical scroll vs current 6 stacked</div>
+      <div class="con">✗ Still one long page — no focus mode</div>
+      <div class="con">✗ Harder to add billing without more scroll</div>
+    </div>
+  </div>
+
+</div>
+
+<p class="subtitle" style="margin-top:20px">Click an approach → tell me your thoughts in the terminal. I recommend <strong>A (Tabbed)</strong> — here's why: tabs eliminate scroll entirely, Overview tab gives operators instant chain+validation status, and Documents tab lets them work on uploads without visual noise. The billing tab can grow independently without cluttering the document view.</p>

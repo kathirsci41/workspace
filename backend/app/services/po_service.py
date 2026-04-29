@@ -26,6 +26,7 @@ from app.schemas.po_profile import (
 )
 from app.schemas.extraction import _clean_ref_string
 from app.services.storage_service import StorageService
+from app.services.billing_tracker import check_full_billing, check_staged_billing
 from app.config import settings
 
 storage_service = StorageService(settings.nas_base_path)
@@ -344,6 +345,7 @@ def _slot_message(doc) -> str | None:
 
 async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse:
     """Get the 6-document chain status for a PO."""
+    import sys; print(f"DEBUG: get_chain_status called for po_id={po_id}", file=sys.stderr, flush=True)
     po = await get_po(db, po_id)
 
     chain: dict[str, list[ChainSlot]] = {}
@@ -399,11 +401,101 @@ async def get_chain_status(db: AsyncSession, po_id: UUID) -> ChainStatusResponse
 
     completeness = round((slots_filled / len(active_chain)) * 100)
 
+    # Calculate billing information
+    billing_data = {"overall": "pending", "stages": []}
+
+    # Get all COMPANY_INVOICE documents to calculate invoiced amount
+    invoice_result = await db.execute(
+        select(Document)
+        .options(selectinload(Document.doc_metadata))
+        .where(
+            Document.po_id == po_id,
+            Document.document_type == DocumentType.COMPANY_INVOICE,
+            Document.status.not_in([DocumentStatus.REJECTED, DocumentStatus.EXTRACTION_FAILED])
+        )
+    )
+    invoices = list(invoice_result.scalars().all())
+
+    # Extract amounts from invoices
+    invoiced_total = 0.0
+    stage_invoices = []
+    for inv in invoices:
+        if inv.doc_metadata and inv.doc_metadata.extracted_data:
+            data = inv.doc_metadata.extracted_data
+            amount = data.get("total_amount")
+            if amount is not None:
+                try:
+                    amount = float(amount) if isinstance(amount, str) else amount
+                    invoiced_total += amount
+                    stage = data.get("billing_stage")
+                    stage_invoices.append({"billing_stage": stage, "amount": amount})
+                except (ValueError, TypeError):
+                    pass
+
+    # Calculate billing status
+    po_total = float(po.total_amount or 0)
+    if po.billing_type == "staged":
+        milestones = po.billing_milestones or []
+        if milestones:
+            milestone_dicts = [
+                {"stage": m.get("stage", i+1), "percent": m.get("percentage", 0)}
+                for i, m in enumerate(milestones)
+            ]
+            billing_result = check_staged_billing(po_total, milestone_dicts, stage_invoices)
+            billing_data = {
+                "overall": billing_result["overall"].value,
+                "stages": billing_result["stages"]
+            }
+    else:
+        # FULL or RECURRING billing — build per-invoice stages
+        status = check_full_billing(invoiced_total, po_total)
+        invoice_stages = []
+        for i, inv in enumerate(invoices):
+            if inv.doc_metadata and inv.doc_metadata.extracted_data:
+                data = inv.doc_metadata.extracted_data
+                amount = data.get("total_amount")
+                if amount is not None:
+                    try:
+                        amount = float(amount) if isinstance(amount, str) else amount
+                        invoice_stages.append({
+                            "stage": i + 1,
+                            "expected_amount": round(amount, 2),
+                            "invoiced_amount": round(amount, 2),
+                            "status": "paid" if amount > 0 else "pending",
+                            "document_id": str(inv.id),
+                            "ref_no": _clean_ref_string(inv.doc_metadata.primary_ref_no),
+                        })
+                    except (ValueError, TypeError):
+                        pass
+        billing_data = {
+            "overall": status.value,
+            "invoiced_total": invoiced_total,
+            "stages": invoice_stages,
+        }
+
+    # Build reference_checks array (cpo_reference check)
+    reference_checks = []
+    cpo_docs = chain.get("customer_po", [])
+    if cpo_docs and po.customer_po_ref:
+        extracted_ref = cpo_docs[0].ref_no
+        if extracted_ref:
+            result = "pass" if extracted_ref == po.customer_po_ref else "mismatch"
+            reference_checks.append({
+                "document_type": "customer_po",
+                "check": "cpo_reference",
+                "result": result,
+                "extracted": extracted_ref,
+                "expected": po.customer_po_ref,
+            })
+
     return ChainStatusResponse(
         po_id=po.id,
         po_number=po.po_number,
         completeness_pct=completeness,
         chain=chain,
+        billing=billing_data,
+        reference_checks=reference_checks,
+        chain_status="complete" if completeness == 100 else "incomplete",
     )
 
 
