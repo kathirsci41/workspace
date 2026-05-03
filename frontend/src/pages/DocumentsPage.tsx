@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ExternalLink, X } from 'lucide-react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { ExternalLink, X, Upload } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useCustomers } from '@/hooks/useCustomers';
 import { SkeletonTableRow } from '@/components/Skeleton';
@@ -80,9 +80,18 @@ export default function DocumentsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Documents</h2>
-        {data && (
-          <span className="text-sm text-gray-500">{data.total} document{data.total !== 1 ? 's' : ''}</span>
-        )}
+        <div className="flex items-center gap-4">
+          <Link
+            to="/documents/upload"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
+          >
+            <Upload size={18} />
+            Upload
+          </Link>
+          {data && (
+            <span className="text-sm text-gray-500">{data.total} document{data.total !== 1 ? 's' : ''}</span>
+          )}
+        </div>
       </div>
 
       {/* Filter bar */}

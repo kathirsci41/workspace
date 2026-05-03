@@ -1,6 +1,7 @@
 """Orchestrates chain presence, reference validation, and billing completeness."""
 from app.models.purchase_order import OrderScenario, ChainStatus, BillingType
 from app.models.document import DocumentType
+from app.schemas.extraction import _clean_ref_string
 from app.services.po_service import get_scenario_chain
 from app.services.reference_validator import (
     check_so_consistency,
@@ -458,7 +459,7 @@ def compute_chain_status(
                     "invoiced_amount": round(amount, 2),
                     "status": "paid" if amount > 0 else "pending",
                     "document_id": doc.get("id"),
-                    "ref_no": doc.get("ref_no"),
+                    "ref_no": _clean_ref_string(doc.get("ref_no")),
                 })
 
     if po_total:

@@ -4,10 +4,11 @@ import json
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, func, select, case
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.config import settings
-from app.models import Document, DocumentStatus, DocumentMetadata, MetadataStatus, Customer, PurchaseOrder
+from app.models import Document, DocumentStatus, DocumentMetadata, MetadataStatus, Customer, PurchaseOrder, DocumentType
 from app.services.extraction.two_layer_client import check_models_available
 from app.services.extraction.pipeline import build_pipeline_from_config
 from celery_app import celery_app

@@ -79,6 +79,19 @@ export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
     setDraftMilestones(prev => prev.filter(m => m._id !== id));
   }
 
+  function handleBillingTypeChange(newType: typeof billingType) {
+    if (newType === billingType) return;
+    if (billedSoFar > 0) {
+      const ok = window.confirm(
+        `Changing billing type from "${billingType}" to "${newType}" will recalculate chain ` +
+        `completeness using a different formula. This may change the displayed completion ` +
+        `percentage. Continue?`
+      );
+      if (!ok) return;
+    }
+    onUpdate({ billing_type: newType });
+  }
+
   return (
     <div>
       {/* Type selector */}
@@ -88,7 +101,7 @@ export default function BillingTab({ po, chainValidation, onUpdate }: Props) {
           {(['full', 'staged', 'recurring'] as const).map(t => (
             <button
               key={t}
-              onClick={() => onUpdate({ billing_type: t })}
+              onClick={() => handleBillingTypeChange(t)}
               className={clsx(
                 'text-xs font-semibold px-4 py-2 rounded-lg border transition-colors',
                 billingType === t
