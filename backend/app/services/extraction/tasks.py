@@ -13,6 +13,7 @@ from app.models import (
     Document, DocumentMetadata, ReferenceIndex,
     DocumentStatus, MetadataStatus, PurchaseOrder, POStatus, DocumentType,
 )
+from app.schemas.extraction import _clean_ref_string
 from app.services.extraction.pdf_converter import PDFConverter
 from app.services.extraction.ocr_client import OCRClient
 from app.services.extraction.response_parser import ResponseParser
@@ -401,12 +402,13 @@ def extract_document(self, document_id: str):
             searchable = get_searchable_fields(doc_type)
             for ref_type, field_name in searchable:
                 value = extracted_data.get(field_name)
-                if value and str(value).strip():
+                cleaned = _clean_ref_string(value)
+                if cleaned and str(cleaned).strip():
                     ref = ReferenceIndex(
                         document_id=doc.id,
                         po_id=doc.po_id,
                         ref_type=ref_type,
-                        ref_value=str(value).strip(),
+                        ref_value=str(cleaned).strip(),
                         document_type=doc.document_type,
                     )
                     db.add(ref)
