@@ -11,13 +11,14 @@ from app.models.document_metadata import MetadataStatus
 # ════════════════════════════════════════════════════════════════════════
 
 class TestDocumentType:
-    def test_has_6_values(self):
-        assert len(DocumentType) == 6
+    def test_has_8_values(self):
+        assert len(DocumentType) == 8
 
     def test_all_expected_types_exist(self):
         expected = {
             "CUSTOMER_PO", "COMPANY_PO", "VENDOR_DC", "VENDOR_INVOICE",
             "COMPANY_DC", "COMPANY_INVOICE",
+            "INSTALLATION_REPORT", "VENDOR_CREDIT_NOTE",
         }
         actual = {t.value for t in DocumentType}
         assert actual == expected
@@ -43,13 +44,13 @@ class TestDocumentType:
 # ════════════════════════════════════════════════════════════════════════
 
 class TestDocumentStatus:
-    def test_has_6_values(self):
-        assert len(DocumentStatus) == 6
+    def test_has_7_values(self):
+        assert len(DocumentStatus) == 7
 
     def test_all_expected_statuses(self):
         expected = {
             "UPLOADED", "EXTRACTING", "PENDING_REVIEW",
-            "VERIFIED", "REJECTED", "EXTRACTION_FAILED",
+            "VERIFIED", "REJECTED", "EXTRACTION_FAILED", "PENDING_MODEL",
         }
         actual = {s.value for s in DocumentStatus}
         assert actual == expected

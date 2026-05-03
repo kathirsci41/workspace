@@ -1,0 +1,11 @@
+document_id,file_name,document_type,file_path,expected_po_number,expected_amount,source
+doc_synthetic_001,test_po_basic.pdf,CUSTOMER_PO,backend/tests/fixtures/test_documents/test_po_basic.pdf,TEST-PO-001,100000,Synthetic template
+doc_synthetic_002,test_po_complex.pdf,CUSTOMER_PO,backend/tests/fixtures/test_documents/test_po_complex.pdf,TEST-PO-002,250000,Synthetic template
+doc_synthetic_003,test_dc_basic.pdf,COMPANY_DC,backend/tests/fixtures/test_documents/test_dc_basic.pdf,TEST-DC-001,100000,Synthetic template
+doc_synthetic_004,test_dc_multipage.pdf,COMPANY_DC,backend/tests/fixtures/test_documents/test_dc_multipage.pdf,TEST-DC-002,250000,Synthetic template
+doc_synthetic_005,test_invoice_single.pdf,COMPANY_INVOICE,backend/tests/fixtures/test_documents/test_invoice_single.pdf,TEST-INV-001,50000,Synthetic template
+doc_synthetic_006,test_invoice_multiitem.pdf,COMPANY_INVOICE,backend/tests/fixtures/test_documents/test_invoice_multiitem.pdf,TEST-INV-002,150000,Synthetic template
+doc_synthetic_007,test_vendor_invoice_simple.pdf,VENDOR_INVOICE,backend/tests/fixtures/test_documents/test_vendor_invoice_simple.pdf,VEN-INV-001,75000,Synthetic template
+doc_synthetic_008,test_vendor_invoice_complex.pdf,VENDOR_INVOICE,backend/tests/fixtures/test_documents/test_vendor_invoice_complex.pdf,VEN-INV-002,300000,Synthetic template
+doc_synthetic_009,test_vendor_dc_basic.pdf,VENDOR_DC,backend/tests/fixtures/test_documents/test_vendor_dc_basic.pdf,VEN-DC-001,125000,Synthetic template
+doc_synthetic_010,test_vendor_dc_partial.pdf,VENDOR_DC,backend/tests/fixtures/test_documents/test_vendor_dc_partial.pdf,VEN-DC-002,175000,Synthetic template

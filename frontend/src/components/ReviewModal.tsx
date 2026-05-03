@@ -14,6 +14,7 @@ import { useUpdatePO } from '@/hooks/usePurchaseOrders';
 import { getPreviewUrl } from '@/api/documents';
 import PDFViewer from '@/components/PDFViewer';
 import clsx from 'clsx';
+import { OrderItemsTable, type OrderItemRow } from '@/components/OrderItemsTable';
 
 interface Props {
   documentId: string;
@@ -26,6 +27,30 @@ interface Props {
 // Confidence thresholds for field-level colouring
 const CONF_HIGH   = 0.85;
 const CONF_MEDIUM = 0.60;
+
+// Columns for the delivery_locations table (CUSTOMER_PO only)
+const DELIVERY_LOCATIONS_COLUMNS = [
+  'region', 'unit', 'branch', 'gstin_no', 'asset_description',
+  'qty', 'employee_code', 'employee_name', 'contact_person', 'contact_no', 'delivery_address',
+];
+
+// Columns per document type for the order_items table
+const ORDER_ITEMS_COLUMNS: Record<string, string[]> = {
+  CUSTOMER_PO:     ['sr_no', 'description', 'qty', 'unit_price', 'total_price'],
+  COMPANY_PO:      ['sr_no', 'part_no', 'description', 'hsn_code', 'qty', 'uom', 'unit_price', 'total_price', 'serial_numbers'],
+  VENDOR_DC:       ['sr_no', 'part_no', 'description', 'hsn_code', 'qty', 'uom', 'unit_price', 'total_price', 'serial_numbers'],
+  VENDOR_INVOICE:  ['sr_no', 'part_no', 'description', 'hsn_code', 'qty', 'uom', 'unit_price', 'total_price', 'serial_numbers'],
+  COMPANY_DC:      ['sr_no', 'part_no', 'description', 'hsn_code', 'qty', 'uom', 'unit_price', 'total_price', 'serial_numbers'],
+  COMPANY_INVOICE: ['sr_no', 'part_no', 'description', 'hsn_code', 'qty', 'uom', 'unit_price', 'total_price', 'serial_numbers'],
+};
+
+// Normalise an array row to Record<string, string> (handles nulls and numbers from extraction)
+function normalizeRow(row: unknown): OrderItemRow {
+  if (!row || typeof row !== 'object') return {};
+  return Object.fromEntries(
+    Object.entries(row as Record<string, unknown>).map(([k, v]) => [k, v != null ? String(v) : ''])
+  );
+}
 
 export default function ReviewModal({ documentId, onClose, onVerified, mode = 'review', onSaved }: Props) {
   const { data: metadata, isLoading } = useMetadata(documentId);
@@ -41,8 +66,9 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
   const [formData, setFormData]           = useState<Record<string, string>>({});
   const [customFields, setCustomFields]   = useState<{ id: string; label: string; value: string }[]>([]);
   const [isManualMode, setIsManualMode]   = useState(false);
+  const [isEditMode, setIsEditMode]       = useState(false);
   const [errorsOpen, setErrorsOpen]       = useState(true);
-  const [warningsOpen, setWarningsOpen]   = useState(false);
+  const [warningsOpen, setWarningsOpen]   = useState(true);
 
   // SO entry prompt — shown when PO has no SO number (verify blocked until set)
   const [soPrompt, setSoPrompt]           = useState<{ poId: string } | null>(null);
@@ -53,13 +79,29 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
 
   // Snapshot of original extracted values for diffing corrections
   const originalSnapshot = useRef<Record<string, string>>({});
+  const [tableRows, setTableRows]               = useState<OrderItemRow[]>([]);
+  const originalTableRows                       = useRef<OrderItemRow[]>([]);
+  const [deliveryRows, setDeliveryRows]         = useState<OrderItemRow[]>([]);
+  const originalDeliveryRows                    = useRef<OrderItemRow[]>([]);
+
+  // Array fields that must never be included in formData — they can only come from extraction
+  const ARRAY_FIELDS = new Set(['order_items', 'delivery_locations']);
+
+  // Refs to current handler functions — used by keyboard shortcut effect below
+  const handleVerifyRef = useRef<(() => void) | null>(null);
+  const handleRejectRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (metadata?.extracted_data && Object.keys(metadata.extracted_data).length > 0) {
       const initial: Record<string, string> = {};
       for (const [key, value] of Object.entries(metadata.extracted_data)) {
         if (key.startsWith('_') || key.startsWith('custom_')) continue;
-        initial[key] = value != null ? String(value) : '';
+        if (ARRAY_FIELDS.has(key)) continue;  // Keep arrays out of formData — they must not be overwritten by string coercion
+        // Handle legacy extracted_data where scalar fields were stored as {value, confidence} objects
+        const rawVal = value != null && typeof value === 'object' && !Array.isArray(value) && 'value' in (value as object)
+          ? (value as { value: unknown }).value
+          : value;
+        initial[key] = rawVal != null ? String(rawVal) : '';
       }
       // Always include operator_notes (from existing data or empty)
       initial['operator_notes'] = (metadata.extracted_data['operator_notes'] as string) ?? '';
@@ -73,10 +115,27 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       const snap: Record<string, string> = { ...initial };
       for (const { label, value } of existingCustom) snap[`custom_${label}`] = value;
       originalSnapshot.current = snap;
-      setIsManualMode(
+      const rawItems = metadata.extracted_data['order_items'];
+      let parsedItems: unknown[] = Array.isArray(rawItems) ? rawItems : [];
+      if (!Array.isArray(rawItems) && typeof rawItems === 'string') {
+        try { const p = JSON.parse(rawItems); if (Array.isArray(p)) parsedItems = p; } catch {}
+      }
+      const items = parsedItems.map(normalizeRow);
+      setTableRows(items);
+      originalTableRows.current = items;
+      const rawDelivery = metadata.extracted_data['delivery_locations'];
+      let parsedDelivery: unknown[] = Array.isArray(rawDelivery) ? rawDelivery : [];
+      if (!Array.isArray(rawDelivery) && typeof rawDelivery === 'string') {
+        try { const p = JSON.parse(rawDelivery); if (Array.isArray(p)) parsedDelivery = p; } catch {}
+      }
+      const dRows = parsedDelivery.map(normalizeRow);
+      setDeliveryRows(dRows);
+      originalDeliveryRows.current = dRows;
+      const manual =
         metadata.model_version === 'manual' ||
-        Object.values(metadata.extracted_data).every((v) => v === null || v === '')
-      );
+        Object.values(metadata.extracted_data).every((v) => v === null || v === '');
+      setIsManualMode(manual);
+      setIsEditMode(manual);
     } else if (template?.fields) {
       const initial: Record<string, string> = {};
       for (const key of Object.keys(template.fields)) {
@@ -86,7 +145,12 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       setFormData(initial);
       setCustomFields([]);
       originalSnapshot.current = { ...initial };
+      setTableRows([]);
+      originalTableRows.current = [];
+      setDeliveryRows([]);
+      originalDeliveryRows.current = [];
       setIsManualMode(true);
+      setIsEditMode(true);
     }
   }, [metadata, template]);
 
@@ -142,6 +206,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
     const editedData: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(formData)) {
       if (key.startsWith('_')) continue;
+      if (ARRAY_FIELDS.has(key)) continue;  // Never overwrite extracted arrays with stringified versions
       if (value === '') {
         editedData[key] = null;
       } else if (
@@ -161,6 +226,29 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
     // Inject custom fields into editedData
     for (const { label, value } of customFields) {
       if (label.trim()) editedData[`custom_${label.trim()}`] = value;
+    }
+
+    // Include edited order_items — convert empty strings to null, numeric fields to numbers
+    const numericCols = new Set(['qty', 'unit_price', 'total_price']);
+    editedData['order_items'] = tableRows.map((row) => {
+      const result: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(row)) {
+        if (v === '') {
+          result[k] = null;
+        } else if (numericCols.has(k) && !isNaN(Number(v))) {
+          result[k] = Number(v);
+        } else {
+          result[k] = v;
+        }
+      }
+      return result;
+    });
+
+    // Include edited delivery_locations (CUSTOMER_PO)
+    if (metadata?.document_type === 'CUSTOMER_PO') {
+      editedData['delivery_locations'] = deliveryRows.map((row) =>
+        Object.fromEntries(Object.entries(row).map(([k, v]) => [k, v === '' ? null : v]))
+      );
     }
 
     setSoMismatchMsg(null);
@@ -214,7 +302,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
   };
 
   const handleSave = () => {
-    const corrections = Object.entries(formData)
+    const corrections: { field: string; corrected_value: string | null }[] = Object.entries(formData)
       .filter(([key]) => !key.startsWith('_'))
       .filter(([key, val]) => val !== (originalSnapshot.current[key] ?? ''))
       .map(([key, val]) => ({ field: key, corrected_value: val || null }));
@@ -225,6 +313,11 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
       const key = `custom_${label.trim()}`;
       if (value !== (originalSnapshot.current[key] ?? ''))
         corrections.push({ field: key, corrected_value: value || null });
+    }
+
+    // Include order_items change in corrections audit log
+    if (JSON.stringify(tableRows) !== JSON.stringify(originalTableRows.current)) {
+      corrections.push({ field: 'order_items', corrected_value: JSON.stringify(tableRows) });
     }
 
     if (corrections.length === 0) {
@@ -242,15 +335,36 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
     rejectMutation.mutate(documentId, { onSuccess: onClose });
   };
 
+  // Keep refs current so keyboard handler always calls the latest version
+  handleVerifyRef.current = handleVerify;
+  handleRejectRef.current = handleReject;
+
+  // ── Keyboard shortcuts: V = Verify, R = Reject, Esc = Close ─────────
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
+      if (e.key === 'v' || e.key === 'V') {
+        handleVerifyRef.current?.();
+      } else if (e.key === 'r' || e.key === 'R') {
+        handleRejectRef.current?.();
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   const addCustomField = () =>
     setCustomFields((f) => [...f, { id: crypto.randomUUID(), label: '', value: '' }]);
 
   const removeCustomField = (id: string) =>
     setCustomFields((f) => f.filter((cf) => cf.id !== id));
 
-  // ── Field ordering and labels — unchanged from original ──────────
+  // ── Field ordering and labels ─────────────────────────────────────
   const FIELD_ORDER: Record<string, string[]> = {
-    CUSTOMER_PO:     ['po_number', 'bsif_name', 'po_date'],
+    CUSTOMER_PO:     ['po_number', 'bsif_name', 'po_date', 'quotation_no', 'quotation_date', 'grand_total', 'delivery_details', 'terms_and_conditions'],
     COMPANY_PO:      ['po_number', 'po_date', 'mode_of_bill', 'vendor_name'],
     VENDOR_DC:       ['dc_number', 'dc_date', 'po_reference', 'vendor_name', 'items_description', 'quantity', 'vehicle_number', 'receiver_name'],
     VENDOR_INVOICE:  ['invoice_number', 'customer_order_no', 'po_reference'],
@@ -259,8 +373,13 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
   };
 
   const FIELD_LABELS: Record<string, string> = {
-    bsif_name:         'Company Name',
-    po_date:           'PO Date',
+    bsif_name:             'Customer Name',
+    po_date:               'PO Date',
+    quotation_no:          'Quotation No',
+    quotation_date:        'Quotation Date',
+    grand_total:           'Grand Total',
+    delivery_details:      'Delivery Details',
+    terms_and_conditions:  'Terms & Conditions',
     mode_of_bill:      'Mode of Bill',
     dc_number:         'DC No',
     dc_date:           'DC Date',
@@ -364,7 +483,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
         </div>
       )}
 
-      <div className="m-auto bg-white rounded-xl shadow-2xl w-[95vw] h-[90vh] max-w-7xl flex flex-col">
+      <div className="m-auto bg-white w-screen h-screen flex flex-col">
 
         {/* ── Header ──────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
@@ -427,12 +546,32 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
         <div className="flex-1 flex min-h-0">
 
           {/* Left: PDF */}
-          <div className="w-1/2 border-r border-gray-200">
+          <div className="w-[58%] border-r border-gray-200">
             <PDFViewer url={getPreviewUrl(documentId)} />
           </div>
 
           {/* Right: Form */}
-          <div className="w-1/2 flex flex-col">
+          <div className="w-[42%] flex flex-col">
+            {/* Edit mode toggle bar */}
+            {!isManualMode && (
+              <div className="flex items-center justify-between px-5 py-2.5 border-b border-gray-100 bg-gray-50/50">
+                <span className="text-xs text-gray-400">
+                  {isEditMode ? 'Edit mode — modify fields then Verify' : 'Review mode — verify extracted values'}
+                </span>
+                <button
+                  onClick={() => setIsEditMode((v) => !v)}
+                  className={clsx(
+                    'inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors',
+                    isEditMode
+                      ? 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                      : 'bg-[--accent] border-[--accent] text-white hover:opacity-90'
+                  )}
+                >
+                  <PenLine size={13} />
+                  {isEditMode ? 'Back to Review' : 'Edit Fields'}
+                </button>
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto p-6 space-y-3">
 
               {/* Manual mode notice */}
@@ -512,76 +651,93 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
               )}
 
               {/* ── Form fields ──────────────────────────────────── */}
-              {sortedFormKeys(Object.keys(formData)).map((key) => {
-                const value = formData[key];
-                const conf  = getFieldConfidence(key);
-                const isChanged = value !== (originalSnapshot.current[key] ?? '');
+              <div className={clsx(isEditMode ? 'space-y-3' : 'grid grid-cols-2 gap-2.5')}>
+                {sortedFormKeys(Object.keys(formData).filter((k) => !ARRAY_FIELDS.has(k) && k !== 'operator_notes')).map((key) => {
+                  const value     = formData[key];
+                  const conf      = getFieldConfidence(key);
+                  const isEmpty   = !value;
+                  const isLowConf = conf !== null && conf < CONF_MEDIUM;
+                  const isChanged = value !== (originalSnapshot.current[key] ?? '');
 
-                return (
-                  <div key={key}>
-                    <label className="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">
-                      <span>
-                        {formatLabel(key)}
-                        {template?.field_descriptions?.[key] && (
-                          <span className="ml-1 text-gray-400 font-normal">
-                            — {template.field_descriptions[key]}
-                          </span>
-                        )}
-                        {/* Changed indicator */}
-                        {isChanged && (
-                          <span className="ml-1.5 text-blue-500 font-semibold" title="Modified">
-                            ✎
-                          </span>
-                        )}
-                      </span>
-                      {/* ── NEW Phase 5: per-field confidence badge ── */}
-                      {conf !== null && (
-                        <span
-                          className={clsx(
-                            'text-xs px-1.5 py-0.5 rounded font-medium',
-                            confBadgeColour(conf)
-                          )}
-                        >
-                          {Math.round(conf * 100)}%
-                        </span>
-                      )}
-                    </label>
-
-                    {key === 'signature_present' ? (
-                      <select
-                        value={value}
-                        onChange={(e) =>
-                          setFormData((f) => ({ ...f, [key]: e.target.value }))
-                        }
-                        className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none border-gray-300"
-                      >
-                        <option value="">Unknown</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        value={value}
-                        onChange={(e) =>
-                          setFormData((f) => ({ ...f, [key]: e.target.value }))
-                        }
-                        placeholder={`Enter ${formatLabel(key).toLowerCase()}`}
+                  if (!isEditMode) {
+                    return (
+                      <div
+                        key={key}
                         className={clsx(
-                          'w-full px-3 py-2 border-l-4 border rounded-lg text-sm',
-                          'focus:ring-2 focus:ring-blue-500 focus:outline-none',
-                          // Left border from confidence, right border from value presence
-                          conf !== null
-                            ? confColour(conf)
-                            : value
-                              ? 'border-gray-300'
-                              : 'border-red-200 bg-red-50'
+                          'rounded-lg px-3 py-2.5 border',
+                          isEmpty      ? 'bg-red-50 border-red-200'
+                          : isLowConf  ? 'bg-amber-50 border-amber-200'
+                          :              'bg-white border-[--veil]',
                         )}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+                      >
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                            {formatLabel(key)}
+                          </span>
+                          {conf !== null && (
+                            <span className={clsx('text-[10px] px-1.5 py-0.5 rounded font-medium', confBadgeColour(conf))}>
+                              {Math.round(conf * 100)}%
+                            </span>
+                          )}
+                        </div>
+                        <p className={clsx(
+                          'text-sm font-medium break-words',
+                          isEmpty     ? 'text-red-400 italic'
+                          : isLowConf ? 'text-amber-900'
+                          :              'text-[--ink]',
+                        )}>
+                          {isEmpty ? 'Not extracted' : value}
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={key}>
+                      <label className="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">
+                        <span>
+                          {formatLabel(key)}
+                          {isChanged && (
+                            <span className="ml-1.5 text-blue-500 font-semibold" title="Modified">✎</span>
+                          )}
+                        </span>
+                        {conf !== null && (
+                          <span className={clsx('text-xs px-1.5 py-0.5 rounded font-medium', confBadgeColour(conf))}>
+                            {Math.round(conf * 100)}%
+                          </span>
+                        )}
+                      </label>
+                      {key === 'signature_present' ? (
+                        <select
+                          value={value}
+                          onChange={(e) => setFormData((f) => ({ ...f, [key]: e.target.value }))}
+                          className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none border-gray-300"
+                        >
+                          <option value="">Unknown</option>
+                          <option value="true">Yes</option>
+                          <option value="false">No</option>
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={(e) => setFormData((f) => ({ ...f, [key]: e.target.value }))}
+                          placeholder={`Enter ${formatLabel(key).toLowerCase()}`}
+                          className={clsx(
+                            'w-full px-3 py-2 border-l-4 border rounded-lg text-sm',
+                            'focus:ring-2 focus:ring-blue-500 focus:outline-none',
+                            conf !== null
+                              ? confColour(conf)
+                              : value
+                                ? 'border-gray-300'
+                                : 'border-red-200 bg-red-50'
+                          )}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
 
               {Object.keys(formData).length === 0 && !isLoading && (
                 <p className="text-sm text-gray-400 py-8 text-center">
@@ -589,8 +745,48 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
                 </p>
               )}
 
+              {/* ── Order Items Table ─────────────────────────────── */}
+              {(() => {
+                const docType = metadata?.document_type ?? '';
+                const columns = ORDER_ITEMS_COLUMNS[docType];
+                if (!columns) return null;
+                const tableChanged = JSON.stringify(tableRows) !== JSON.stringify(originalTableRows.current);
+                return (
+                  <div className="pt-3 mt-1 border-t border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-gray-500">Line Items</span>
+                      {tableChanged && (
+                        <span className="text-xs text-blue-500 font-semibold" title="Modified">✎ Modified</span>
+                      )}
+                    </div>
+                    <OrderItemsTable
+                      columns={columns}
+                      rows={tableRows}
+                      onChange={setTableRows}
+                    />
+                  </div>
+                );
+              })()}
+
+              {/* ── Delivery Locations (editable, CUSTOMER_PO only) ── */}
+              {metadata?.document_type === 'CUSTOMER_PO' && (
+                <div className="pt-3 mt-1 border-t border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-gray-500">Delivery Locations</span>
+                    {JSON.stringify(deliveryRows) !== JSON.stringify(originalDeliveryRows.current) && (
+                      <span className="text-xs text-blue-500 font-semibold" title="Modified">✎ Modified</span>
+                    )}
+                  </div>
+                  <OrderItemsTable
+                    columns={DELIVERY_LOCATIONS_COLUMNS}
+                    rows={deliveryRows}
+                    onChange={setDeliveryRows}
+                  />
+                </div>
+              )}
+
               {/* ── Operator Remarks — always visible ─────────────── */}
-              {'operator_notes' in formData && (
+              {'operator_notes' in formData && (isEditMode || !!formData['operator_notes']) && (
                 <div className="pt-3 mt-1 border-t border-gray-100">
                   <label className="block text-xs font-medium text-gray-500 mb-1">
                     Remarks
@@ -609,7 +805,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
               )}
 
               {/* ── Custom Fields ──────────────────────────────────── */}
-              <div className="pt-3 mt-1 border-t border-gray-100">
+              {isEditMode && <div className="pt-3 mt-1 border-t border-gray-100">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-medium text-gray-500">Custom Fields</span>
                   <button
@@ -644,7 +840,7 @@ export default function ReviewModal({ documentId, onClose, onVerified, mode = 'r
                     </button>
                   </div>
                 ))}
-              </div>
+              </div>}
             </div>
 
             {/* ── Action buttons ─────────────────────────────────── */}

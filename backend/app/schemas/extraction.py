@@ -1,7 +1,34 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from uuid import UUID
 from datetime import date, datetime
 from typing import Optional
+import ast
+import re
+
+
+_CONF_PATTERN = re.compile(r"'?\{'value'\s*:\s*([^,}]+?)\s*,\s*'confidence'\s*:[^}]*\}'?")
+
+
+def _clean_ref_string(v: object) -> object:
+    """Unwrap legacy confidence-wrapped values.
+
+    Handles both dict form {"value": x, "confidence": y} and
+    string-repr form "{'value': x, 'confidence': y}" produced by old
+    extractions that stringified Python dicts instead of storing JSON.
+    Also cleans embedded confidence patterns inside warning strings.
+    """
+    if isinstance(v, dict) and "value" in v and "confidence" in v:
+        return v.get("value")
+    if isinstance(v, str) and v.startswith("{") and "'value'" in v:
+        try:
+            parsed = ast.literal_eval(v)
+            if isinstance(parsed, dict) and "value" in parsed and "confidence" in parsed:
+                return parsed.get("value")
+        except (ValueError, SyntaxError):
+            pass
+    if isinstance(v, str) and "'value'" in v:
+        return _CONF_PATTERN.sub(lambda m: m.group(1).strip().strip("'\""), v)
+    return v
 
 
 class ExtractionResponse(BaseModel):
@@ -31,6 +58,24 @@ class ExtractionResponse(BaseModel):
     po_so_number: Optional[str] = None             # PO's stored SO number (context)
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_validator("primary_ref_no", "po_ref_no", mode="before")
+    @classmethod
+    def unwrap_ref_fields(cls, v):
+        return _clean_ref_string(v)
+
+    @field_validator("extracted_data", mode="before")
+    @classmethod
+    def unwrap_extracted_data_fields(cls, v):
+        if not isinstance(v, dict):
+            return v
+        result = {}
+        for k, val in v.items():
+            if isinstance(val, list):
+                result[k] = [_clean_ref_string(item) if isinstance(item, str) else item for item in val]
+            else:
+                result[k] = _clean_ref_string(val)
+        return result
 
 
 class VerifyRequest(BaseModel):

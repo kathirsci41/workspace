@@ -140,7 +140,7 @@ class TestCircuitBreaker:
 
         # It will still fail on the actual HTTP call, but it should NOT
         # raise the circuit-breaker error
-        with pytest.raises(RuntimeError, match="failed after"):
+        with pytest.raises(RuntimeError, match="(?i)(unreachable|failed after|HTTP)"):
             await client._call_ollama_generate({"model": "test"})
 
 

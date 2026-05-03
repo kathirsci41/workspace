@@ -1,0 +1,136 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - heading "DocPlatform" [level=1] [ref=e6]
+    - navigation [ref=e7]:
+      - link "Dashboard" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - img [ref=e9]
+        - text: Dashboard
+      - link "Customers" [ref=e14] [cursor=pointer]:
+        - /url: /customers
+        - img [ref=e15]
+        - text: Customers
+      - link "Purchase Orders" [ref=e20] [cursor=pointer]:
+        - /url: /purchase-orders
+        - img [ref=e21]
+        - text: Purchase Orders
+      - link "Documents" [ref=e24] [cursor=pointer]:
+        - /url: /documents
+        - img [ref=e25]
+        - text: Documents
+      - link "Search" [ref=e29] [cursor=pointer]:
+        - /url: /search
+        - img [ref=e30]
+        - text: Search
+      - link "Assistant" [ref=e33] [cursor=pointer]:
+        - /url: /chat
+        - img [ref=e34]
+        - text: Assistant
+      - link "System" [ref=e36] [cursor=pointer]:
+        - /url: /admin
+        - img [ref=e37]
+        - text: System
+    - generic [ref=e40]:
+      - button "Collapse" [ref=e41] [cursor=pointer]:
+        - img [ref=e42]
+        - generic [ref=e44]: Collapse
+      - generic [ref=e45]: DocPlatform v2.2.0
+  - generic [ref=e46]:
+    - banner [ref=e47]:
+      - generic [ref=e49]:
+        - img [ref=e50]
+        - textbox "Search invoice, DC, PO, customer..." [ref=e53]
+    - main [ref=e54]:
+      - generic [ref=e55]:
+        - heading "Documents" [level=2] [ref=e57]
+        - generic [ref=e58]:
+          - generic [ref=e59]:
+            - combobox [ref=e60]:
+              - option "All Types" [selected]
+              - option "Customer PO"
+              - option "Company PO"
+              - option "Vendor DC"
+              - option "Vendor Invoice"
+              - option "Company DC"
+              - option "Company Invoice"
+            - combobox [ref=e61]:
+              - option "All Statuses" [selected]
+              - option "Pending Review"
+              - option "Verified"
+              - option "Extraction Failed"
+              - option "Rejected"
+              - option "Uploaded"
+              - option "Extracting"
+            - combobox [ref=e62]:
+              - option "All Customers" [selected]
+          - generic [ref=e63]:
+            - generic [ref=e64]: "Uploaded:"
+            - button "Last 7 days" [ref=e65] [cursor=pointer]
+            - button "Last 30 days" [ref=e66] [cursor=pointer]
+            - button "Custom" [ref=e67] [cursor=pointer]
+        - table [ref=e69]:
+          - rowgroup [ref=e70]:
+            - row "Type Filename Ref No PO Number Customer Status Uploaded" [ref=e71]:
+              - columnheader "Type" [ref=e72]
+              - columnheader "Filename" [ref=e73]
+              - columnheader "Ref No" [ref=e74]
+              - columnheader "PO Number" [ref=e75]
+              - columnheader "Customer" [ref=e76]
+              - columnheader "Status" [ref=e77]
+              - columnheader "Uploaded" [ref=e78]
+              - columnheader [ref=e79]
+          - rowgroup [ref=e80]:
+            - row [ref=e81]:
+              - cell [ref=e82]
+              - cell [ref=e84]
+              - cell [ref=e86]
+              - cell [ref=e88]
+              - cell [ref=e90]
+              - cell [ref=e92]
+              - cell [ref=e94]
+              - cell [ref=e96]
+            - row [ref=e98]:
+              - cell [ref=e99]
+              - cell [ref=e101]
+              - cell [ref=e103]
+              - cell [ref=e105]
+              - cell [ref=e107]
+              - cell [ref=e109]
+              - cell [ref=e111]
+              - cell [ref=e113]
+            - row [ref=e115]:
+              - cell [ref=e116]
+              - cell [ref=e118]
+              - cell [ref=e120]
+              - cell [ref=e122]
+              - cell [ref=e124]
+              - cell [ref=e126]
+              - cell [ref=e128]
+              - cell [ref=e130]
+            - row [ref=e132]:
+              - cell [ref=e133]
+              - cell [ref=e135]
+              - cell [ref=e137]
+              - cell [ref=e139]
+              - cell [ref=e141]
+              - cell [ref=e143]
+              - cell [ref=e145]
+              - cell [ref=e147]
+            - row [ref=e149]:
+              - cell [ref=e150]
+              - cell [ref=e152]
+              - cell [ref=e154]
+              - cell [ref=e156]
+              - cell [ref=e158]
+              - cell [ref=e160]
+              - cell [ref=e162]
+              - cell [ref=e164]
+            - row [ref=e166]:
+              - cell [ref=e167]
+              - cell [ref=e169]
+              - cell [ref=e171]
+              - cell [ref=e173]
+              - cell [ref=e175]
+              - cell [ref=e177]
+              - cell [ref=e179]
+              - cell [ref=e181]

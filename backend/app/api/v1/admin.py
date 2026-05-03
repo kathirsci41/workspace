@@ -1,14 +1,17 @@
 import os
 import asyncio
 import json
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text, func, select, case
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.config import settings
-from app.models import Document, DocumentStatus, DocumentMetadata, MetadataStatus, Customer, PurchaseOrder
+from app.models import Document, DocumentStatus, DocumentMetadata, MetadataStatus, Customer, PurchaseOrder, DocumentType
 from app.services.extraction.two_layer_client import check_models_available
+from app.services.extraction.pipeline import build_pipeline_from_config
+from celery_app import celery_app
 
 router = APIRouter()
 
@@ -56,6 +59,11 @@ async def _check_ollama() -> str:
 
 async def _check_models() -> str:
     try:
+        if settings.layer1_provider:
+            pipeline = build_pipeline_from_config(settings)
+            err = await pipeline.health_check()
+            return "ok" if not err else f"error: {err}"
+        # Legacy path: check Ollama model list
         if settings.ocr_two_layer_enabled:
             models_to_check = [settings.ocr_custom_model, settings.ocr_extractor_model]
         else:
@@ -148,6 +156,35 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         )
     )).one()
 
+    # Use raw SQL text to avoid asyncpg datetime codec issues with TIMESTAMP columns
+    today_pos = (await db.scalar(text(
+        "SELECT COUNT(*) FROM purchase_orders WHERE created_at >= NOW() - INTERVAL '24 hours'"
+    ))) or 0
+    prev_pos = (await db.scalar(text(
+        "SELECT COUNT(*) FROM purchase_orders"
+        " WHERE created_at >= NOW() - INTERVAL '48 hours'"
+        " AND created_at < NOW() - INTERVAL '24 hours'"
+    ))) or 0
+
+    today_docs = (await db.scalar(text(
+        "SELECT COUNT(*) FROM documents WHERE created_at >= NOW() - INTERVAL '24 hours'"
+    ))) or 0
+    prev_docs = (await db.scalar(text(
+        "SELECT COUNT(*) FROM documents"
+        " WHERE created_at >= NOW() - INTERVAL '48 hours'"
+        " AND created_at < NOW() - INTERVAL '24 hours'"
+    ))) or 0
+
+    today_verified = (await db.scalar(text(
+        "SELECT COUNT(*) FROM documents WHERE status = 'VERIFIED'"
+        " AND updated_at >= NOW() - INTERVAL '24 hours'"
+    ))) or 0
+    prev_verified = (await db.scalar(text(
+        "SELECT COUNT(*) FROM documents WHERE status = 'VERIFIED'"
+        " AND updated_at >= NOW() - INTERVAL '48 hours'"
+        " AND updated_at < NOW() - INTERVAL '24 hours'"
+    ))) or 0
+
     return {
         "total_customers":       total_customers,
         "total_purchase_orders": po_count,
@@ -159,6 +196,11 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
         "extraction_failures":   doc_row.extraction_failures,
         "pending_model":         doc_row.pending_model,
         "rejected":              doc_row.rejected,
+        "stats_delta": {
+            "total_purchase_orders": today_pos - prev_pos,
+            "total_documents":       today_docs - prev_docs,
+            "verified":              today_verified - prev_verified,
+        },
     }
 
 
@@ -166,7 +208,6 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
 async def get_queue_status():
     """Celery worker and queue depth — all inspect calls run in parallel."""
     try:
-        from celery_app import celery_app
         import concurrent.futures
 
         def _inspect_all():
@@ -221,3 +262,66 @@ async def requeue_pending_models(db: AsyncSession = Depends(get_db)):
         extract_document.delay(doc_id)
 
     return {"requeued": len(doc_ids), "document_ids": doc_ids}
+
+
+@router.post("/requeue-failed")
+async def requeue_failed_extractions(
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(5, ge=1, le=100, description="Max documents to requeue"),
+):
+    """Re-queue failed extraction documents (up to limit)."""
+    from app.services.extraction.tasks import extract_document
+
+    result = await db.execute(
+        select(Document)
+        .where(Document.status == DocumentStatus.EXTRACTION_FAILED)
+        .limit(limit)
+    )
+    docs = result.scalars().all()
+
+    doc_ids = []
+    for doc in docs:
+        doc.status = DocumentStatus.UPLOADED
+        meta_result = await db.execute(
+            select(DocumentMetadata).where(DocumentMetadata.document_id == doc.id)
+        )
+        meta = meta_result.scalar_one_or_none()
+        if meta:
+            meta.status = MetadataStatus.PENDING
+            meta.last_error = None
+            meta.extraction_attempts = 0
+        doc_ids.append(str(doc.id))
+
+    await db.commit()
+
+    for doc_id in doc_ids:
+        extract_document.delay(doc_id)
+
+    return {"requeued": len(doc_ids), "document_ids": doc_ids}
+
+
+@router.post("/backfill-cpo-refs")
+async def backfill_cpo_refs(db: AsyncSession = Depends(get_db)):
+    """Populate customer_po_ref for POs with CUSTOMER_PO documents but NULL ref."""
+    from app.schemas.extraction import _clean_ref_string
+
+    result = await db.execute(
+        select(Document)
+        .options(selectinload(Document.doc_metadata))
+        .where(
+            Document.document_type == DocumentType.CUSTOMER_PO,
+            Document.status == DocumentStatus.VERIFIED,
+        )
+    )
+    docs = result.scalars().all()
+    updated = 0
+    for doc in docs:
+        if not doc.doc_metadata or not doc.doc_metadata.primary_ref_no:
+            continue
+        po = await db.get(PurchaseOrder, doc.po_id)
+        if po and not po.customer_po_ref:
+            po.customer_po_ref = str(_clean_ref_string(doc.doc_metadata.primary_ref_no))
+            updated += 1
+
+    await db.commit()
+    return {"updated": updated}

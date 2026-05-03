@@ -1,8 +1,8 @@
 import uuid
 import enum
-from sqlalchemy import String, Integer, Enum, ForeignKey, Index, UniqueConstraint
+from sqlalchemy import String, Integer, Boolean, Enum, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from typing import TYPE_CHECKING
 
 from app.models.base import Base, TimestampMixin
@@ -20,6 +20,8 @@ class DocumentType(str, enum.Enum):
     VENDOR_INVOICE = "VENDOR_INVOICE"
     COMPANY_DC = "COMPANY_DC"
     COMPANY_INVOICE = "COMPANY_INVOICE"
+    INSTALLATION_REPORT = "INSTALLATION_REPORT"
+    VENDOR_CREDIT_NOTE = "VENDOR_CREDIT_NOTE"
 
 
 class DocumentStatus(str, enum.Enum):
@@ -67,6 +69,12 @@ class Document(TimestampMixin, Base):
         Enum(DocumentStatus), default=DocumentStatus.UPLOADED
     )
     rotation: Mapped[int] = mapped_column(Integer, default=0)
+    so_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    vpo_numbers: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=list)
+    billing_stage: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    extraction_ok: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False, server_default="true"
+    )
 
     # Relationships
     purchase_order: Mapped["PurchaseOrder"] = relationship(
@@ -80,9 +88,10 @@ class Document(TimestampMixin, Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("po_id", "document_type", "checksum", name="uq_doc_per_po_type"),
+        UniqueConstraint("po_id", "checksum", name="uq_doc_per_po"),
         Index("ix_doc_po_id", "po_id"),
         Index("ix_doc_type", "document_type"),
         Index("ix_doc_checksum", "checksum"),
         Index("ix_doc_status", "status"),
+        Index("ix_doc_so_number", "so_number"),
     )

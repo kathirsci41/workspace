@@ -1,0 +1,79 @@
+<h2>Visual direction for redesigned pages</h2>
+<p class="subtitle">Customers + PO Profile need structural redesigns. Which visual tone fits?</p>
+
+<div class="options">
+
+  <div class="option" data-choice="keep-current" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Keep current language — just restructure</h3>
+      <p>Same white cards, gray borders, blue accents, Tailwind defaults. Fix the structure and navigation without changing how the app looks. Consistent with all other pages. Fast to build.</p>
+      <div style="margin-top: 10px; display: flex; gap: 8px;">
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 14px; font-size: 12px; color: #374151;">
+          <span style="display:block;font-weight:600;color:#1e293b;margin-bottom:2px;">Customer</span>
+          <span style="color:#64748b;">SKY-AB001 · Redington India</span>
+        </div>
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 14px; font-size: 12px; color: #374151;">
+          <span style="display:block;font-weight:600;color:#2563eb;">PO-1045</span>
+          <span style="background:#dcfce7;color:#166534;padding:1px 6px;border-radius:10px;font-size:11px;">Complete</span>
+        </div>
+      </div>
+      <div style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap;">
+        <span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:20px;">Consistent with app</span>
+        <span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:20px;">Faster to build</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="elevate" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Elevate the design — more polished</h3>
+      <p>Richer cards with color accents, better data density, subtle shadows and gradients. The two redesign pages become the visual benchmark — other pages get lifted to match over time.</p>
+      <div style="margin-top: 10px; display: flex; gap: 8px;">
+        <div style="background: linear-gradient(135deg,#1e40af,#1d4ed8); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: white;">
+          <span style="display:block;font-weight:700;margin-bottom:2px;">Redington India</span>
+          <span style="opacity:0.8;font-size:11px;">14 POs · ₹28.4L total value</span>
+        </div>
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+          <span style="display:block;font-weight:600;color:#1e293b;margin-bottom:4px;">PO-1045</span>
+          <div style="display:flex;gap:4px;align-items:center;">
+            <div style="height:4px;width:60px;background:#e2e8f0;border-radius:2px;overflow:hidden;"><div style="width:100%;height:100%;background:#22c55e;"></div></div>
+            <span style="font-size:11px;color:#166534;font-weight:600;">100%</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap;">
+        <span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:20px;">More professional look</span>
+        <span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:20px;">Slightly more work</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Hybrid — elevate data density, keep neutrals</h3>
+      <p>Keep the white/gray/blue palette but improve how information is laid out — better use of space, tighter grids, stronger visual hierarchy. No flashy gradients, but noticeably more polished than today.</p>
+      <div style="margin-top: 10px;">
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; font-size: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-weight:700;color:#0f172a;font-size:14px;">Redington India</span>
+            <span style="font-size:11px;background:#f1f5f9;color:#475569;padding:2px 8px;border-radius:6px;font-weight:600;">SKY-AB001</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;">
+            <div><span style="display:block;font-size:18px;font-weight:700;color:#0f172a;">14</span><span style="font-size:11px;color:#94a3b8;">POs</span></div>
+            <div><span style="display:block;font-size:18px;font-weight:700;color:#0f172a;">₹28L</span><span style="font-size:11px;color:#94a3b8;">Value</span></div>
+            <div><span style="display:block;font-size:18px;font-weight:700;color:#22c55e;">86%</span><span style="font-size:11px;color:#94a3b8;">Complete</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap;">
+        <span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:20px;">My recommendation</span>
+        <span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:20px;">Consistent palette</span>
+        <span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:20px;">Noticeably better</span>
+      </div>
+    </div>
+  </div>
+
+</div>

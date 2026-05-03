@@ -1,23 +1,25 @@
-# Document Processing Platform (DPP) — v2.2.0
+# Document Processing Platform (DPP) — v2.5.0
 
 PO-centric logistics document management with two-layer AI extraction.
-Handles the full document chain — Customer PO, Company PO, Vendor DC, Vendor Invoice, Company DC, Company Invoice — grouped under each Purchase Order with chain completeness tracking.
+Handles the full document chain — Customer PO, Company PO, Vendor DC, Vendor Invoice, Company DC, Company Invoice — grouped under each Purchase Order with scenario-aware chain completeness tracking.
 
 ---
 
 ## Architecture
 
 | Component | Technology | Port |
-|-----------|------------|------|
+| ----------- | ------------ | ---- |
 | Backend | FastAPI (Python 3.12) | 8000 |
-| Frontend | React 18 + Vite + TypeScript | 5173 |
-| Database | PostgreSQL 16 | 5433 |
-| Cache / Broker | Redis 7 | 6379 |
+| Frontend | React 18 + Vite + TypeScript | 5174 |
+| Database | PostgreSQL 16 | 5434 |
+| Cache / Broker | Redis 7 | 6380 |
 | Task Queue | Celery (solo pool) | — |
 | OCR — Layer 1 | Ollama + `glm-ocr:latest` | 11434 |
 | OCR — Layer 2 | Ollama + `qwen2.5:7b` | 11434 |
 
 **OCR endpoint:** RunPod remote (`https://<id>.proxy.runpod.net/`) or local Ollama at `http://localhost:11434`
+
+**Current architecture docs:** see [`docs/architecture/README.md`](docs/architecture/README.md) for the maintained current-state architecture set. Some older repo docs and version labels are behind the current codebase.
 
 ---
 
@@ -25,15 +27,26 @@ Handles the full document chain — Customer PO, Company PO, Vendor DC, Vendor I
 
 - **Customer and PO management** — CRUD with status tracking and chain completeness score
 - **Two-layer AI extraction** — `glm-ocr` converts document to Markdown, `qwen2.5:7b` extracts structured JSON
-- **Document chain** — 6 document types per PO with 0.0–1.0 completeness score
+- **Scenario-aware document chain** — Chain requirements differ by order type (Stock / Procurement / Drop-Ship / Service AMC). Completeness is calculated against scenario-specific required docs only.
+- **GST type auto-detection** — IGST/CGST+SGST automatically inferred from supplier vs company state; overridable per PO
+- **Invoice split flag** — Mark POs where a single customer PO maps to multiple vendor invoices
+- **Manual order closure** — "Complete" button lets managers close orders with a note when chain is operationally done but documents are incomplete. One-way — cannot be undone from UI.
+- **Cross-document item comparison** — Side-by-side COMPANY_PO vs VENDOR_DC item grid with qty match, part number match, and price match (2% tolerance)
+- **AI item description linking** — LLM matches customer item descriptions to vendor part numbers (cached 1h in Redis)
+- **Address parser** — Structured address search across delivery locations
 - **SO number validation** — COMPANY_DC and COMPANY_INVOICE auto-validated against stored SO number
 - **Human review workflow** — Operators verify or correct extracted fields with full audit trail
+- **Operator remarks + custom fields** — Free-text notes and ad-hoc fields per document, persisted in extracted data
+- **PDF viewer** — In-browser viewer with scroll/pinch zoom, Ctrl+scroll, rotate (per document), download
+- **Global toast notifications** — Real-time feedback for extraction, verification, network errors, service outages
+- **NAS error handling** — Upload fails fast with a clear message if storage is unreachable
+- **Collapsible sidebar** — Icon-only by default, expands on demand
 - **Filter system (PO List)** — Date range, SO search, chain completeness, missing doc type, sort options
 - **Documents page** — Cross-PO document search by type, status, customer, date range
-- **Admin console** — Live system health, pipeline counters, extraction failure table, Celery queue status
+- **Admin console** — Live system health, pipeline counters, Celery queue status, model requeue
 - **Search** — Global full-text search + reference number lookup across all extracted data
-- **PDF preview** — In-browser viewer with page rotation and download
 - **Re-extraction** — Re-run OCR on any document without losing manual corrections
+- **PENDING_MODEL status** — Documents held when AI model is offline, auto-requeued when service recovers
 
 ---
 
@@ -96,7 +109,15 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173
+Open <http://localhost:5174>
+
+### Windows one-command startup
+
+```powershell
+.\start.ps1
+```
+
+Starts Docker infra, backend, Celery worker, and frontend dev server. Streams logs from `logs/app.log` and `logs/celery.log` in real time.
 
 ---
 
@@ -105,23 +126,25 @@ Open http://localhost:5173
 Copy `.env.example` to `.env` and adjust. Key settings:
 
 | Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `...@localhost:5433/docplatform` | Async PostgreSQL connection |
-| `SYNC_DATABASE_URL` | `...@localhost:5433/docplatform` | Sync connection for Alembic |
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis broker URL |
-| `NAS_BASE_PATH` | `./storage/documents` | Document file storage root |
+| ---------- | ------- | ----------- |
+| `DATABASE_URL` | `...@localhost:5434/docplatform` | Async PostgreSQL connection |
+| `SYNC_DATABASE_URL` | `...@localhost:5434/docplatform` | Sync connection for Alembic / Celery |
+| `REDIS_URL` | `redis://localhost:6380/0` | Redis broker URL |
+| `NAS_BASE_PATH` | `./storage/documents` | Document file storage root (NAS mount or local) |
 | `OCR_BASE_URL` | `http://localhost:11434` | Ollama endpoint (local or RunPod) |
 | `OCR_MODEL_NAME` | `glm-ocr:latest` | Layer 1 OCR model |
 | `OCR_TWO_LAYER_ENABLED` | `true` | Enable two-layer pipeline |
 | `OCR_EXTRACTOR_BASE_URL` | same as `OCR_BASE_URL` | Layer 2 model endpoint |
 | `OCR_EXTRACTOR_MODEL` | `qwen2.5:7b` | Layer 2 extraction model |
 | `OCR_EXTRACTOR_NUM_CTX` | `8192` | Context window for Layer 2 |
-| `OCR_TIMEOUT` | `120` | Seconds per OCR request |
+| `OCR_TIMEOUT` | `1200` | Seconds per OCR request |
 | `OCR_PDF_DPI` | `200` | PDF-to-image render DPI |
 | `OCR_MAX_PAGES` | `10` | Max pages per document |
 | `OCR_SAVE_DEBUG_MARKDOWN` | `false` | Save raw OCR output to disk |
-| `CORS_ORIGINS` | `http://localhost:5173` | Allowed frontend origins |
+| `CORS_ORIGINS` | `["http://localhost:5174"]` | Allowed frontend origins |
 | `DEBUG` | `false` | FastAPI debug mode |
+| `COMPANY_STATE` | `""` | Company state name for GST auto-detection (e.g. `"Tamil Nadu"`) |
+| `OCR_EXTRACTOR_CA_BUNDLE` | `""` | Path to CA bundle for TLS verification of OCR extractor (leave empty = system default) |
 
 ---
 
@@ -132,7 +155,7 @@ DPP 2.2.0/
 ├── backend/
 │   ├── app/
 │   │   ├── api/v1/            # FastAPI route handlers
-│   │   │   ├── admin.py       # Health, stats, queue
+│   │   │   ├── admin.py       # Health, stats, queue, requeue
 │   │   │   ├── customers.py
 │   │   │   ├── documents.py
 │   │   │   ├── extraction.py
@@ -145,25 +168,42 @@ DPP 2.2.0/
 │   │   │   │   ├── tasks.py   # Celery extraction task
 │   │   │   │   ├── ocr_client.py
 │   │   │   │   ├── prompts.py
-│   │   │   │   ├── parser.py
+│   │   │   │   ├── response_parser.py
 │   │   │   │   └── so_validator.py
-│   │   │   └── po_service.py
+│   │   │   ├── storage_service.py  # NAS file I/O + availability check
+│   │   │   ├── item_matcher.py     # AI description → part number matching
+│   │   │   ├── address_parser.py   # Structured address search
+│   │   │   └── po_service.py       # PO profile, item comparison, chain logic
 │   │   ├── config.py          # Settings (pydantic-settings)
+│   │   ├── database.py        # Async + sync engines, connection pooling
 │   │   └── main.py            # FastAPI app entry
-│   ├── celery_app.py          # Celery configuration
+│   ├── alembic/versions/      # DB migrations (6 versions)
+│   ├── celery_app.py          # Celery configuration + task signals
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
 │   │   ├── api/               # Axios API functions
 │   │   ├── components/        # Shared React components
-│   │   │   └── layout/        # AppShell, navigation
+│   │   │   ├── PDFViewer.tsx  # PDF viewer (zoom, rotate, scroll)
+│   │   │   ├── ReviewModal.tsx
+│   │   │   ├── PDFPreviewPanel.tsx
+│   │   │   └── layout/        # AppShell, collapsible sidebar
+│   │   ├── context/
+│   │   │   └── ToastContext.tsx  # Global toast notifications
 │   │   ├── hooks/             # TanStack Query hooks
 │   │   ├── pages/             # Route pages (7 pages)
 │   │   └── App.tsx
 │   └── package.json
-├── storage/                   # Local document storage
-├── docker-compose.dev.yml
-├── PDD.md                     # Product Design Document
+├── nginx/
+│   └── nginx.conf             # Reverse proxy config
+├── storage/                   # Local document storage (dev fallback)
+├── logs/                      # Runtime log files (app, celery, ai, db)
+├── docker-compose.dev.yml     # Dev infra (postgres + redis only)
+├── docker-compose.prod.yml    # Full production stack (6 services)
+├── docs/
+│   ├── PDD.md                 # Business Product Design Document
+│   └── task-sheet.md          # Session-by-session task log
+├── PDD.md                     # Technical Product Design Document
 ├── .env.example
 └── .env                       # Local config (git-ignored)
 ```
@@ -175,83 +215,94 @@ DPP 2.2.0/
 ### Customers
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+| -------- | ---------- | ----------- |
 | GET | `/api/v1/customers` | List with pagination and search |
 | POST | `/api/v1/customers` | Create customer |
 | GET | `/api/v1/customers/{id}` | Customer detail |
 | PATCH | `/api/v1/customers/{id}` | Update customer |
-| DELETE | `/api/v1/customers/{id}` | Delete customer |
 | GET | `/api/v1/customers/{id}/purchase-orders` | Customer's PO list |
-
+| 
 ### Purchase Orders
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+| -------- | ---------- | ----------- |
 | GET | `/api/v1/purchase-orders` | List with filters (date, SO, chain, doc gap, sort) |
 | POST | `/api/v1/purchase-orders` | Create PO |
 | GET | `/api/v1/purchase-orders/{id}` | PO detail with chain status |
 | PATCH | `/api/v1/purchase-orders/{id}` | Update PO including SO number |
 | DELETE | `/api/v1/purchase-orders/{id}` | Delete PO and all documents |
+| GET | `/api/v1/purchase-orders/{id}/chain-status` | Chain completeness per slot |
+| POST | `/api/v1/purchase-orders/{id}/documents` | Upload document to a PO |
+| GET | `/api/v1/purchase-orders/{id}/documents` | List documents for a PO |
+| POST | `/api/v1/purchase-orders/{id}/close` | Manually close/complete an order with optional note |
 
 ### Documents
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+| -------- | ---------- | ----------- |
 | GET | `/api/v1/documents` | List with filters (type, status, customer, date) |
-| POST | `/api/v1/documents/upload` | Upload document to a PO |
 | GET | `/api/v1/documents/{id}` | Document detail with metadata |
 | DELETE | `/api/v1/documents/{id}` | Delete document |
-| GET | `/api/v1/documents/{id}/preview` | In-browser preview |
+| GET | `/api/v1/documents/{id}/preview` | In-browser preview (streaming) |
 | GET | `/api/v1/documents/{id}/download` | Download original file |
-| POST | `/api/v1/documents/{id}/rotate` | Rotate pages |
+| POST | `/api/v1/documents/{id}/rotate` | Rotate document pages |
 
 ### Extraction
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/metadata-template/{doc_type}` | Empty schema for manual entry |
-| POST | `/api/v1/documents/{id}/extract/manual` | Submit manually entered data |
-| POST | `/api/v1/documents/{id}/extract/reextract` | Re-trigger extraction |
-| POST | `/api/v1/documents/{id}/verify` | Operator verifies extracted data |
-| POST | `/api/v1/documents/{id}/reject` | Reject — marks for re-upload |
-| PATCH | `/api/v1/documents/{id}/corrections` | Save field-level corrections |
+| -------- | ---------- | ----------- |
+| GET | `/api/v1/documents/{id}/metadata/template` | Empty schema for manual entry |
+| POST | `/api/v1/documents/{id}/metadata/manual` | Submit manually entered data |
+| POST | `/api/v1/documents/{id}/re-extract` | Re-trigger extraction (version-safe) |
+| GET | `/api/v1/documents/{id}/metadata` | Get extracted metadata |
+| PUT | `/api/v1/documents/{id}/metadata/verify` | Operator verifies extracted data |
+| PUT | `/api/v1/documents/{id}/metadata/reject` | Reject — marks for re-upload |
+| POST | `/api/v1/documents/{id}/corrections` | Save field-level corrections (audit trail) |
 
 ### Search
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+| -------- | ---------- | ----------- |
 | GET | `/api/v1/search` | Full-text search |
-| GET | `/api/v1/search/reference/{ref}` | Reference number lookup |
+| GET | `/api/v1/search/by-ref/{ref}` | Reference number exact lookup |
 | GET | `/api/v1/search/advanced` | Filtered multi-param search |
 
 ### Admin
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/admin/health` | DB / Redis / Ollama / Storage status |
+| -------- | ---------- | ----------- |
+| GET | `/api/v1/admin/health` | DB / Redis / Ollama / Storage status (cached 30s) |
 | GET | `/api/v1/admin/stats` | Document and PO counts by all statuses |
 | GET | `/api/v1/admin/queue` | Celery worker count + active and queued tasks |
+| POST | `/api/v1/admin/requeue-pending-models` | Re-enqueue PENDING_MODEL documents |
 
 ---
 
 ## Extraction Pipeline
 
 ```text
-Document upload (PDF / PNG / TIFF)
+Document upload (PDF only)
+        |
+        v
+NAS availability check — fail fast with 503 if storage unreachable
         |
         v
 Celery task — async (non-blocking)
         |
         v
-Layer 1: glm-ocr:latest
-  Pages converted to images (PyMuPDF, 200 DPI)
-  Each page sent to Ollama vision model
-  Output: raw Markdown preserving tables and layout
+Pre-flight: model/endpoint check
+  If model unavailable → status PENDING_MODEL (held, retried when service recovers)
         |
         v
-Layer 2: qwen2.5:7b
-  Markdown + document-type-specific JSON schema prompt
-  Output: structured JSON with all extracted fields
+Hybrid router — digital vs scanned detection
+        |
+        +─ Digital path (no GPU): PyMuPDF text extraction → Layer 2 structuring
+        |
+        +─ Scanned path:
+              PDF → images (Ghostscript, 200 DPI)
+              OpenCV preprocessing (grayscale, contrast, deskew)
+              Layer 1: glm-ocr:latest — image → Markdown
+              Layer 2: qwen2.5:7b — Markdown → structured JSON
         |
         v
 Validation
@@ -264,7 +315,7 @@ Document status → PENDING_REVIEW
 Operator reviews, corrects, and verifies
 ```
 
-**On failure:** exception string saved to `DocumentMetadata.last_error`, status set to `EXTRACTION_FAILED`, partial data preserved.
+**On failure:** exception saved to `DocumentMetadata.last_error`, status → `EXTRACTION_FAILED`, partial data preserved.
 
 ---
 
@@ -272,9 +323,11 @@ Operator reviews, corrects, and verifies
 
 ```text
 UPLOADED → EXTRACTING → PENDING_REVIEW → VERIFIED
-                      |
-                      +→ EXTRACTION_FAILED
-                      +→ REJECTED
+               |                |
+               |                +→ REJECTED
+               |
+               +→ EXTRACTION_FAILED
+               +→ PENDING_MODEL  (model offline — retried on requeue)
 ```
 
 ---
@@ -290,6 +343,30 @@ UPLOADED → EXTRACTING → PENDING_REVIEW → VERIFIED
 | `/customers` | Customer management |
 | `/search` | Global search |
 | `/admin` | System health + pipeline monitoring |
+
+---
+
+## Branches
+
+| Branch | Purpose |
+| -------- | ------- |
+| `master` | Stable production baseline |
+| `staging` | Demo-ready — frozen at DPP-2.4.0 |
+| `development` | Active development (v2.5.0) |
+
+---
+
+## Changelog
+
+### v2.5.0 (2026-04-07)
+- Scenario-aware chain completeness (Stock / Procurement / Drop-Ship / Service AMC)
+- GST type auto-detection (IGST/CGST+SGST) from company state config
+- Invoice split flag per PO
+- Manual order closure with one-way semantics and completion note
+- Cross-document item comparison grid (qty, part number, price with 2% tolerance)
+- AI item description → part number matching (LLM + Redis cache)
+- Address parser service
+- **Fixes:** completeness count restricted to scenario-required docs only (was inflating >100%); manually-closed orders now immune to chain recalculation; TLS verification enabled for LLM calls (`verify=False` removed); `price_match` now compares actual prices, not part numbers
 
 ---
 

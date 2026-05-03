@@ -1,14 +1,25 @@
 from uuid import UUID
 from datetime import date
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response as FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
+from typing import Optional
+from pydantic import BaseModel
 from app.schemas.purchase_order import (
     POCreate, POUpdate, POResponse, POListResponse, ChainStatusResponse,
+    SONumberUpdate,
 )
+from app.schemas.po_profile import POProfileResponse
 from app.schemas.document import DocumentResponse, DocumentListResponse
+from app.models.purchase_order import PurchaseOrder
+from app.models.document import Document, DocumentType
 from app.services import po_service
+from app.services import export_service
+from app.services.chain_validator import compute_chain_status
+from app.schemas.extraction import _clean_ref_string
 
 router = APIRouter()
 
@@ -89,6 +100,167 @@ async def update_po(
     return resp
 
 
+@router.patch("/{po_id}/so-number", response_model=POResponse)
+async def update_so_number(
+    po_id: UUID,
+    body: SONumberUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Update SO number and return the full updated PO."""
+    po = await db.get(
+        PurchaseOrder,
+        po_id,
+        options=[selectinload(PurchaseOrder.documents)],
+    )
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    po.so_number = body.so_number.strip() or None
+    await db.commit()
+    await db.refresh(po)
+    resp = POResponse.model_validate(po)
+    if po.customer:
+        resp.customer_name = po.customer.name
+        resp.customer_sky_id = po.customer.customer_id
+    return resp
+
+
+@router.get("/{po_id}/chain")
+async def get_chain_status_v2(
+    po_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Compute and return current chain validation status for a PO."""
+    po = await db.get(
+        PurchaseOrder,
+        po_id,
+        options=[selectinload(PurchaseOrder.documents).selectinload(Document.doc_metadata)],
+    )
+    if not po:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+
+    # VPO numbers: from COMPANY_PO documents' extracted vpo_numbers field
+    vpo_numbers = []
+    for doc in po.documents:
+        if doc.document_type == DocumentType.COMPANY_PO and doc.vpo_numbers:
+            vpo_numbers.extend(doc.vpo_numbers)
+
+    def _invoice_amount(doc: Document) -> float:
+        """Get total_amount for a COMPANY_INVOICE, falling back to extracted_data."""
+        if not doc.doc_metadata:
+            return 0.0
+        if doc.doc_metadata.total_amount:
+            return float(doc.doc_metadata.total_amount)
+        ed = doc.doc_metadata.extracted_data or {}
+        raw = _clean_ref_string(ed.get("total_amount") or ed.get("grand_total"))
+        if raw is not None:
+            try:
+                return float(str(raw).replace(",", "").strip())
+            except (ValueError, TypeError):
+                pass
+        return 0.0
+
+    # Invoiced total: sum of COMPANY_INVOICE metadata total_amount
+    invoiced_total = sum(
+        _invoice_amount(doc)
+        for doc in po.documents
+        if doc.document_type == DocumentType.COMPANY_INVOICE and doc.doc_metadata
+    )
+
+    def _ed(doc: Document, key: str):
+        """Safe getter for extracted_data fields. Unwraps legacy confidence dicts."""
+        if doc.doc_metadata and doc.doc_metadata.extracted_data:
+            val = doc.doc_metadata.extracted_data.get(key)
+            return _clean_ref_string(val)
+        return None
+
+    docs_payload = [
+        {
+            "id": str(doc.id),
+            "document_type": doc.document_type,
+            "so_number": doc.so_number,
+            "vpo_numbers": doc.vpo_numbers or [],
+            "extraction_ok": doc.extraction_ok,
+            "cpo_ref": _clean_ref_string(doc.doc_metadata.po_ref_no) if doc.doc_metadata else None,
+            "ref_no": doc.doc_metadata.primary_ref_no if doc.doc_metadata else None,
+            "billing_stage": doc.billing_stage,
+            "amount": _invoice_amount(doc) if doc.document_type == DocumentType.COMPANY_INVOICE else float(doc.doc_metadata.total_amount or 0) if doc.doc_metadata else 0,
+            "delivery_address": _ed(doc, "delivery_address"),
+            "customer_gstin": _ed(doc, "customer_gstin"),
+            "vendor_gstin":   _ed(doc, "vendor_gstin"),
+            "customer_name":  _ed(doc, "customer_name"),
+            "vendor_name":    _ed(doc, "vendor_name"),
+            "serial_numbers": _ed(doc, "serial_numbers") or [],
+            "dc_number": (
+                _clean_ref_string(doc.doc_metadata.primary_ref_no)
+                if doc.doc_metadata and doc.document_type in (
+                    DocumentType.COMPANY_DC, DocumentType.VENDOR_DC
+                )
+                else None
+            ),
+            "dc_reference": _ed(doc, "dc_reference"),
+            "po_reference": _ed(doc, "po_reference"),
+            "doc_date": doc.doc_metadata.doc_date if doc.doc_metadata else None,
+            "order_items": _ed(doc, "order_items") or [],
+        }
+        for doc in po.documents
+    ]
+
+    result = compute_chain_status(
+        scenario=po.order_scenario,
+        po_number=po.po_number,
+        so_number=po.so_number,
+        po_total=float(po.total_amount) if po.total_amount else None,
+        billing_type=po.billing_type,
+        billing_milestones=po.billing_milestones or [],
+        vpo_numbers=vpo_numbers,
+        documents=docs_payload,
+        requires_install_report=po.requires_install_report,
+        invoiced_total=invoiced_total,
+        customer_po_ref=po.customer_po_ref,
+    )
+
+    # Fall back to stored chain_completeness when scenario produces no required slots
+    if result["completeness_pct"] == 0 and po.chain_completeness:
+        result["completeness_pct"] = int(po.chain_completeness)
+
+    # Always expose invoiced_total so frontend can show "Billed So Far" for full billing
+    result["billing"]["invoiced_total"] = invoiced_total
+
+    # Update chain_status on PO in the background (best-effort, non-blocking)
+    try:
+        po.chain_status = result["chain_status"]
+        await db.commit()
+    except Exception:
+        await db.rollback()
+
+    return result
+
+
+class CloseOrderRequest(BaseModel):
+    note: Optional[str] = None
+
+
+@router.post("/{id}/close", response_model=POResponse)
+async def close_order(
+    id: UUID,
+    body: CloseOrderRequest = CloseOrderRequest(),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually close a PO — marks order as completed. One-way operation."""
+    from app.models.purchase_order import ChainStatus
+    po = await po_service.close_order(db, id, body.note)
+    resp = POResponse.model_validate(po)
+    if po.customer:
+        resp.customer_name = po.customer.name
+        resp.customer_sky_id = po.customer.customer_id
+    if po.chain_status == ChainStatus.MISMATCH:
+        from fastapi.responses import JSONResponse
+        data = resp.model_dump(mode="json")
+        data["_warning"] = "Order closed with unresolved reference mismatches. Review chain validation before dispatch."
+        return JSONResponse(content=data)
+    return resp
+
+
 @router.delete("/{id}", status_code=204)
 async def delete_po(
     id: UUID,
@@ -105,9 +277,35 @@ async def get_chain_status(
     return await po_service.get_chain_status(db, id)
 
 
+@router.get("/{id}/profile", response_model=POProfileResponse)
+async def get_po_profile(
+    id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    return await po_service.get_po_profile(db, id)
+
+
+@router.get("/{id}/export")
+async def export_po_excel(
+    id: UUID,
+    mode: str = Query("separate"),
+    db: AsyncSession = Depends(get_db),
+):
+    excel_bytes = await export_service.export_po_to_excel(db, id, mode=mode)
+    profile = await po_service.get_po_profile(db, id)
+    safe_number = profile.po_number.replace("/", "-").replace(" ", "_")
+    suffix = "_consolidated" if mode == "single" else ""
+    filename = f"PO_{safe_number}{suffix}_{date.today().isoformat()}.xlsx"
+    return FileResponse(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 # === Document upload nested under PO ===
 
-from fastapi import UploadFile, File, Form, HTTPException
+from fastapi import UploadFile, File, Form
 from pathlib import Path
 from app.schemas.document import DocumentUploadResponse, DocumentResponse, DocumentListResponse
 from app.schemas.extraction import ExtractionResponse
@@ -128,7 +326,7 @@ def validate_upload_file(filename: str, content_type: str) -> None:
     Phone photos must be converted to PDF before uploading.
     """
     ext = Path(filename).suffix.lower()
-    if ext not in ALLOWED_EXTENSIONS or content_type not in ALLOWED_MIME_TYPES:
+    if ext not in ALLOWED_EXTENSIONS and content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=415,
             detail=(
@@ -185,6 +383,9 @@ def _build_doc_response(doc) -> DocumentResponse:
     )
     if doc.purchase_order:
         resp.po_number = doc.purchase_order.po_number
+        resp.po_so_number = doc.purchase_order.so_number
+        if doc.purchase_order.customer:
+            resp.customer_name = doc.purchase_order.customer.name
     if doc.doc_metadata:
         resp.metadata = ExtractionResponse.model_validate(doc.doc_metadata)
     return resp

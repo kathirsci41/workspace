@@ -1,0 +1,107 @@
+<h2>Two-branch implementation plan</h2>
+<p class="subtitle">13 features + all UX fixes split across two branches. Does this grouping look right?</p>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 8px;">
+
+  <!-- Branch 1 -->
+  <div style="background: white; border: 2px solid #3b82f6; border-radius: 12px; overflow: hidden;">
+    <div style="background: #3b82f6; padding: 14px 18px;">
+      <div style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Branch 1 — Ships first</div>
+      <div style="font-size: 18px; font-weight: 700; color: white;">feature/ux-quick-wins</div>
+      <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px;">All 6 "needs fixes" pages + global polish</div>
+    </div>
+    <div style="padding: 16px 18px; space-y: 10px;">
+
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;">AppShell / Global</div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;">Sidebar default open for first visit</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;">Rename "Admin" → "System" (icon change)</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;"><strong>Breadcrumbs</strong> on PO Detail + PO Profile</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;"><strong>Toast notifications</strong> extended to all pages</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;"><strong>Empty states with CTAs</strong> across all pages</span></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;">Dashboard</div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;"><strong>Quick action bar</strong> (Create PO, Upload, Review)</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;"><strong>Stats with trends</strong> (↑3 since yesterday)</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;"><strong>Document status donut</strong> chart</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;"><strong>SLA aging alerts</strong> (stale PENDING_REVIEW)</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;">Review queue: deep-link to review modal directly</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;">Add total_documents stat card</span></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;">PO List, Documents, Search</div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;">PO List: fix chain bar size, fix customer name spacing</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;">Documents: add ref number column + direct Review action</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;">Search: URL state for tab + advanced filter params</span></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;">PO Detail + Review Modal</div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;"><strong>Chain complete banner</strong> at 100%</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;">Clearer upload affordance for empty slots</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#22c55e;font-size:14px;line-height:1.4;">✓</span><span style="font-size:12px;color:#374151;"><strong>Keyboard shortcuts</strong> in Review Modal (V / R / Esc)</span></div>
+        </div>
+      </div>
+
+    </div>
+    <div style="padding: 10px 18px 14px; border-top: 1px solid #e2e8f0;">
+      <span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:3px 10px;border-radius:20px;font-weight:600;">~18 changes · 1 branch · ships fast</span>
+    </div>
+  </div>
+
+  <!-- Branch 2 -->
+  <div style="background: white; border: 2px solid #8b5cf6; border-radius: 12px; overflow: hidden;">
+    <div style="background: #8b5cf6; padding: 14px 18px;">
+      <div style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;">Branch 2 — Redesigns</div>
+      <div style="font-size: 18px; font-weight: 700; color: white;">feature/page-redesigns</div>
+      <div style="font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px;">Customers + PO Profile — structural overhaul</div>
+    </div>
+    <div style="padding: 16px 18px;">
+
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;">Customers Page — Redesign</div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#8b5cf6;font-size:14px;line-height:1.4;">◆</span><span style="font-size:12px;color:#374151;">Replace GST/Email columns with PO count + total value + chain health %</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#8b5cf6;font-size:14px;line-height:1.4;">◆</span><span style="font-size:12px;color:#374151;">Clear row affordance — chevron icon + tooltip "Click to view customer"</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#8b5cf6;font-size:14px;line-height:1.4;">◆</span><span style="font-size:12px;color:#374151;"><strong>New: Customer Detail Page</strong> at /customers/:id</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#8b5cf6;font-size:14px;line-height:1.4;">◆</span><span style="font-size:12px;color:#374151;">Detail page: summary cards (PO count, value, health), recent POs list, contact + GST panel</span></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;">PO Profile — Redesign</div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#8b5cf6;font-size:14px;line-height:1.4;">◆</span><span style="font-size:12px;color:#374151;"><strong>Sticky section sidebar nav</strong> — jump to any of 8 sections</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#8b5cf6;font-size:14px;line-height:1.4;">◆</span><span style="font-size:12px;color:#374151;">Restructure dense header — split into Overview + Settings rows</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#8b5cf6;font-size:14px;line-height:1.4;">◆</span><span style="font-size:12px;color:#374151;">Make scenario selector visually prominent (it drives chain logic)</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#8b5cf6;font-size:14px;line-height:1.4;">◆</span><span style="font-size:12px;color:#374151;"><strong>Side-by-side doc comparison</strong> — pick any 2 docs, compare fields</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#8b5cf6;font-size:14px;line-height:1.4;">◆</span><span style="font-size:12px;color:#374151;"><strong>Print/PDF export</strong> — clean print layout of full profile</span></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;"><span style="color:#8b5cf6;font-size:14px;line-height:1.4;">◆</span><span style="font-size:12px;color:#374151;">Collapsible sections with last-modified timestamps</span></div>
+        </div>
+      </div>
+
+      <div style="padding: 12px; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px; margin-top: 8px;">
+        <p style="font-size: 12px; color: #6b21a8; margin: 0;"><strong>New route needed:</strong> <code style="background:#ede9fe;padding:1px 5px;border-radius:3px;">/customers/:id</code> — backend endpoint <code style="background:#ede9fe;padding:1px 5px;border-radius:3px;">GET /api/v1/customers/:id</code> already exists ✓</p>
+      </div>
+
+    </div>
+    <div style="padding: 10px 18px 14px; border-top: 1px solid #e2e8f0;">
+      <span style="font-size:11px;background:#ede9fe;color:#6b21a8;padding:3px 10px;border-radius:20px;font-weight:600;">~10 changes · 1 branch · ships after</span>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top: 20px; padding: 14px 18px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+  <p style="font-size: 13px; color: #374151; margin: 0;"><strong>Does this split look right?</strong> Respond in the terminal — any changes to which branch a feature goes into, or anything missing?</p>
+</div>

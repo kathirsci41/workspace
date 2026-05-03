@@ -5,7 +5,6 @@ Runs after field extraction, before persistence.
 Catches financial errors before they reach the ERP.
 """
 import logging
-import re
 from datetime import date, timedelta
 from typing import Optional
 

@@ -11,8 +11,9 @@ GPU cost: zero
 """
 
 import logging
-from typing import Optional
+import re
 import fitz  # PyMuPDF
+import pdfplumber
 
 logger = logging.getLogger(__name__)
 
@@ -91,10 +92,87 @@ class DigitalExtractor:
             logger.warning(f"PDF detection failed, defaulting to OCR: {e}")
             return False
 
+    # Boilerplate fragments that pdfplumber injects into table cells when a
+    # disclaimer/note block is physically adjacent to the items table.
+    # Each pattern matches from the fragment onwards — truncate there.
+    _CELL_BOILERPLATE_RE = re.compile(
+        r'NOTE:.*'
+        r'|Certified that all the.*'
+        r'|nvoice are true\b.*'
+        r'|entioned in Clau.*'
+        r'|tands revise.*'
+        r'|rdue payments.*'
+        r'|se\.\s*14 of this.*'
+        r'|num with effect.*'
+        r'|from 01 Decembe.*'
+        r'|tion under\s+\d.*'
+        r'|ales\.html.*'
+        r'|AndConditions.*'
+        r'|ril-edi\..*'
+        r'|\b480000\b.*',           # phone number fragment (044-43-480000)
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+
+    @classmethod
+    def _clean_cell(cls, text: str) -> str:
+        """Strip boilerplate disclaimer fragments from a single table cell."""
+        return cls._CELL_BOILERPLATE_RE.sub("", text).strip()
+
+    @classmethod
+    def _format_table_as_markdown(cls, table: list[list]) -> str:
+        """Format a pdfplumber table as a markdown table string."""
+        if not table or not table[0]:
+            return ""
+        rows = []
+        for row in table:
+            cells = [
+                cls._clean_cell(str(cell or "").replace("\n", " ").strip())
+                for cell in row
+            ]
+            rows.append("| " + " | ".join(cells) + " |")
+        if len(rows) >= 1:
+            separator = "| " + " | ".join(["---"] * len(table[0])) + " |"
+            return rows[0] + "\n" + separator + "\n" + "\n".join(rows[1:])
+        return "\n".join(rows)
+
+    @staticmethod
+    def _prose_outside_tables(plumber_page) -> str:
+        """Extract text from page areas that are NOT inside any table.
+
+        Uses word centre-points vs table bounding boxes to decide membership.
+        Words whose centre falls inside a table bbox are excluded — they are
+        already captured by the table markdown. Remaining words are sorted by
+        reading order (top bucket → x0) and joined as a plain string.
+        """
+        table_objs = plumber_page.find_tables()
+        if not table_objs:
+            return ""
+
+        table_bboxes = [t.bbox for t in table_objs]  # (x0, top, x1, bottom)
+
+        outside_words = []
+        for word in plumber_page.extract_words():
+            cx = (word["x0"] + word["x1"]) / 2
+            cy = (word["top"] + word["bottom"]) / 2
+            in_table = any(
+                tx0 <= cx <= tx1 and ttop <= cy <= tbot
+                for tx0, ttop, tx1, tbot in table_bboxes
+            )
+            if not in_table:
+                outside_words.append(word)
+
+        if not outside_words:
+            return ""
+
+        outside_words.sort(key=lambda w: (round(w["top"] / 5) * 5, w["x0"]))
+        return " ".join(w["text"] for w in outside_words)
+
     def extract(self, pdf_path: str, max_pages: int = 10) -> DigitalExtractionResult:
         """
         Full extraction from a digital PDF.
         Returns text blocks with bounding boxes, ready for LayoutLMv3.
+        Uses pdfplumber for pages that contain tables (preserves column structure),
+        falls back to PyMuPDF word-order extraction for prose pages.
         """
         result = DigitalExtractionResult()
 
@@ -105,46 +183,65 @@ class DigitalExtractor:
 
             all_words = []
 
-            for page_idx in range(pages_to_process):
-                page = doc.load_page(page_idx)
-                pw = page.rect.width
-                ph = page.rect.height
+            with pdfplumber.open(pdf_path) as plumber_pdf:
+                for page_idx in range(pages_to_process):
+                    page = doc.load_page(page_idx)
+                    pw = page.rect.width
+                    ph = page.rect.height
 
-                # Extract words with bounding boxes
-                # get_text("words") returns: (x0, y0, x1, y1, word, block_no, line_no, word_no)
-                # PyMuPDF returns words in PDF block order, which for multi-column tables
-                # can be column-by-column rather than row-by-row, causing label/value
-                # interleaving that confuses LLMs. Sort by reading order (top→bottom,
-                # left→right) using a 4pt y-tolerance to group words on the same line.
-                words = sorted(
-                    page.get_text("words"),
-                    key=lambda w: (round(w[1] / 4) * 4, w[0]),
-                )
+                    # Extract words with bounding boxes (for LayoutLM / word_blocks)
+                    words = sorted(
+                        page.get_text("words"),
+                        key=lambda w: (round(w[1] / 4) * 4, w[0]),
+                    )
+                    for word_data in words:
+                        x0, y0, x1, y1, text = word_data[:5]
+                        if text.strip():
+                            all_words.append({
+                                "text": text.strip(),
+                                "x0": x0, "y0": y0, "x1": x1, "y1": y1,
+                                "page": page_idx,
+                                "page_width": pw,
+                                "page_height": ph,
+                            })
 
-                page_text_parts = []
-                for word_data in words:
-                    x0, y0, x1, y1, text = word_data[:5]
-                    if text.strip():
-                        all_words.append({
-                            "text": text.strip(),
-                            "x0": x0,
-                            "y0": y0,
-                            "x1": x1,
-                            "y1": y1,
-                            "page": page_idx,
-                            "page_width": pw,
-                            "page_height": ph,
-                        })
-                        page_text_parts.append(text.strip())
+                    # Build page text: use pdfplumber tables when present so
+                    # multi-column table rows keep their column structure intact.
+                    # Prose text outside table bounding boxes (e.g. invoice headers,
+                    # dates, PO references) is captured separately and prepended so
+                    # no non-table fields are lost.
+                    page_text = ""
+                    if page_idx < len(plumber_pdf.pages):
+                        plumber_page = plumber_pdf.pages[page_idx]
+                        table_objs = plumber_page.find_tables()
+                        if table_objs:
+                            prose = self._prose_outside_tables(plumber_page)
+                            table_md = "\n\n".join(
+                                self._format_table_as_markdown(t.extract())
+                                for t in table_objs if t.extract()
+                            )
+                            page_text = (prose + "\n\n" + table_md).strip() if prose else table_md
+                            logger.debug(
+                                f"[DigitalExtractor] Page {page_idx + 1}: "
+                                f"{len(table_objs)} table(s), "
+                                f"prose_outside={len(prose)} chars"
+                            )
 
-                page_text = " ".join(page_text_parts)
-                result.pages.append({
-                    "page_idx": page_idx,
-                    "text": page_text,
-                    "width": pw,
-                    "height": ph,
-                    "word_count": len(words),
-                })
+                    if not page_text:
+                        # No tables — fall back to PyMuPDF word-order text
+                        page_text = " ".join(
+                            w_data[4].strip()
+                            for w_data in words
+                            if w_data[4].strip()
+                        )
+
+                    result.pages.append({
+                        "page_idx": page_idx,
+                        "text": page_text,
+                        "width": pw,
+                        "height": ph,
+                        "word_count": len(words),
+                    })
 
             doc.close()
 

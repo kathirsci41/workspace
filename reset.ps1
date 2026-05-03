@@ -114,12 +114,14 @@ if (-not $SkipDb) {
         }
         $env:PYTHONPATH = "."
         $ErrorActionPreference = "Continue"
-        $migrationOutput = & alembic upgrade head 2>&1
+        $AlembicPy = Join-Path $BackendDir "venv\Scripts\python.exe"
+        $AlembicCmd = if (Test-Path $AlembicPy) { $AlembicPy } else { "python" }
+        $migrationOutput = & $AlembicCmd -m alembic upgrade head 2>&1
         $migrationText = $migrationOutput | Out-String
         if ($migrationText -match "FAILED|Error") {
             Write-Warn 'Migration issue - attempting stamp + upgrade...'
-            & alembic stamp head 2>&1 | Out-Null
-            & alembic upgrade head 2>&1 | Out-Null
+            & $AlembicCmd -m alembic stamp head 2>&1 | Out-Null
+            & $AlembicCmd -m alembic upgrade head 2>&1 | Out-Null
         }
         $ErrorActionPreference = "Stop"
         Pop-Location

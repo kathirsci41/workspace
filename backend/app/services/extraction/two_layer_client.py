@@ -97,6 +97,7 @@ class TwoLayerClient:
         max_retries: int = 3,
         ocr_num_ctx: int = 16384,
         extractor_num_ctx: int = 4096,
+        extractor_num_predict: int = 2048,
         save_debug_markdown: bool = False,
         debug_markdown_dir: str = "debug_markdown",
         extractor_base_url: str = "",
@@ -112,6 +113,7 @@ class TwoLayerClient:
         self.max_retries = max_retries
         self.ocr_num_ctx = ocr_num_ctx
         self.extractor_num_ctx = extractor_num_ctx
+        self.extractor_num_predict = extractor_num_predict
         self.save_debug_markdown = save_debug_markdown
         self.debug_markdown_dir = debug_markdown_dir
 
@@ -338,7 +340,7 @@ class TwoLayerClient:
     # ------------------------------------------------------------------
 
     async def _run_extraction_layer(
-        self, markdown: str, doc_type: str
+        self, markdown: str, doc_type: str, customer_hint: str = ""
     ) -> tuple[dict, int]:
         """Send Markdown to extraction LLM and return parsed fields + time."""
 
@@ -346,7 +348,7 @@ class TwoLayerClient:
             logger.warning(f"No schema for doc_type: {doc_type}")
             return {}, 0
 
-        prompt = build_extraction_prompt(doc_type, markdown)
+        prompt = build_extraction_prompt(doc_type, markdown, customer_hint)
 
         payload = {
             "model": self.extractor_model,
@@ -356,12 +358,13 @@ class TwoLayerClient:
             "options": {
                 "temperature": 0.0,
                 "num_ctx": self.extractor_num_ctx,
-                "num_predict": 1024,
+                "num_predict": self.extractor_num_predict,
             },
         }
 
         raw, elapsed_ms = await self._call_extractor(payload)
         fields = self._parse_json_safe(raw)
+        fields = self._extract_field_confidences(fields)
         return fields, elapsed_ms
 
     # ------------------------------------------------------------------
@@ -628,6 +631,40 @@ class TwoLayerClient:
             f"{text[:200]}"
         )
         return {}
+
+    @staticmethod
+    def _extract_field_confidences(fields: dict) -> dict:
+        """Split LLM confidence-wrapped values into flat fields + _field_confidences.
+
+        The extraction prompt asks the LLM to return scalar fields as:
+            {"value": <extracted>, "confidence": 0.0-1.0}
+
+        This method unwraps that format:
+        - Scalar fields wrapped as {"value": x, "confidence": y} → fields[k] = x
+        - _field_confidences dict is populated with {k: y} for each unwrapped field
+        - Arrays, None values, and plain scalars are passed through unchanged
+        """
+        field_confidences: dict[str, float] = {}
+
+        for key in list(fields.keys()):
+            val = fields[key]
+            if (
+                isinstance(val, dict)
+                and "value" in val
+                and "confidence" in val
+                and not isinstance(val.get("value"), list)
+            ):
+                try:
+                    confidence = round(float(val["confidence"]), 3)
+                except (TypeError, ValueError):
+                    confidence = 0.5
+                field_confidences[key] = confidence
+                fields[key] = val["value"]
+
+        if field_confidences:
+            fields["_field_confidences"] = field_confidences
+
+        return fields
 
     @staticmethod
     def _clean_json(text: str) -> str:

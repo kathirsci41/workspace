@@ -1,7 +1,9 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from uuid import UUID
 from datetime import date, datetime
-from typing import Optional
+from typing import Literal, Optional
+
+from app.schemas.extraction import _clean_ref_string
 
 
 class POCreate(BaseModel):
@@ -10,6 +12,7 @@ class POCreate(BaseModel):
     po_date: Optional[date] = None
     total_amount: Optional[float] = None
     notes: Optional[str] = None
+    customer_po_ref: Optional[str] = None
 
 
 class POUpdate(BaseModel):
@@ -19,6 +22,17 @@ class POUpdate(BaseModel):
     notes: Optional[str] = None
     status: Optional[str] = None
     so_number: Optional[str] = None
+    customer_po_ref: Optional[str] = None
+    fulfillment_type: Optional[Literal['procurement', 'stock']] = None
+    items_verified: Optional[bool] = None
+    order_scenario: Optional[Literal['unknown', 'procurement', 'stock', 'drop_ship', 'service_amc']] = None
+    gst_type: Optional[Literal['unknown', 'igst', 'cgst_sgst']] = None
+    invoice_split: Optional[bool] = None
+    completion_note: Optional[str] = None
+    billing_type: Optional[Literal['full', 'staged', 'recurring']] = None
+    billing_milestones: Optional[list[dict]] = None
+    requires_install_report: Optional[bool] = None
+    chain_status: Optional[Literal['incomplete', 'complete', 'verified', 'mismatch']] = None
 
 
 class POResponse(BaseModel):
@@ -32,6 +46,19 @@ class POResponse(BaseModel):
     chain_completeness: float
     notes: Optional[str] = None
     so_number: Optional[str] = None
+    customer_po_ref: Optional[str] = None
+    fulfillment_type: Optional[str] = "procurement"
+    items_verified: bool = False
+    order_scenario: str = "unknown"
+    gst_type: str = "unknown"
+    invoice_split: bool = False
+    manually_completed: bool = False
+    completed_at: Optional[datetime] = None
+    completion_note: Optional[str] = None
+    billing_type: str = "full"
+    billing_milestones: Optional[list[dict]] = None
+    requires_install_report: bool = False
+    chain_status: str = "incomplete"
     created_at: datetime
     updated_at: datetime
     customer_name: str = ""
@@ -57,9 +84,23 @@ class ChainSlot(BaseModel):
     has_validation_errors: Optional[bool] = None   # Phase 6
     slot_message: Optional[str] = None             # Why this slot is pending/failed
 
+    @field_validator("ref_no", mode="before")
+    @classmethod
+    def unwrap_ref_no(cls, v):
+        return _clean_ref_string(v)
+
 
 class ChainStatusResponse(BaseModel):
     po_id: UUID
     po_number: str
-    completeness_pct: float
+    completeness_pct: int
     chain: dict[str, list[ChainSlot]]
+    billing: dict = {}  # {overall: str, stages?: [...]}
+    missing_slots: list[str] = []
+    missing_vendor_invoices: list[str] = []
+    reference_checks: list[dict] = []
+    chain_status: str = "incomplete"
+
+
+class SONumberUpdate(BaseModel):
+    so_number: str = Field(..., max_length=100)  # empty string clears the SO number

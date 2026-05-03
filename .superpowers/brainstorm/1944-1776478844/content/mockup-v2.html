@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PO Detail — Updated Mockup v2</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink:    #1C1B1A;
+  --paper:  #FAF7F1;
+  --accent: #3B4FA3;
+  --signal: #C2410C;
+  --veil:   #E8E1D3;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+body {
+  background: #e5e7eb;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px 48px;
+  min-height: 100vh;
+}
+
+/* ── Browser chrome wrapper ─────────────────── */
+.browser {
+  width: 100%;
+  max-width: 1100px;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,.18);
+}
+.browser-bar {
+  background: #f1f3f4;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #ddd;
+}
+.browser-dots { display: flex; gap: 5px; }
+.browser-dot  { width:11px; height:11px; border-radius:50%; }
+.browser-dot.r{ background:#ff5f57; }
+.browser-dot.y{ background:#febc2e; }
+.browser-dot.g{ background:#28c840; }
+.browser-url  {
+  flex: 1; background: white; border: 1px solid #d0d0d0;
+  border-radius: 6px; padding: 4px 12px; font-size: 12px; color: #555;
+}
+
+/* ── App shell ──────────────────────────────── */
+.shell { display: flex; height: calc(100vh - 110px); min-height: 600px; }
+.sidebar {
+  width: 200px; flex-shrink: 0;
+  background: var(--ink);
+  display: flex; flex-direction: column; gap: 2px; padding: 16px 0;
+}
+.sidebar-logo {
+  padding: 0 16px 16px;
+  font-size: 14px; font-weight: 700; color: white;
+  border-bottom: 1px solid rgba(255,255,255,.1); margin-bottom: 8px;
+}
+.sidebar-logo span { color: #818cf8; }
+.nav-item {
+  padding: 8px 16px; font-size: 12px; color: rgba(255,255,255,.55);
+  cursor: default; border-radius: 0; display: flex; align-items: center; gap: 8px;
+}
+.nav-item.active { background: rgba(255,255,255,.08); color: white; font-weight: 600; }
+.nav-icon { font-size: 13px; width: 16px; text-align: center; }
+
+/* ── Main content ───────────────────────────── */
+.main { flex: 1; overflow-y: auto; background: var(--paper); display: flex; flex-direction: column; }
+
+/* ── Breadcrumb ─────────────────────────────── */
+.breadcrumb {
+  padding: 10px 24px; font-size: 11px; color: #9ca3af;
+  border-bottom: 1px solid var(--veil); background: white;
+  display: flex; align-items: center; gap: 6px;
+}
+.breadcrumb a { color: var(--accent); cursor: default; }
+
+/* ── PO sticky header ───────────────────────── */
+.po-header {
+  background: white; border-bottom: 1px solid var(--veil);
+  padding: 14px 24px;
+  display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap;
+}
+.po-id {
+  font-family: var(--font-mono); font-size: 16px; font-weight: 700;
+  color: var(--accent); letter-spacing: -.01em;
+}
+.po-customer { font-size: 14px; color: var(--ink); font-weight: 500; }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600; padding: 3px 10px;
+  border-radius: 99px; border: 1px solid;
+}
+.chip.status-ip  { background: #fffbeb; color: #92400e; border-color: #fcd34d; }
+.chip.status-ok  { background: #f0fdf4; color: #15803d; border-color: #86efac; }
+.chip.chain-ok   { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
+.chip.chain-warn { background: #fff7ed; color: #c2410c; border-color: #fdba74; }
+.chip.chain-bad  { background: #fef2f2; color: #b91c1c; border-color: #fca5a5; }
+.po-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.po-amount { font-size: 13px; font-weight: 700; color: var(--ink); }
+.po-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.btn {
+  font-size: 11px; font-weight: 600; padding: 6px 14px;
+  border-radius: 6px; cursor: default; border: 1px solid transparent; display: inline-flex; align-items: center; gap: 5px;
+}
+.btn-ghost { background: transparent; border-color: var(--veil); color: #6b7280; }
+.btn-accent { background: var(--accent); color: white; }
+.btn-signal { background: var(--signal); color: white; }
+
+/* ── Tab strip ──────────────────────────────── */
+.tab-strip {
+  display: flex; border-bottom: 2px solid var(--veil);
+  background: white; padding: 0 24px; gap: 0;
+}
+.tab {
+  padding: 10px 18px; font-size: 12px; font-weight: 600;
+  color: #9ca3af; cursor: pointer; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; display: flex; align-items: center; gap: 6px;
+  transition: color .15s;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab:hover:not(.active) { color: var(--ink); }
+.tab .badge {
+  background: #fee2e2; color: #b91c1c; font-size: 9px; font-weight: 700;
+  padding: 1px 5px; border-radius: 99px;
+}
+.tab .badge.amber { background: #fef3c7; color: #92400e; }
+.tab-danger { margin-left: auto; color: #ef4444 !important; }
+
+/* ── Tab panes ──────────────────────────────── */
+.tab-content { padding: 20px 24px; flex: 1; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ── Section label ──────────────────────────── */
+.section-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .07em; color: #9ca3af; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.section-label::after { content:''; flex:1; height:1px; background:var(--veil); }
+
+/* ── Overview — Order Settings card ─────────── */
+.settings-card {
+  background: white; border: 1px solid var(--veil); border-radius: 10px;
+  padding: 14px 18px; margin-bottom: 20px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}
+.setting-group { display: flex; flex-direction: column; gap: 6px; }
+.setting-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; }
+.setting-row { display: flex; align-items: center; gap: 8px; }
+.setting-val {
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  background: #f3f4f6; border: 1px solid var(--veil);
+  border-radius: 6px; padding: 5px 10px; flex: 1;
+  display: flex; align-items: center; gap: 6px;
+}
+.setting-val .auto-badge {
+  font-size: 9px; background: #dbeafe; color: #1d4ed8;
+  padding: 1px 5px; border-radius: 3px; font-weight: 700;
+}
+.setting-change {
+  font-size: 11px; color: var(--accent); font-weight: 600;
+  cursor: default; white-space: nowrap;
+}
+.scenario-opts {
+  display: none; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;
+}
+.scenario-opts.open { display: grid; }
+.scenario-opt {
+  border: 1px solid var(--veil); border-radius: 6px; padding: 7px 10px;
+  font-size: 11px; cursor: default; transition: all .15s; background: white;
+}
+.scenario-opt:hover { border-color: var(--accent); background: #eef2ff; }
+.scenario-opt.selected { border-color: var(--accent); background: #eef2ff; font-weight: 600; color: var(--accent); }
+.scenario-opt .scenario-desc { font-size: 9px; color: #9ca3af; margin-top: 2px; }
+
+/* ── Chain timeline ─────────────────────────── */
+.chain-grid {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 20px;
+}
+.chain-node {
+  background: white; border: 1px solid var(--veil); border-radius: 8px;
+  padding: 10px 10px 8px; display: flex; flex-direction: column; gap: 4px;
+  position: relative;
+}
+.chain-node::after {
+  content: '→'; position: absolute; right: -14px; top: 50%;
+  transform: translateY(-50%); font-size: 12px; color: #d1d5db; z-index: 1;
+}
+.chain-node:last-child::after { display: none; }
+.chain-icon { font-size: 13px; }
+.chain-name { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; }
+.chain-ref  { font-family: var(--font-mono); font-size: 9px; color: var(--ink); }
+.chain-status { font-size: 9px; font-weight: 600; margin-top: 2px; }
+.chain-node.done  { border-color: #86efac; }
+.chain-node.miss  { border-color: #fca5a5; background: #fff5f5; }
+.chain-node.pend  { border-color: #fcd34d; background: #fffef5; }
+.done .chain-status  { color: #15803d; }
+.miss .chain-status  { color: #b91c1c; }
+.pend .chain-status  { color: #92400e; }
+
+/* ── Validation row ─────────────────────────── */
+.validation-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.val-pill {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid; border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: 500;
+}
+.val-pill.ok   { background: #f0fdf4; border-color: #86efac; color: #15803d; }
+.val-pill.warn { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+.val-pill.err  { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+
+/* ── Billing summary card ───────────────────── */
+.billing-summary {
+  background: white; border: 1px solid var(--veil); border-radius: 10px; padding: 14px 18px;
+}
+.billing-kpis { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.bkpi { border: 1px solid var(--veil); border-radius: 7px; padding: 10px; }
+.bkpi .bk-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; }
+.bkpi .bk-val   { font-size: 15px; font-weight: 700; color: var(--ink); margin-top: 3px; }
+.bkpi .bk-sub   { font-size: 10px; color: #6b7280; }
+.bkpi.ok  { border-color: #86efac; background: #f0fdf4; }
+.bkpi.warn{ border-color: #fcd34d; background: #fffbeb; }
+.bkpi.bad { border-color: #fca5a5; background: #fef2f2; }
+.billing-link { font-size: 11px; color: var(--accent); font-weight: 600; cursor: default; }
+
+/* ── Documents tab ──────────────────────────── */
+.doc-grid { display: flex; flex-direction: column; gap: 8px; }
+.doc-card {
+  background: white; border: 1px solid var(--veil); border-radius: 8px;
+  display: flex; align-items: center; gap: 14px; padding: 11px 14px;
+  border-left-width: 3px;
+}
+.doc-card.verified { border-left-color: #22c55e; }
+.doc-card.pending  { border-left-color: #f59e0b; }
+.doc-card.missing  { border-left-color: #e5e7eb; background: #fafafa; border-style: dashed; }
+.doc-card.mismatch { border-left-color: #ef4444; }
+.doc-icon { font-size: 18px; flex-shrink: 0; width: 28px; text-align: center; }
+.doc-body { flex: 1; }
+.doc-type { font-size: 11px; font-weight: 700; color: var(--ink); }
+.doc-ref  { font-family: var(--font-mono); font-size: 10px; color: #6b7280; }
+.doc-meta { font-size: 10px; color: #9ca3af; }
+.doc-actions { display: flex; gap: 6px; align-items: center; }
+.doc-tag {
+  font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 99px;
+}
+.doc-tag.green { background: #dcfce7; color: #15803d; }
+.doc-tag.amber { background: #fef3c7; color: #92400e; }
+.doc-tag.red   { background: #fee2e2; color: #b91c1c; }
+.doc-tag.gray  { background: #f3f4f6; color: #9ca3af; }
+.btn-sm {
+  font-size: 10px; font-weight: 600; padding: 4px 10px;
+  border-radius: 5px; cursor: default; border: 1px solid transparent;
+}
+.btn-sm.outline { border-color: var(--veil); color: #374151; background: white; }
+.btn-sm.amber   { border-color: #fcd34d; color: #92400e; background: #fffbeb; }
+.btn-sm.upload  { border-color: var(--accent); color: var(--accent); background: #eef2ff; }
+.btn-sm.menu    { background: #f9fafb; border-color: var(--veil); color: #6b7280; padding: 4px 7px; font-size: 13px; }
+
+/* ── Billing tab ────────────────────────────── */
+.billing-type-bar {
+  background: white; border: 1px solid var(--veil); border-radius: 10px;
+  padding: 14px 18px; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 16px;
+}
+.billing-type-label { font-size: 11px; font-weight: 700; color: #6b7280; }
+.billing-type-opts  { display: flex; gap: 6px; }
+.billing-type-opt {
+  font-size: 11px; font-weight: 600; padding: 5px 14px;
+  border-radius: 6px; border: 1px solid var(--veil);
+  cursor: default; background: white; color: #6b7280;
+}
+.billing-type-opt.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+/* Staged milestones */
+.staged-table {
+  background: white; border: 1px solid var(--veil); border-radius: 10px;
+  overflow: hidden; margin-bottom: 16px;
+}
+.staged-header {
+  background: #f9fafb; border-bottom: 1px solid var(--veil);
+  padding: 10px 16px; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; color: #6b7280;
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr 1fr; gap: 8px;
+}
+.staged-row {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr 1fr;
+  gap: 8px; padding: 11px 16px; border-bottom: 1px solid #f3f4f6;
+  align-items: center; font-size: 12px;
+}
+.staged-row:last-child { border-bottom: none; }
+.staged-row.complete  { }
+.staged-row.mismatch  { background: #fff5f5; }
+.staged-row.pending   { background: #fffef5; }
+.staged-row .milestone-name { font-weight: 600; color: var(--ink); }
+.staged-row .milestone-pct  { font-size: 11px; color: #9ca3af; }
+.staged-row .milestone-amt  { font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+.staged-row .milestone-ref  { font-family: var(--font-mono); font-size: 10px; color: #6b7280; }
+.staged-row .milestone-ref.none { color: #d1d5db; }
+.progress-bar-wrap { background: var(--veil); border-radius: 99px; height: 6px; overflow: hidden; }
+.progress-bar-fill { height: 100%; border-radius: 99px; background: var(--accent); }
+.progress-bar-fill.warn { background: #f59e0b; }
+.progress-summary {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px;
+}
+
+/* Full billing invoice table */
+.invoice-table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; border: 1px solid var(--veil); }
+.invoice-table th { background: #f9fafb; padding: 9px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; text-align: left; border-bottom: 1px solid var(--veil); }
+.invoice-table td { padding: 10px 14px; font-size: 12px; color: #374151; border-bottom: 1px solid #f3f4f6; }
+.invoice-table tr:last-child td { border-bottom: none; }
+
+/* ── Change log banner ──────────────────────── */
+.change-banner {
+  background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 8px;
+  padding: 12px 16px; margin-bottom: 20px; font-size: 12px; color: #3730a3; line-height: 1.6;
+}
+.change-banner strong { font-weight: 700; }
+.change-banner ul { margin: 6px 0 0 16px; }
+.change-banner li { margin-bottom: 3px; }
+</style>
+</head>
+<body>
+
+<div class="browser">
+  <!-- Browser chrome -->
+  <div class="browser-bar">
+    <div class="browser-dots">
+      <div class="browser-dot r"></div>
+      <div class="browser-dot y"></div>
+      <div class="browser-dot g"></div>
+    </div>
+    <div class="browser-url">localhost:5174/purchase-orders/po-2026-sf003</div>
+  </div>
+
+  <!-- App shell -->
+  <div class="shell">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-logo">DPP <span>v2.2</span></div>
+      <div class="nav-item"><span class="nav-icon">▦</span> Dashboard</div>
+      <div class="nav-item active"><span class="nav-icon">📋</span> Purchase Orders</div>
+      <div class="nav-item"><span class="nav-icon">📄</span> Documents</div>
+      <div class="nav-item"><span class="nav-icon">👥</span> Customers</div>
+      <div class="nav-item"><span class="nav-icon">🔍</span> Search</div>
+      <div class="nav-item"><span class="nav-icon">💬</span> Chat</div>
+    </nav>
+
+    <!-- Main -->
+    <div class="main">
+      <!-- Breadcrumb -->
+      <div class="breadcrumb">
+        <a>Purchase Orders</a> › <span>PO-2026-SF003</span>
+      </div>
+
+      <!-- PO Header -->
+      <div class="po-header">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+            <span class="po-id">PO-2026-SF003</span>
+            <span class="chip status-ip">● IN PROGRESS</span>
+            <span class="chip chain-warn">⚠ Chain 67%</span>
+          </div>
+          <div class="po-meta">
+            <span class="po-customer">Shriram Finance Ltd</span>
+            <span style="color:#d1d5db">·</span>
+            <span class="po-amount">₹9,20,459</span>
+            <span style="color:#d1d5db">·</span>
+            <span style="font-size:11px;color:#9ca3af">SO: <span style="font-family:var(--font-mono)">SF-2026-881</span></span>
+          </div>
+        </div>
+        <div class="po-actions">
+          <button class="btn btn-ghost">↗ Profile</button>
+          <button class="btn btn-ghost">⬇ Export</button>
+        </div>
+      </div>
+
+      <!-- Tab strip -->
+      <div class="tab-strip">
+        <div class="tab active" onclick="showTab('overview')">Overview</div>
+        <div class="tab" onclick="showTab('documents')">Documents <span class="badge amber">2</span></div>
+        <div class="tab" onclick="showTab('billing')">Billing</div>
+        <div class="tab tab-danger" onclick="showTab('overview')">Delete</div>
+      </div>
+
+      <!-- ════════ OVERVIEW TAB ════════ -->
+      <div class="tab-content">
+        <div class="tab-pane active" id="pane-overview">
+
+          <!-- NEW: Change banner explaining what's new in v2 -->
+          <div class="change-banner">
+            <strong>v2 mockup — 2 new additions:</strong>
+            <ul>
+              <li><strong>Order Settings card</strong> — scenario + billing type in one place, above the chain</li>
+              <li><strong>Staged Billing tab</strong> — milestone tracker replaces the flat invoice list when billing type = Staged</li>
+            </ul>
+          </div>
+
+          <!-- Order Settings card -->
+          <div class="section-label">Order Settings</div>
+          <div class="settings-card">
+
+            <!-- Scenario -->
+            <div class="setting-group">
+              <div class="setting-label">Order Scenario</div>
+              <div class="setting-row">
+                <div class="setting-val">
+                  📦 PROCUREMENT <span class="auto-badge">AUTO</span>
+                </div>
+                <span class="setting-change" onclick="toggleScenario()">Change ▾</span>
+              </div>
+              <div class="scenario-opts" id="scenario-opts">
+                <div class="scenario-opt" onclick="selectScenario(this,'STOCK')">
+                  🏭 STOCK
+                  <div class="scenario-desc">From warehouse inventory</div>
+                </div>
+                <div class="scenario-opt selected" onclick="selectScenario(this,'PROCUREMENT')">
+                  📦 PROCUREMENT
+                  <div class="scenario-desc">Vendor order on demand</div>
+                </div>
+                <div class="scenario-opt" onclick="selectScenario(this,'DROP_SHIP')">
+                  🚚 DROP-SHIP
+                  <div class="scenario-desc">Vendor ships direct</div>
+                </div>
+                <div class="scenario-opt" onclick="selectScenario(this,'SERVICE_AMC')">
+                  🔧 SERVICE / AMC
+                  <div class="scenario-desc">Service contract</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Billing type -->
+            <div class="setting-group">
+              <div class="setting-label">Billing Type</div>
+              <div class="setting-row">
+                <div class="setting-val">
+                  💳 STAGED
+                </div>
+                <span class="setting-change" onclick="alert('Billing type selector — edit mode')">Change ▾</span>
+              </div>
+              <div style="font-size:10px;color:#9ca3af;margin-top:4px">
+                3 milestones defined · ₹6,14,200 billed so far (66.7%)
+              </div>
+            </div>
+          </div>
+
+          <!-- Chain timeline -->
+          <div class="section-label">Document Chain</div>
+          <div class="chain-grid">
+            <div class="chain-node done">
+              <div class="chain-icon">✅</div>
+              <div class="chain-name">Customer PO</div>
+              <div class="chain-ref">PWFA251127016</div>
+              <div class="chain-status">Verified</div>
+            </div>
+            <div class="chain-node done">
+              <div class="chain-icon">✅</div>
+              <div class="chain-name">Company PO</div>
+              <div class="chain-ref">1PTR2526000400</div>
+              <div class="chain-status">Verified</div>
+            </div>
+            <div class="chain-node miss">
+              <div class="chain-icon">❌</div>
+              <div class="chain-name">Vendor DC</div>
+              <div class="chain-ref">—</div>
+              <div class="chain-status">Missing</div>
+            </div>
+            <div class="chain-node done">
+              <div class="chain-icon">✅</div>
+              <div class="chain-name">Vendor Invoice</div>
+              <div class="chain-ref">C190224835</div>
+              <div class="chain-status">Verified</div>
+            </div>
+            <div class="chain-node pend">
+              <div class="chain-icon">⚠️</div>
+              <div class="chain-name">Company DC</div>
+              <div class="chain-ref">DC-2026-0441</div>
+              <div class="chain-status">Review needed</div>
+            </div>
+            <div class="chain-node pend">
+              <div class="chain-icon">⏳</div>
+              <div class="chain-name">Company Invoice</div>
+              <div class="chain-ref">1ITR2526001785</div>
+              <div class="chain-status">Pending review</div>
+            </div>
+          </div>
+
+          <!-- Validation -->
+          <div class="section-label">Reference Validation</div>
+          <div class="validation-row">
+            <div class="val-pill ok">✓ SO number consistent across documents</div>
+            <div class="val-pill err">✗ Vendor DC ref number mismatch (CPO vs Vendor Invoice)</div>
+            <div class="val-pill warn">⚠ Company Invoice not yet verified</div>
+          </div>
+
+          <!-- Billing mini-summary -->
+          <div class="section-label">Billing Summary</div>
+          <div class="billing-summary">
+            <div class="billing-kpis">
+              <div class="bkpi ok">
+                <div class="bk-label">PO Total</div>
+                <div class="bk-val">₹9,20,459</div>
+                <div class="bk-sub">Full contract · INR</div>
+              </div>
+              <div class="bkpi warn">
+                <div class="bk-label">Billed So Far</div>
+                <div class="bk-val">₹6,14,200</div>
+                <div class="bk-sub">66.7% · 2 of 3 milestones</div>
+              </div>
+              <div class="bkpi bad">
+                <div class="bk-label">Outstanding</div>
+                <div class="bk-val">₹3,06,259</div>
+                <div class="bk-sub">⚠ Final milestone pending</div>
+              </div>
+            </div>
+            <div class="progress-bar-wrap" style="margin-bottom:8px">
+              <div class="progress-bar-fill warn" style="width:66.7%"></div>
+            </div>
+            <span class="billing-link">→ View full billing detail</span>
+          </div>
+
+        </div><!-- /pane-overview -->
+
+        <!-- ════════ DOCUMENTS TAB ════════ -->
+        <div class="tab-pane" id="pane-documents">
+          <div class="section-label">6 Document Types · 2 need attention</div>
+          <div class="doc-grid">
+
+            <div class="doc-card verified">
+              <div class="doc-icon">📄</div>
+              <div class="doc-body">
+                <div class="doc-type">Customer PO</div>
+                <div class="doc-ref">PWFA251127016</div>
+                <div class="doc-meta">Uploaded 2026-03-15 · panimalar_po.pdf</div>
+              </div>
+              <div class="doc-actions">
+                <span class="doc-tag green">✓ Verified</span>
+                <button class="btn-sm outline">View →</button>
+                <button class="btn-sm menu">⋯</button>
+              </div>
+            </div>
+
+            <div class="doc-card verified">
+              <div class="doc-icon">📄</div>
+              <div class="doc-body">
+                <div class="doc-type">Company PO</div>
+                <div class="doc-ref">1PTR2526000400</div>
+                <div class="doc-meta">Uploaded 2026-03-16 · company_po_sf003.pdf</div>
+              </div>
+              <div class="doc-actions">
+                <span class="doc-tag green">✓ Verified</span>
+                <button class="btn-sm outline">View →</button>
+                <button class="btn-sm menu">⋯</button>
+              </div>
+            </div>
+
+            <div class="doc-card missing">
+              <div class="doc-icon">📭</div>
+              <div class="doc-body">
+                <div class="doc-type" style="color:#9ca3af">Vendor DC</div>
+                <div class="doc-ref" style="color:#d1d5db">Not uploaded</div>
+                <div class="doc-meta">Required for PROCUREMENT scenario</div>
+              </div>
+              <div class="doc-actions">
+                <span class="doc-tag red">✗ Missing</span>
+                <button class="btn-sm upload">+ Upload</button>
+              </div>
+            </div>
+
+            <div class="doc-card verified">
+              <div class="doc-icon">🧾</div>
+              <div class="doc-body">
+                <div class="doc-type">Vendor Invoice</div>
+                <div class="doc-ref">C190224835</div>
+                <div class="doc-meta">Uploaded 2026-03-18 · vendor_inv_mar.pdf</div>
+              </div>
+              <div class="doc-actions">
+                <span class="doc-tag green">✓ Verified</span>
+                <button class="btn-sm outline">View →</button>
+                <button class="btn-sm menu">⋯</button>
+              </div>
+            </div>
+
+            <div class="doc-card pending">
+              <div class="doc-icon">📋</div>
+              <div class="doc-body">
+                <div class="doc-type">Company DC</div>
+                <div class="doc-ref">DC-2026-0441</div>
+                <div class="doc-meta">Uploaded 2026-03-20 · low confidence score</div>
+              </div>
+              <div class="doc-actions">
+                <span class="doc-tag amber">⚠ Review</span>
+                <button class="btn-sm amber">Review →</button>
+                <button class="btn-sm menu">⋯</button>
+              </div>
+            </div>
+
+            <div class="doc-card pending">
+              <div class="doc-icon">🧾</div>
+              <div class="doc-body">
+                <div class="doc-type">Company Invoice</div>
+                <div class="doc-ref">1ITR2526001785</div>
+                <div class="doc-meta">Uploaded 2026-03-22 · amount mismatch flagged</div>
+              </div>
+              <div class="doc-actions">
+                <span class="doc-tag amber">⚠ Review</span>
+                <button class="btn-sm amber">Review →</button>
+                <button class="btn-sm menu">⋯</button>
+              </div>
+            </div>
+
+          </div>
+        </div><!-- /pane-documents -->
+
+        <!-- ════════ BILLING TAB ════════ -->
+        <div class="tab-pane" id="pane-billing">
+
+          <!-- Billing type selector -->
+          <div class="billing-type-bar">
+            <span class="billing-type-label">Billing Type:</span>
+            <div class="billing-type-opts">
+              <div class="billing-type-opt" onclick="switchBilling('full')">Full</div>
+              <div class="billing-type-opt active" onclick="switchBilling('staged')">Staged</div>
+              <div class="billing-type-opt" onclick="switchBilling('recurring')">Recurring</div>
+            </div>
+            <span style="margin-left:auto;font-size:11px;color:#9ca3af">Billing type affects chain completion rules</span>
+          </div>
+
+          <!-- ── STAGED view (default) ── -->
+          <div id="view-staged">
+            <div class="progress-summary">
+              <div class="bkpi ok">
+                <div class="bk-label">PO Total</div>
+                <div class="bk-val">₹9,20,459</div>
+                <div class="bk-sub">3 milestones</div>
+              </div>
+              <div class="bkpi warn">
+                <div class="bk-label">Billed So Far</div>
+                <div class="bk-val">₹6,14,200</div>
+                <div class="bk-sub">2 of 3 milestones · 66.7%</div>
+              </div>
+              <div class="bkpi bad">
+                <div class="bk-label">Outstanding</div>
+                <div class="bk-val">₹3,06,259</div>
+                <div class="bk-sub">Final milestone pending</div>
+              </div>
+            </div>
+
+            <div style="margin-bottom:8px">
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill warn" style="width:66.7%"></div>
+              </div>
+              <div style="font-size:10px;color:#9ca3af;margin-top:4px;text-align:right">₹6,14,200 of ₹9,20,459 billed</div>
+            </div>
+
+            <div class="staged-table">
+              <div class="staged-header">
+                <div>Milestone</div>
+                <div>% / Amount</div>
+                <div>Expected</div>
+                <div>Invoice Ref</div>
+                <div>Status</div>
+              </div>
+
+              <div class="staged-row complete">
+                <div>
+                  <div class="milestone-name">Advance Payment</div>
+                  <div class="milestone-pct">On PO confirmation</div>
+                </div>
+                <div>
+                  <div class="milestone-amt">₹2,76,137</div>
+                  <div style="font-size:9px;color:#9ca3af">30%</div>
+                </div>
+                <div style="font-size:11px;color:#9ca3af">2026-03-18</div>
+                <div class="milestone-ref">C190224835</div>
+                <div><span class="doc-tag green">✓ Verified</span></div>
+              </div>
+
+              <div class="staged-row mismatch">
+                <div>
+                  <div class="milestone-name">On Delivery</div>
+                  <div class="milestone-pct">On DC confirmation</div>
+                </div>
+                <div>
+                  <div class="milestone-amt">₹3,68,183</div>
+                  <div style="font-size:9px;color:#9ca3af">40%</div>
+                </div>
+                <div style="font-size:11px;color:#9ca3af">2026-03-22</div>
+                <div class="milestone-ref">1ITR2526001785</div>
+                <div><span class="doc-tag amber">⚠ Mismatch</span></div>
+              </div>
+
+              <div class="staged-row pending">
+                <div>
+                  <div class="milestone-name">Final Payment</div>
+                  <div class="milestone-pct">On installation sign-off</div>
+                </div>
+                <div>
+                  <div class="milestone-amt">₹2,76,137</div>
+                  <div style="font-size:9px;color:#9ca3af">30%</div>
+                </div>
+                <div style="font-size:11px;color:#9ca3af">2026-04-15</div>
+                <div class="milestone-ref none">— Not uploaded</div>
+                <div><span class="doc-tag red">✗ Missing</span></div>
+              </div>
+            </div>
+
+            <div style="font-size:11px;color:#6b7280;margin-top:8px">
+              💡 Milestone amounts are auto-calculated from PO total × percentage. Edit percentages to adjust.
+            </div>
+          </div>
+
+          <!-- ── FULL view (hidden by default) ── -->
+          <div id="view-full" style="display:none">
+            <div class="progress-summary">
+              <div class="bkpi ok">
+                <div class="bk-label">PO Total</div>
+                <div class="bk-val">₹9,20,459</div>
+                <div class="bk-sub">Single invoice expected</div>
+              </div>
+              <div class="bkpi warn">
+                <div class="bk-label">Billed So Far</div>
+                <div class="bk-val">₹6,14,200</div>
+                <div class="bk-sub">66.7% · 2 invoices</div>
+              </div>
+              <div class="bkpi bad">
+                <div class="bk-label">Outstanding</div>
+                <div class="bk-val">₹3,06,259</div>
+                <div class="bk-sub">⚠ Company Invoice pending</div>
+              </div>
+            </div>
+            <table class="invoice-table">
+              <thead>
+                <tr>
+                  <th>Document</th><th>Ref Number</th><th>Amount</th><th>Date</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Vendor Invoice</td>
+                  <td style="font-family:var(--font-mono);font-size:11px">C190224835</td>
+                  <td>₹5,10,000</td><td>2026-03-18</td>
+                  <td><span class="doc-tag green">✓ Verified</span></td>
+                </tr>
+                <tr>
+                  <td>Company Invoice</td>
+                  <td style="font-family:var(--font-mono);font-size:11px">1ITR2526001785</td>
+                  <td>₹1,04,200</td><td>2026-03-22</td>
+                  <td><span class="doc-tag amber">⚠ Mismatch</span></td>
+                </tr>
+                <tr>
+                  <td>Company Invoice</td>
+                  <td style="color:#d1d5db;font-size:11px">—</td>
+                  <td style="color:#d1d5db">Not uploaded</td><td style="color:#d1d5db">—</td>
+                  <td><span class="doc-tag red">✗ Missing</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- ── RECURRING view (hidden) ── -->
+          <div id="view-recurring" style="display:none">
+            <div style="background:white;border:1px solid var(--veil);border-radius:10px;padding:32px;text-align:center;color:#9ca3af;font-size:13px">
+              📅 Recurring billing — monthly invoice schedule<br/>
+              <span style="font-size:11px">Configure billing cycle and invoice cadence for AMC/service contracts</span>
+            </div>
+          </div>
+
+        </div><!-- /pane-billing -->
+
+      </div><!-- /tab-content -->
+    </div><!-- /main -->
+  </div><!-- /shell -->
+</div><!-- /browser -->
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const names = ['overview','documents','billing','delete'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  const pane = document.getElementById('pane-' + name);
+  if (pane) pane.classList.add('active');
+}
+
+function toggleScenario() {
+  const el = document.getElementById('scenario-opts');
+  el.classList.toggle('open');
+}
+
+function selectScenario(el, val) {
+  document.querySelectorAll('.scenario-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.querySelector('.setting-val').innerHTML = '📦 ' + val + ' <span class="auto-badge">MANUAL</span>';
+  document.getElementById('scenario-opts').classList.remove('open');
+}
+
+function switchBilling(type) {
+  document.querySelectorAll('.billing-type-opt').forEach(o => o.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('view-staged').style.display    = type === 'staged'    ? '' : 'none';
+  document.getElementById('view-full').style.display      = type === 'full'      ? '' : 'none';
+  document.getElementById('view-recurring').style.display = type === 'recurring' ? '' : 'none';
+}
+</script>
+</body>
+</html>

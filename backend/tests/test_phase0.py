@@ -9,18 +9,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from app.services.extraction.pdf_converter import PDFConverter
 
 def test_no_resize_cap():
-    """Confirm max_image_dim cap exists at 768px."""
+    """Confirm max_image_dim was removed — converter uses PATCH_SIZE alignment only."""
     conv = PDFConverter(dpi=300, max_pages=10)
-    assert hasattr(conv, 'max_image_dim'), \
-        "FAIL: max_image_dim attribute missing"
-    assert conv.max_image_dim == 768, \
-        f"FAIL: max_image_dim={conv.max_image_dim}, expected 768"
-    print(f"OK max_image_dim = {conv.max_image_dim}")
+    assert not hasattr(conv, 'max_image_dim'), \
+        "FAIL: max_image_dim attribute should have been removed"
+    print("OK max_image_dim correctly removed from PDFConverter")
 
 def test_dpi_default():
-    """Confirm default DPI is 200."""
+    """Confirm default DPI is 300."""
     conv = PDFConverter()
-    assert conv.dpi == 200, f"FAIL: dpi={conv.dpi}, expected 200"
+    assert conv.dpi == 300, f"FAIL: dpi={conv.dpi}, expected 300"
     print(f"OK Default DPI = {conv.dpi}")
 
 def test_max_pages_default():

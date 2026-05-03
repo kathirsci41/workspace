@@ -1,0 +1,131 @@
+<h2>Additional enhancements — deeper workflow features</h2>
+<p class="subtitle">Things not in the first list. These go beyond UX polish into operator productivity. Multi-select.</p>
+
+<div style="margin-bottom: 16px; padding: 12px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px;">
+  <p style="font-size: 12px; color: #1e40af; margin: 0;">Your picks so far: Dashboard quick actions + trends + donut · PO Detail completion state · PO Profile sticky nav + print · Global toasts · Customer detail page</p>
+</div>
+
+<h3 style="font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px 0;">⚡ Operator Efficiency</h3>
+
+<div class="options" data-multiselect>
+
+  <div class="option" data-choice="review-keyboard" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#f0fdf4;color:#166534;font-size:11px;padding:4px 6px;">REVIEW</div>
+    <div class="content">
+      <h3>Keyboard shortcuts in Review Modal</h3>
+      <p>V = Verify, R = Reject, Esc = Close. Operators doing 30–50 reviews a day will feel this immediately. No mouse needed for the most repetitive action in the whole app.</p>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:20px;">High daily impact</span>
+        <span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:20px;">Low effort</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="batch-upload" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#fff7ed;color:#c2410c;font-size:11px;padding:4px 6px;">PO DTL</div>
+    <div class="content">
+      <h3>Multi-file upload to a PO</h3>
+      <p>Upload several documents at once to the same PO — drag a folder or select multiple files. Currently you upload one at a time per slot. For a new PO with 6 doc types, that's 6 separate upload flows.</p>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:20px;">Saves significant time</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="docs-bulkreextract" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#fff7ed;color:#c2410c;font-size:11px;padding:4px 6px;">DOCS</div>
+    <div class="content">
+      <h3>Bulk re-extract failed documents</h3>
+      <p>Select multiple failed docs in the Documents page and re-queue them all at once. Right now you open each PO one by one to hit Re-extract.</p>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:20px;">Medium impact</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<h3 style="font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin: 20px 0 10px 0;">⏰ Alerting & Visibility</h3>
+
+<div class="options" data-multiselect>
+
+  <div class="option" data-choice="sla-aging" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#fdf4ff;color:#7e22ce;font-size:11px;padding:4px 6px;">DASH</div>
+    <div class="content">
+      <h3>Aging / SLA alerts on Dashboard</h3>
+      <p>Flag documents that have been PENDING_REVIEW for more than N days with a red badge. In logistics, a document sitting unreviewed for 5 days can hold up a delivery. Makes the problem visible before it becomes urgent.</p>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;background:#f3e8ff;color:#7e22ce;padding:2px 8px;border-radius:20px;">Prevents operational issues</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="notification-bell" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#f8fafc;color:#475569;font-size:11px;padding:4px 6px;">GLOBAL</div>
+    <div class="content">
+      <h3>In-app notification bell</h3>
+      <p>Persistent bell icon in the header showing unread events: "Extraction complete for PO-1045", "3 docs need review", "Re-extraction failed". Toasts disappear — this stays. Useful when multiple tabs are open.</p>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:20px;">Medium effort</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<h3 style="font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin: 20px 0 10px 0;">🔍 Search & Navigation</h3>
+
+<div class="options" data-multiselect>
+
+  <div class="option" data-choice="search-autocomplete" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#f0f9ff;color:#0369a1;font-size:11px;padding:4px 6px;">SEARCH</div>
+    <div class="content">
+      <h3>Autocomplete dropdown in inline search</h3>
+      <p>The top-bar search already exists (InlineSearch). Add a dropdown that shows matching PO numbers, customers, and ref numbers as you type — without navigating to the Search page. Like a command palette.</p>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:20px;">High discoverability</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="global-breadcrumbs" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#f8fafc;color:#475569;font-size:11px;padding:4px 6px;">GLOBAL</div>
+    <div class="content">
+      <h3>Breadcrumbs on detail pages</h3>
+      <p>Show the path: Purchase Orders → PO-1045 → Profile. Currently PO Detail and PO Profile have back-links but no hierarchy context. New users constantly get lost.</p>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:20px;">Low effort</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<h3 style="font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin: 20px 0 10px 0;">💡 Intelligence Prep (Phase 2 ready)</h3>
+
+<div class="options" data-multiselect>
+
+  <div class="option" data-choice="empty-states" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#f8fafc;color:#475569;font-size:11px;padding:4px 6px;">GLOBAL</div>
+    <div class="content">
+      <h3>Empty states with call-to-action</h3>
+      <p>Right now empty pages show "No results found." — dead ends. Replace with guided states: "No POs yet — Create your first PO →", "No failed extractions ✓". Dramatically improves first-time user experience.</p>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:20px;">Low effort, high polish</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="po-compare-sidebyside" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#fff1f2;color:#be123c;font-size:11px;padding:4px 6px;">PROFILE</div>
+    <div class="content">
+      <h3>Side-by-side document comparison in Profile</h3>
+      <p>Pick any two documents in a PO and view their extracted fields side by side — e.g., compare CUSTOMER_PO vs COMPANY_INVOICE amounts. More visual than the current field comparison table.</p>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:20px;">Phase 2 prep</span>
+        <span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 8px;border-radius:20px;">Medium effort</span>
+      </div>
+    </div>
+  </div>
+
+</div>

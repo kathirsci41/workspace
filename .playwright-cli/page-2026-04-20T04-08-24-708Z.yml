@@ -1,0 +1,337 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - heading "DocPlatform" [level=1] [ref=e6]
+      - navigation [ref=e7]:
+        - link "Dashboard" [ref=e8] [cursor=pointer]:
+          - /url: /
+          - img [ref=e9]
+          - text: Dashboard
+        - link "Customers" [ref=e14] [cursor=pointer]:
+          - /url: /customers
+          - img [ref=e15]
+          - text: Customers
+        - link "Purchase Orders" [ref=e20] [cursor=pointer]:
+          - /url: /purchase-orders
+          - img [ref=e21]
+          - text: Purchase Orders
+        - link "Documents" [ref=e24] [cursor=pointer]:
+          - /url: /documents
+          - img [ref=e25]
+          - text: Documents
+        - link "Search" [ref=e29] [cursor=pointer]:
+          - /url: /search
+          - img [ref=e30]
+          - text: Search
+        - link "Assistant" [ref=e33] [cursor=pointer]:
+          - /url: /chat
+          - img [ref=e34]
+          - text: Assistant
+        - link "System" [ref=e36] [cursor=pointer]:
+          - /url: /admin
+          - img [ref=e37]
+          - text: System
+      - generic [ref=e40]:
+        - button "Collapse" [ref=e41] [cursor=pointer]:
+          - img [ref=e42]
+          - generic [ref=e44]: Collapse
+        - generic [ref=e45]: DocPlatform v2.2.0
+    - generic [ref=e46]:
+      - banner [ref=e47]:
+        - generic [ref=e49]:
+          - img [ref=e50]
+          - textbox "Search invoice, DC, PO, customer..." [ref=e53]
+      - main [ref=e54]:
+        - generic [ref=e1944]:
+          - navigation [ref=e1946]:
+            - link "Purchase Orders" [ref=e1948] [cursor=pointer]:
+              - /url: /purchase-orders
+            - generic [ref=e1949]:
+              - img [ref=e1950]
+              - generic [ref=e1952]: PO-2026-SF005
+          - generic [ref=e1953]:
+            - generic [ref=e1954]:
+              - generic [ref=e1955]:
+                - generic [ref=e1956]: PO-2026-SF005
+                - generic [ref=e1957]: ● COMPLETE
+              - generic [ref=e1958]:
+                - generic [ref=e1959]: SHRIRAM FINANCE
+                - generic [ref=e1960]: ·
+                - generic [ref=e1961]: ₹0
+            - generic [ref=e1962]:
+              - link "↗ Profile" [ref=e1963] [cursor=pointer]:
+                - /url: /purchase-orders/bfb2824d-41cc-477b-a6c6-cfeb8778215a/profile
+              - button "Export" [ref=e1964] [cursor=pointer]:
+                - img [ref=e1965]
+                - text: Export
+          - generic [ref=e1968]:
+            - button "Overview" [ref=e1969] [cursor=pointer]
+            - button "Documents 5" [ref=e1970] [cursor=pointer]:
+              - text: Documents
+              - generic [ref=e1971]: "5"
+            - button "Billing" [ref=e1972] [cursor=pointer]
+            - button "Delete" [ref=e1973] [cursor=pointer]
+          - generic [ref=e1975]:
+            - generic [ref=e1976]:
+              - generic [ref=e1977]:
+                - generic [ref=e1978]: Order Scenario
+                - generic [ref=e1979]:
+                  - generic [ref=e1980]:
+                    - text: 📦 PROCUREMENT
+                    - generic [ref=e1981]: AUTO
+                  - button "Change ▾" [ref=e1982] [cursor=pointer]
+              - generic [ref=e1983]:
+                - generic [ref=e1984]: Billing Type
+                - generic [ref=e1985]:
+                  - button "Full" [ref=e1986] [cursor=pointer]
+                  - button "Staged" [ref=e1987] [cursor=pointer]
+                  - button "Recurring" [ref=e1988] [cursor=pointer]
+                - generic [ref=e1989]: ₹0 billed so far
+            - generic [ref=e1990]: Document Chain
+            - generic [ref=e1993]:
+              - generic [ref=e1994]:
+                - generic [ref=e1995]:
+                  - generic [ref=e1996]: "!"
+                  - generic [ref=e1997]: Customer PO
+                  - generic "PWFA251127016" [ref=e1998]
+                  - generic [ref=e1999]: Review
+                - generic [ref=e2000]: →
+              - generic [ref=e2001]:
+                - generic [ref=e2002]:
+                  - generic [ref=e2003]: "!"
+                  - generic [ref=e2004]: Company PO
+                  - 'generic "{''value'': ''1PTR2526000400'', ''confidence'': 1.0}" [ref=e2005]'
+                  - generic [ref=e2006]: Review
+                - generic [ref=e2007]: →
+              - generic [ref=e2008]:
+                - generic [ref=e2009]:
+                  - generic [ref=e2010]: —
+                  - generic [ref=e2011]: Vendor DC
+                  - generic [ref=e2012]: Missing
+                - generic [ref=e2013]: →
+              - generic [ref=e2014]:
+                - generic [ref=e2015]:
+                  - generic [ref=e2016]: "!"
+                  - generic [ref=e2017]: Vendor Invoice
+                  - 'generic "{''value'': ''C190224835'', ''confidence'': 1.0}" [ref=e2018]'
+                  - generic [ref=e2019]: Review
+                - generic [ref=e2020]: →
+              - generic [ref=e2021]:
+                - generic [ref=e2022]:
+                  - generic [ref=e2023]: "!"
+                  - generic [ref=e2024]: Company DC
+                  - 'generic "{''value'': ''1DNT2526DC2915'', ''confidence'': 1.0}" [ref=e2025]'
+                  - generic [ref=e2026]: Review
+                - generic [ref=e2027]: →
+              - generic [ref=e2029]:
+                - generic [ref=e2030]: "!"
+                - generic [ref=e2031]: Company Invoice
+                - 'generic "{''value'': ''1ITR2526001785'', ''confidence'': 1.0}" [ref=e2032]'
+                - generic [ref=e2033]: Review
+            - generic [ref=e2034]: Reference Validation
+            - generic [ref=e2037]: No reference data — upload documents to validate
+            - generic [ref=e2038]: Billing Summary
+            - generic [ref=e2040]:
+              - generic [ref=e2041]:
+                - generic [ref=e2042]:
+                  - generic [ref=e2043]: PO Total
+                  - generic [ref=e2044]: ₹0
+                - generic [ref=e2045]:
+                  - generic [ref=e2046]: Billed So Far
+                  - generic [ref=e2047]: ₹0
+                - generic [ref=e2048]:
+                  - generic [ref=e2049]: Outstanding
+                  - generic [ref=e2050]: ₹0
+              - button "→ View full billing detail" [ref=e2051] [cursor=pointer]
+          - generic [ref=e2053]:
+            - generic [ref=e2054]:
+              - generic [ref=e2055]: "Document{'value': '1ITR2526001785', 'confidence': 1.0}"
+              - generic [ref=e2056]:
+                - link "Download" [ref=e2057] [cursor=pointer]:
+                  - /url: /api/v1/documents/e9d132f4-56f6-4649-883d-7c904995f40a/download
+                  - img [ref=e2058]
+                  - text: Download
+                - button "✕" [ref=e2061] [cursor=pointer]
+            - generic [ref=e2064]:
+              - button "Zoom out" [ref=e2065] [cursor=pointer]:
+                - img [ref=e2066]
+              - generic [ref=e2069]: 100%
+              - button "Zoom in" [ref=e2070] [cursor=pointer]:
+                - img [ref=e2071]
+              - button "Fit to width" [ref=e2075] [cursor=pointer]:
+                - img [ref=e2076]
+              - button "Rotate 90°" [ref=e2082] [cursor=pointer]:
+                - img [ref=e2083]
+              - generic [ref=e2086]: 2 pages
+          - generic [ref=e2094]:
+            - generic [ref=e2095]:
+              - generic [ref=e2096]:
+                - heading "Review Extracted Data" [level=3] [ref=e2097]
+                - generic [ref=e2098]:
+                  - generic [ref=e2099]: COMPANY INVOICE
+                  - generic [ref=e2100]: 62.5% confidence
+                  - generic [ref=e2101]:
+                    - img [ref=e2102]
+                    - text: Digital — no OCR
+                  - generic [ref=e2104]: v2
+              - button [ref=e2105] [cursor=pointer]:
+                - img [ref=e2106]
+            - generic [ref=e2109]:
+              - generic [ref=e2112]:
+                - button "Zoom out" [ref=e2113] [cursor=pointer]:
+                  - img [ref=e2114]
+                - generic [ref=e2117]: 100%
+                - button "Zoom in" [ref=e2118] [cursor=pointer]:
+                  - img [ref=e2119]
+                - button "Fit to width" [ref=e2123] [cursor=pointer]:
+                  - img [ref=e2124]
+                - button "Rotate 90°" [ref=e2130] [cursor=pointer]:
+                  - img [ref=e2131]
+                - generic [ref=e2134]: 2 pages
+              - generic [ref=e2141]:
+                - generic [ref=e2142]:
+                  - generic [ref=e2143]: Review mode — verify extracted values
+                  - button "Edit Fields" [ref=e2144] [cursor=pointer]:
+                    - img [ref=e2145]
+                    - text: Edit Fields
+                - generic [ref=e2147]:
+                  - generic [ref=e2148]:
+                    - button "1 validation error — review before verifying" [ref=e2149] [cursor=pointer]:
+                      - generic [ref=e2150]:
+                        - img [ref=e2151]
+                        - text: 1 validation error — review before verifying
+                      - img [ref=e2153]
+                    - list [ref=e2155]:
+                      - listitem [ref=e2156]:
+                        - generic [ref=e2157]: •
+                        - text: SO number not set for this PO. Please set the SO number on the PO first, then re-extract this document.
+                  - generic [ref=e2158]:
+                    - button "2 warnings" [ref=e2159] [cursor=pointer]:
+                      - generic [ref=e2160]:
+                        - img [ref=e2161]
+                        - text: 2 warnings
+                      - img [ref=e2163]
+                    - list [ref=e2165]:
+                      - listitem [ref=e2166]:
+                        - generic [ref=e2167]: •
+                        - text: "invoice_date could not be parsed: '{'value': '17/01/2026', 'confidence': 1.0}'"
+                      - listitem [ref=e2168]:
+                        - generic [ref=e2169]: •
+                        - text: "total_amount is not numeric: {'value': 593701.66, 'confidence': 1.0}"
+                  - generic [ref=e2170]:
+                    - generic [ref=e2171]:
+                      - generic [ref=e2173]: Invoice No
+                      - paragraph [ref=e2174]: "{'value': '1ITR2526001785', 'confidence': 1.0}"
+                    - generic [ref=e2175]:
+                      - generic [ref=e2177]: Sales Order No
+                      - paragraph [ref=e2178]: "{'value': '1OTM2526001429', 'confidence': 1.0}"
+                    - generic [ref=e2179]:
+                      - generic [ref=e2181]: Customer Order No
+                      - paragraph [ref=e2182]: "{'value': 'PWFA251127016', 'confidence': 1.0}"
+                    - generic [ref=e2183]:
+                      - generic [ref=e2185]: Customer Name
+                      - paragraph [ref=e2186]: SHRIRAM FINANCE LIMITED
+                    - generic [ref=e2187]:
+                      - generic [ref=e2189]: Total Amount
+                      - paragraph [ref=e2190]: "593701.66"
+                    - generic [ref=e2191]:
+                      - generic [ref=e2193]: Tax Amount
+                      - paragraph [ref=e2194]: "90564.66"
+                    - generic [ref=e2195]:
+                      - generic [ref=e2197]: Dc Reference
+                      - paragraph [ref=e2198]: Not extracted
+                    - generic [ref=e2199]:
+                      - generic [ref=e2201]: Invoice Date
+                      - paragraph [ref=e2202]: 17/01/2026
+                    - generic [ref=e2203]:
+                      - generic [ref=e2205]: Taxable Amount
+                      - paragraph [ref=e2206]: "503137"
+                    - generic [ref=e2207]:
+                      - generic [ref=e2209]: Coverage Period
+                      - paragraph [ref=e2210]: Not extracted
+                    - generic [ref=e2211]:
+                      - generic [ref=e2213]: Invoice Due Date
+                      - paragraph [ref=e2214]: Not extracted
+                  - generic [ref=e2215]:
+                    - generic [ref=e2217]: Line Items
+                    - generic [ref=e2218]:
+                      - table [ref=e2220]:
+                        - rowgroup [ref=e2221]:
+                          - row "Sr.No Part No Description HSN Qty UOM Unit Price Total Serial Nos" [ref=e2222]:
+                            - columnheader "Sr.No" [ref=e2223]
+                            - columnheader "Part No" [ref=e2224]
+                            - columnheader "Description" [ref=e2225]
+                            - columnheader "HSN" [ref=e2226]
+                            - columnheader "Qty" [ref=e2227]
+                            - columnheader "UOM" [ref=e2228]
+                            - columnheader "Unit Price" [ref=e2229]
+                            - columnheader "Total" [ref=e2230]
+                            - columnheader "Serial Nos" [ref=e2231]
+                            - columnheader [ref=e2232]
+                        - rowgroup [ref=e2233]:
+                          - row "1 (FG-120G) Fortigate-120G 18 x GE RJ45 ports (including 1 x MGMT port, 1 x HA port, 16 x switch ports), 8 x GE SFP slots, 4 x 10GE SFP slots,SP5 hardware accelerated, dual AC power supplies 851769 1 NM 492569 581231.42" [ref=e2234]:
+                            - cell "1" [ref=e2235]:
+                              - textbox [ref=e2236]: "1"
+                            - cell [ref=e2237]:
+                              - textbox [ref=e2238]
+                            - cell "(FG-120G) Fortigate-120G 18 x GE RJ45 ports (including 1 x MGMT port, 1 x HA port, 16 x switch ports), 8 x GE SFP slots, 4 x 10GE SFP slots,SP5 hardware accelerated, dual AC power supplies" [ref=e2239]:
+                              - textbox [ref=e2240]: (FG-120G) Fortigate-120G 18 x GE RJ45 ports (including 1 x MGMT port, 1 x HA port, 16 x switch ports), 8 x GE SFP slots, 4 x 10GE SFP slots,SP5 hardware accelerated, dual AC power supplies
+                            - cell "851769" [ref=e2241]:
+                              - textbox [ref=e2242]: "851769"
+                            - cell "1" [ref=e2243]:
+                              - textbox [ref=e2244]: "1"
+                            - cell "NM" [ref=e2245]:
+                              - textbox [ref=e2246]: NM
+                            - cell "492569" [ref=e2247]:
+                              - textbox [ref=e2248]: "492569"
+                            - cell "581231.42" [ref=e2249]:
+                              - textbox [ref=e2250]: "581231.42"
+                            - cell [ref=e2251]:
+                              - textbox [ref=e2252]
+                            - cell [ref=e2253]:
+                              - button "Remove row" [ref=e2254] [cursor=pointer]:
+                                - img [ref=e2255]
+                          - row "2 FN-TRAN-SXAPAC FortiGate-120G 5 Year FortiCare Elite Support (FN-TRAN-SXAPAC) FN-TRAN-SXAPAC 1 GE SFP transceiver module, short range 500m, LC connector, MMF, 850nm, -20 C to 85 C, for systems with SFP slots 851769 2 NM 5284 12470.24" [ref=e2258]:
+                            - cell "2" [ref=e2259]:
+                              - textbox [ref=e2260]: "2"
+                            - cell "FN-TRAN-SXAPAC" [ref=e2261]:
+                              - textbox [ref=e2262]: FN-TRAN-SXAPAC
+                            - cell "FortiGate-120G 5 Year FortiCare Elite Support (FN-TRAN-SXAPAC) FN-TRAN-SXAPAC 1 GE SFP transceiver module, short range 500m, LC connector, MMF, 850nm, -20 C to 85 C, for systems with SFP slots" [ref=e2263]:
+                              - textbox [ref=e2264]: FortiGate-120G 5 Year FortiCare Elite Support (FN-TRAN-SXAPAC) FN-TRAN-SXAPAC 1 GE SFP transceiver module, short range 500m, LC connector, MMF, 850nm, -20 C to 85 C, for systems with SFP slots
+                            - cell "851769" [ref=e2265]:
+                              - textbox [ref=e2266]: "851769"
+                            - cell "2" [ref=e2267]:
+                              - textbox [ref=e2268]: "2"
+                            - cell "NM" [ref=e2269]:
+                              - textbox [ref=e2270]: NM
+                            - cell "5284" [ref=e2271]:
+                              - textbox [ref=e2272]: "5284"
+                            - cell "12470.24" [ref=e2273]:
+                              - textbox [ref=e2274]: "12470.24"
+                            - cell [ref=e2275]:
+                              - textbox [ref=e2276]
+                            - cell [ref=e2277]:
+                              - button "Remove row" [ref=e2278] [cursor=pointer]:
+                                - img [ref=e2279]
+                      - button "Add Row" [ref=e2282] [cursor=pointer]:
+                        - img [ref=e2283]
+                        - text: Add Row
+                - generic [ref=e2286]:
+                  - button "Reject" [ref=e2287] [cursor=pointer]:
+                    - img [ref=e2288]
+                    - text: Reject
+                  - button "Cancel" [ref=e2291] [cursor=pointer]
+                  - button "Verify" [ref=e2292] [cursor=pointer]:
+                    - img [ref=e2293]
+                    - text: Verify
+  - generic:
+    - generic [ref=e2295]:
+      - img [ref=e2297]
+      - paragraph [ref=e2301]: Server error — please try again.
+      - button [ref=e2302] [cursor=pointer]:
+        - img [ref=e2303]
+    - generic [ref=e2306]:
+      - img [ref=e2308]
+      - paragraph [ref=e2312]: Server error — please try again.
+      - button [ref=e2313] [cursor=pointer]:
+        - img [ref=e2314]

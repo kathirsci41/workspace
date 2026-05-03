@@ -1,0 +1,131 @@
+<h2>PO Detail Page — Current Problems</h2>
+<p class="subtitle">Before we redesign, let's agree on what's broken. Select all the issues that bother you most.</p>
+
+<style>
+.issue-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.issue-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: white;
+  user-select: none;
+}
+.issue-card:hover { border-color: #6366f1; background: #f5f3ff; }
+.issue-card.selected { border-color: #6366f1; background: #eef2ff; }
+.issue-card .tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.tag.high { background: #fee2e2; color: #b91c1c; }
+.tag.med  { background: #fef3c7; color: #92400e; }
+.tag.low  { background: #dbeafe; color: #1e40af; }
+.issue-card h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: #111; }
+.issue-card p  { margin: 0; font-size: 12px; color: #6b7280; line-height: 1.5; }
+
+.wireframe-box {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 24px;
+  font-family: monospace;
+  font-size: 11px;
+  line-height: 1.8;
+  color: #374151;
+}
+.wireframe-box .section-label {
+  display: inline-block;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-right: 4px;
+}
+.wireframe-box .ok { color: #16a34a; }
+.wireframe-box .bad { color: #dc2626; font-weight: 700; }
+</style>
+
+<div class="wireframe-box">
+  <div>┌─────────────────────────────────────────────────────────────────────────────┐</div>
+  <div>│ <span class="section-label">HEADER</span> ← PO | Customer | SO badge | Status | Amount | Delete | Export | Profile  <span class="bad">← TOO CROWDED</span> │</div>
+  <div>├─────────────────────────────────────────────────────────────────────────────┤</div>
+  <div>│ <span class="section-label">CHAIN BAR</span> tiny colored dots ░░░░░░░░░ <span class="ok">← ok</span>                                  │</div>
+  <div>├─────────────────────────────────────────────────────────────────────────────┤</div>
+  <div>│ <span class="section-label">STATUS BANNER</span> ⚠ Chain Incomplete / ✗ Mismatch / ✓ Complete <span class="bad">← DUPLICATES CHAIN BAR</span>    │</div>
+  <div>├─────────────────────────────────────────────────────────────────────────────┤</div>
+  <div>│ <span class="section-label">DARK GRID</span> [Chain Timeline 2/3] [Ref Validation 1/3] [Billing 1/3] <span class="bad">← DARK THEME CLASH</span>  │</div>
+  <div>├─────────────────────────────────────────────────────────────────────────────┤</div>
+  <div>│ <span class="section-label">DOC CARDS</span> 6 full-width stacked cards — each with many action buttons            │</div>
+  <div>│          Customer PO ────────────────────────────────────────────────────── │</div>
+  <div>│          Company PO ─────────────────────────────────────────────────────── │</div>
+  <div>│          Vendor DC ──────────────────────────────────────────────────────── │</div>
+  <div>│          Vendor Invoice ─────────────────────────────────────────────────── <span class="bad">← VERY LONG SCROLL</span></div>
+  <div>│          Company DC ─────────────────────────────────────────────────────── │</div>
+  <div>│          Company Invoice ───────────────────────────────────────────────── │</div>
+  <div>└─────────────────────────────────────────────────────────────────────────────┘</div>
+</div>
+
+<div class="issue-grid" id="issues">
+  <div class="issue-card" data-choice="1" onclick="toggleIssue(this)">
+    <span class="tag high">High</span>
+    <h3>Header is overwhelming</h3>
+    <p>PO number, customer, SO badge, status pill, amount, export, delete, profile — all jammed in one row. Hard to scan.</p>
+  </div>
+  <div class="issue-card" data-choice="2" onclick="toggleIssue(this)">
+    <span class="tag high">High</span>
+    <h3>Dark chain grid clashes with light UI</h3>
+    <p>The slate-900 timeline/validation/billing panels are a jarring dark island inside an otherwise light page.</p>
+  </div>
+  <div class="issue-card" data-choice="3" onclick="toggleIssue(this)">
+    <span class="tag high">High</span>
+    <h3>Status banner duplicates chain bar</h3>
+    <p>"Chain Incomplete — 33% complete" says the same thing as the progress bar above it. Two sources of the same truth.</p>
+  </div>
+  <div class="issue-card" data-choice="4" onclick="toggleIssue(this)">
+    <span class="tag high">High</span>
+    <h3>6 stacked doc cards = lots of scrolling</h3>
+    <p>Every document type takes a full card even when empty. The page feels unfinished and users scroll far to reach billing info.</p>
+  </div>
+  <div class="issue-card" data-choice="5" onclick="toggleIssue(this)">
+    <span class="tag med">Medium</span>
+    <h3>No clear visual hierarchy</h3>
+    <p>Every section looks equally important. There's no obvious "what do I do first" flow — header, banners, dark grid, cards all compete for attention.</p>
+  </div>
+  <div class="issue-card" data-choice="6" onclick="toggleIssue(this)">
+    <span class="tag med">Medium</span>
+    <h3>Document cards lack density</h3>
+    <p>Each card shows one doc but uses a lot of vertical space. When a doc type has multiple uploads, layout breaks visually.</p>
+  </div>
+  <div class="issue-card" data-choice="7" onclick="toggleIssue(this)">
+    <span class="tag med">Medium</span>
+    <h3>Chain timeline & validation buried mid-page</h3>
+    <p>The most useful operational info (what's missing, what's mismatched) is hidden below the fold after scrolling past the header.</p>
+  </div>
+  <div class="issue-card" data-choice="8" onclick="toggleIssue(this)">
+    <span class="tag low">Low</span>
+    <h3>Action buttons scattered everywhere</h3>
+    <p>Review, Re-extract, Delete, Edit, Manual Entry — each card has its own button cluster. Too many choices per card.</p>
+  </div>
+</div>
+
+<script>
+function toggleIssue(el) {
+  el.classList.toggle('selected');
+  const selected = document.querySelectorAll('.issue-card.selected');
+  if (typeof recordEvent === 'function') {
+    recordEvent('issues-selected', Array.from(selected).map(c => c.dataset.choice).join(','));
+  }
+}
+</script>
+
+<p class="subtitle" style="margin-top:24px">Select the issues that matter most → then tell me in the terminal which feel highest priority.</p>

@@ -1,0 +1,295 @@
+<h2>Approach A — Billing Tab + User Action Flows</h2>
+<p class="subtitle">What lives in each tab, and how Upload / Review / Edit actions fit in.</p>
+
+<style>
+* { box-sizing: border-box; }
+
+/* Section titles */
+.section-title {
+  font-size: 13px; font-weight: 700; color: #111;
+  margin: 28px 0 10px; padding-left: 4px;
+  border-left: 3px solid #6366f1; padding-left: 10px;
+}
+
+/* Tab strip mock */
+.tab-strip {
+  display: flex; border-bottom: 2px solid #e5e7eb;
+  background: #f9fafb; border-radius: 8px 8px 0 0;
+  overflow: hidden;
+}
+.tab { padding: 8px 18px; font-size: 12px; font-weight: 600; color: #9ca3af; cursor: default; }
+.tab.active { color: #4338ca; border-bottom: 2px solid #4338ca; margin-bottom: -2px; background: white; }
+.tab.danger { color: #ef4444; margin-left: auto; }
+
+/* Billing tab mockup */
+.billing-mock {
+  border: 1px solid #e5e7eb; border-top: none;
+  border-radius: 0 0 8px 8px; background: white;
+  padding: 16px;
+}
+.billing-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.bcard {
+  border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px;
+  background: #f9fafb;
+}
+.bcard .blabel { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; margin-bottom: 4px; }
+.bcard .bval { font-size: 16px; font-weight: 700; color: #111; }
+.bcard .bsub { font-size: 10px; color: #6b7280; margin-top: 2px; }
+.bcard.match { border-color: #86efac; background: #f0fdf4; }
+.bcard.warn  { border-color: #fcd34d; background: #fffbeb; }
+
+.invoice-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.invoice-table th { text-align: left; padding: 6px 8px; background: #f9fafb; color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb; }
+.invoice-table td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+.invoice-table tr:last-child td { border-bottom: none; }
+.tag-pill { display: inline-block; font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 99px; }
+.tag-pill.green { background: #dcfce7; color: #15803d; }
+.tag-pill.amber { background: #fef3c7; color: #92400e; }
+.tag-pill.red   { background: #fee2e2; color: #b91c1c; }
+
+/* Flow diagram */
+.flow-wrap { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 8px; }
+.flow-col { border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+.flow-col-header {
+  padding: 9px 14px; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; gap: 6px;
+}
+.flow-col-header.upload { background: #eff6ff; color: #1d4ed8; }
+.flow-col-header.review { background: #fffbeb; color: #92400e; }
+.flow-col-header.edit   { background: #f0fdf4; color: #15803d; }
+
+.flow-step {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 11px; color: #374151;
+}
+.flow-step:last-child { border-bottom: none; }
+.step-num {
+  width: 18px; height: 18px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+}
+.step-num.blue   { background: #dbeafe; color: #1d4ed8; }
+.step-num.amber  { background: #fef3c7; color: #92400e; }
+.step-num.green  { background: #dcfce7; color: #15803d; }
+.step-arrow { font-size: 9px; color: #9ca3af; padding: 0 14px 4px; }
+.step-where { font-size: 9px; color: #9ca3af; margin-top: 2px; }
+.step-auto { font-size: 9px; color: #6366f1; font-weight: 600; margin-top: 2px; }
+
+/* Modal indicators */
+.modal-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #f3f4f6; border: 1px solid #e5e7eb;
+  border-radius: 6px; padding: 3px 8px;
+  font-size: 10px; color: #374151; font-weight: 500;
+}
+.modal-badge::before { content: "⬡"; color: #6366f1; }
+
+.note-box {
+  background: #eef2ff; border: 1px solid #c7d2fe;
+  border-radius: 8px; padding: 12px 16px;
+  font-size: 11px; color: #3730a3; margin-top: 16px;
+  line-height: 1.6;
+}
+.note-box strong { font-weight: 700; }
+</style>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section-title">Billing Tab — What's Inside</div>
+
+<div class="tab-strip">
+  <div class="tab">Overview</div>
+  <div class="tab">Documents</div>
+  <div class="tab active">Billing</div>
+  <div class="tab danger">Delete</div>
+</div>
+
+<div class="billing-mock">
+  <div class="billing-grid">
+    <div class="bcard match">
+      <div class="blabel">PO Total</div>
+      <div class="bval">₹9,20,459</div>
+      <div class="bsub">Full billing · INR</div>
+    </div>
+    <div class="bcard warn">
+      <div class="blabel">Billed So Far</div>
+      <div class="bval">₹6,14,200</div>
+      <div class="bsub">66.7% of PO · 2 invoices</div>
+    </div>
+    <div class="bcard warn">
+      <div class="blabel">Outstanding</div>
+      <div class="bval">₹3,06,259</div>
+      <div class="bsub">⚠ Company Invoice pending</div>
+    </div>
+  </div>
+
+  <table class="invoice-table">
+    <thead>
+      <tr>
+        <th>Document</th>
+        <th>Ref Number</th>
+        <th>Amount</th>
+        <th>Date</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Vendor Invoice</td>
+        <td style="font-family:monospace">C190224835</td>
+        <td>₹5,10,000</td>
+        <td>2026-03-18</td>
+        <td><span class="tag-pill green">Verified</span></td>
+      </tr>
+      <tr>
+        <td>Company Invoice</td>
+        <td style="font-family:monospace">1ITR2526001785</td>
+        <td>₹1,04,200</td>
+        <td>2026-03-22</td>
+        <td><span class="tag-pill amber">Mismatch</span></td>
+      </tr>
+      <tr>
+        <td>Company Invoice</td>
+        <td style="font-family:monospace;color:#9ca3af">—</td>
+        <td style="color:#9ca3af">Not uploaded</td>
+        <td style="color:#9ca3af">—</td>
+        <td><span class="tag-pill red">Missing</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="section-title">User Action Flows — where each happens</div>
+
+<div class="flow-wrap">
+
+  <!-- UPLOAD -->
+  <div class="flow-col">
+    <div class="flow-col-header upload">⬆ Upload Flow</div>
+    <div class="flow-step">
+      <div class="step-num blue">1</div>
+      <div>
+        <div><strong>Documents tab</strong> — user sees a doc slot with "not uploaded" state</div>
+        <div class="step-where">Tab: Documents</div>
+      </div>
+    </div>
+    <div class="step-arrow">↓</div>
+    <div class="flow-step">
+      <div class="step-num blue">2</div>
+      <div>
+        <div>Clicks <strong>"+ Upload"</strong> on empty slot → UploadZone modal opens</div>
+        <div class="step-where">Modal: UploadZone (existing)</div>
+      </div>
+    </div>
+    <div class="step-arrow">↓</div>
+    <div class="flow-step">
+      <div class="step-num blue">3</div>
+      <div>
+        <div>File selected → card shows <strong>Extracting…</strong> spinner</div>
+        <div class="step-auto">Auto-polls every 3s</div>
+      </div>
+    </div>
+    <div class="step-arrow">↓</div>
+    <div class="flow-step">
+      <div class="step-num blue">4</div>
+      <div>
+        <div>Extraction done → card updates to <strong>Pending Review</strong> or <strong>Verified</strong></div>
+        <div class="step-auto">Toast notification fires</div>
+      </div>
+    </div>
+    <div class="step-arrow">↓</div>
+    <div class="flow-step">
+      <div class="step-num blue">5</div>
+      <div>
+        <div><strong>Overview tab badge</strong> updates — chain % increases, validation re-runs</div>
+        <div class="step-auto">Chain auto-recalculates</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REVIEW -->
+  <div class="flow-col">
+    <div class="flow-col-header review">👁 Review Flow</div>
+    <div class="flow-step">
+      <div class="step-num amber">1</div>
+      <div>
+        <div><strong>Overview tab</strong> shows "2 pending review" alert badge on Documents tab</div>
+        <div class="step-where">Tab: Overview</div>
+      </div>
+    </div>
+    <div class="step-arrow">↓</div>
+    <div class="flow-step">
+      <div class="step-num amber">2</div>
+      <div>
+        <div>User clicks alert OR switches to <strong>Documents tab</strong> → sees amber "Review →" button on card</div>
+        <div class="step-where">Tab: Documents</div>
+      </div>
+    </div>
+    <div class="step-arrow">↓</div>
+    <div class="flow-step">
+      <div class="step-num amber">3</div>
+      <div>
+        <div>Clicks <strong>"Review →"</strong> → ReviewModal opens full-screen: extracted fields on left, PDF preview on right</div>
+        <div class="step-where">Modal: ReviewModal (existing)</div>
+      </div>
+    </div>
+    <div class="step-arrow">↓</div>
+    <div class="flow-step">
+      <div class="step-num amber">4</div>
+      <div>
+        <div>User checks fields → <strong>Verify</strong> or <strong>Reject</strong></div>
+      </div>
+    </div>
+    <div class="step-arrow">↓</div>
+    <div class="flow-step">
+      <div class="step-num amber">5</div>
+      <div>
+        <div>Modal closes → card status updates in Documents tab → Overview chain recalculates</div>
+        <div class="step-auto">Toast: "Document verified"</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT -->
+  <div class="flow-col">
+    <div class="flow-col-header edit">✏ Edit / Re-extract Flow</div>
+    <div class="flow-step">
+      <div class="step-num green">1</div>
+      <div>
+        <div><strong>Documents tab</strong> — user finds a Verified card with a wrong field</div>
+        <div class="step-where">Tab: Documents</div>
+      </div>
+    </div>
+    <div class="step-arrow">↓</div>
+    <div class="flow-step">
+      <div class="step-num green">2</div>
+      <div>
+        <div>Clicks <strong>⋯ menu</strong> on card → options: Edit Fields, Re-extract, View PDF, Delete</div>
+        <div class="step-where">Overflow menu (replaces scattered buttons)</div>
+      </div>
+    </div>
+    <div class="step-arrow">↓</div>
+    <div class="flow-step">
+      <div class="step-num green">3a</div>
+      <div>
+        <div><strong>Edit Fields</strong> → ReviewModal in edit mode → user corrects values → Save</div>
+        <div class="step-where">Modal: ReviewModal (mode="edit")</div>
+      </div>
+    </div>
+    <div class="step-arrow" style="padding-left:14px">↕ or</div>
+    <div class="flow-step">
+      <div class="step-num green">3b</div>
+      <div>
+        <div><strong>Re-extract</strong> → confirm dialog → doc goes back to Extracting → same upload flow from step 3</div>
+        <div class="step-where">Confirmation modal → auto-poll</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="note-box">
+  <strong>Key insight on the ⋯ overflow menu:</strong> Right now each card shows Review, Re-extract, Edit, Delete, View as separate buttons — that's 4–5 buttons cluttering every card. An overflow menu (three-dot) on each card hides secondary actions and surfaces only the primary one: <strong>Review →</strong> (when pending) or <strong>View →</strong> (when verified). All other actions live one click away in the menu. This also fixes issue #8 from the first screen.
+</div>

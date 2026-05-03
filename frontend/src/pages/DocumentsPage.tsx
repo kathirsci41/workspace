@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ExternalLink, X } from 'lucide-react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { ExternalLink, X, Upload } from 'lucide-react';
 import { useDocuments } from '@/hooks/useDocuments';
 import { useCustomers } from '@/hooks/useCustomers';
+import { SkeletonTableRow } from '@/components/Skeleton';
 import clsx from 'clsx';
 
 const DOC_TYPE_OPTIONS = [
@@ -79,9 +80,18 @@ export default function DocumentsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Documents</h2>
-        {data && (
-          <span className="text-sm text-gray-500">{data.total} document{data.total !== 1 ? 's' : ''}</span>
-        )}
+        <div className="flex items-center gap-4">
+          <Link
+            to="/documents/upload"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold"
+          >
+            <Upload size={18} />
+            Upload
+          </Link>
+          {data && (
+            <span className="text-sm text-gray-500">{data.total} document{data.total !== 1 ? 's' : ''}</span>
+          )}
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -148,7 +158,7 @@ export default function DocumentsPage() {
               className={clsx(
                 'px-3 py-1 text-xs rounded-full border font-medium transition-colors',
                 datePreset === preset.value
-                  ? 'bg-blue-600 text-white border-blue-600'
+                  ? 'bg-accent text-white border-accent'
                   : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
               )}
             >
@@ -179,10 +189,11 @@ export default function DocumentsPage() {
       {/* Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-600">
+          <thead className="bg-veil/30 text-ink/60">
             <tr>
               <th className="text-left px-5 py-3 font-medium">Type</th>
               <th className="text-left px-5 py-3 font-medium">Filename</th>
+              <th className="text-left px-5 py-3 font-medium">Ref No</th>
               <th className="text-left px-5 py-3 font-medium">PO Number</th>
               <th className="text-left px-5 py-3 font-medium">Customer</th>
               <th className="text-left px-5 py-3 font-medium">Status</th>
@@ -191,11 +202,9 @@ export default function DocumentsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {isLoading ? (
-              <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-gray-400">Loading...</td>
-              </tr>
-            ) : data?.items?.length ? (
+            {isLoading
+              ? Array.from({ length: 6 }).map((_, i) => <SkeletonTableRow key={i} columns={8} />)
+              : data?.items?.length ? (
               data.items.map((doc) => (
                 <tr key={doc.id} className="hover:bg-gray-50">
                   <td className="px-5 py-3">
@@ -206,10 +215,13 @@ export default function DocumentsPage() {
                   <td className="px-5 py-3 text-gray-700 max-w-[200px] truncate" title={doc.original_filename ?? '—'}>
                     {doc.original_filename ?? '—'}
                   </td>
-                  <td className="px-5 py-3 font-medium text-blue-700">
+                  <td className="px-5 py-3 font-mono text-xs text-gray-600">
+                    {doc.metadata?.primary_ref_no ?? '—'}
+                  </td>
+                  <td className="px-5 py-3 font-mono font-medium text-accent">
                     {doc.po_number || '—'}
                   </td>
-                  <td className="px-5 py-3 text-gray-600">
+                  <td className="px-5 py-3 text-ink/70 max-w-[160px] truncate" title={doc.customer_name || '—'}>
                     {doc.customer_name || '—'}
                   </td>
                   <td className="px-5 py-3">
@@ -219,22 +231,38 @@ export default function DocumentsPage() {
                     {doc.created_at ? new Date(doc.created_at).toLocaleDateString('en-IN') : '—'}
                   </td>
                   <td className="px-5 py-3">
-                    {doc.po_id && (
-                      <button
-                        onClick={() => navigate(`/purchase-orders/${doc.po_id}`)}
-                        className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
-                      >
-                        <ExternalLink size={12} />
-                        Open PO
-                      </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {doc.status === 'PENDING_REVIEW' && doc.po_id && (
+                        <button
+                          onClick={() => navigate(`/purchase-orders/${doc.po_id}?highlight=${doc.id}&review=${doc.id}`)}
+                          className="flex items-center gap-1 text-xs font-medium text-amber-700 hover:text-amber-900"
+                        >
+                          Review →
+                        </button>
+                      )}
+                      {doc.po_id && (
+                        <button
+                          onClick={() => navigate(`/purchase-orders/${doc.po_id}`)}
+                          className="flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                        >
+                          <ExternalLink size={12} />
+                          Open PO
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-gray-400">
-                  No documents found matching the selected filters.
+                <td colSpan={8} className="px-5 py-8 text-center text-gray-400">
+                  <p className="mb-2">No documents match these filters.</p>
+                  <button
+                    onClick={resetFilters}
+                    className="text-sm text-blue-600 hover:underline font-medium"
+                  >
+                    Reset filters
+                  </button>
                 </td>
               </tr>
             )}

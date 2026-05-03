@@ -1,5 +1,5 @@
 from uuid import UUID
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from fastapi import APIRouter, Depends, Body, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +13,7 @@ from app.models.purchase_order import PurchaseOrder
 from app.schemas.document import DocumentResponse, DocumentUploadResponse, DocumentListResponse
 from app.schemas.extraction import ExtractionResponse
 from app.services import document_service
+from app.services.storage_service import NASUnavailableError
 
 router = APIRouter()
 
@@ -107,6 +108,9 @@ async def list_documents(
                 resp.customer_name = doc.purchase_order.customer.name
         if doc.doc_metadata:
             resp.metadata = ExtractionResponse.model_validate(doc.doc_metadata)
+        if doc.status == DocumentStatus.PENDING_REVIEW and doc.updated_at:
+            delta = datetime.now(timezone.utc) - doc.updated_at.replace(tzinfo=timezone.utc)
+            resp.days_pending = delta.days
         items.append(resp)
 
     return DocumentListResponse(items=items, total=total)
@@ -157,7 +161,12 @@ async def preview_document(
     id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    file_data, mime_type, original_filename = await document_service.get_preview_data(db, id)
+    try:
+        file_data, mime_type, original_filename = await document_service.get_preview_data(db, id)
+    except NASUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
     return StreamingResponse(
         io.BytesIO(file_data),
         media_type=mime_type,
@@ -170,7 +179,12 @@ async def download_document(
     id: UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    file_data, mime_type, original_filename = await document_service.get_preview_data(db, id)
+    try:
+        file_data, mime_type, original_filename = await document_service.get_preview_data(db, id)
+    except NASUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
     return StreamingResponse(
         io.BytesIO(file_data),
         media_type=mime_type,

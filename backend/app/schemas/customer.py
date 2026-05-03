@@ -1,8 +1,7 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
 from uuid import UUID
 from datetime import datetime
 from typing import Optional
-import re
 
 
 class CustomerCreate(BaseModel):
@@ -12,7 +11,7 @@ class CustomerCreate(BaseModel):
         description="Business ID like SKY-AB1234"
     )
     name: str = Field(..., min_length=1, max_length=255)
-    contact_email: Optional[str] = None
+    contact_email: Optional[EmailStr] = None
     contact_phone: Optional[str] = None
     address: Optional[str] = None
     gst_number: Optional[str] = None
@@ -21,7 +20,7 @@ class CustomerCreate(BaseModel):
 
 class CustomerUpdate(BaseModel):
     name: Optional[str] = None
-    contact_email: Optional[str] = None
+    contact_email: Optional[EmailStr] = None
     contact_phone: Optional[str] = None
     address: Optional[str] = None
     gst_number: Optional[str] = None
