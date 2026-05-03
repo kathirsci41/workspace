@@ -1,0 +1,147 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - heading "DocPlatform" [level=1] [ref=e6]
+    - navigation [ref=e7]:
+      - link "Dashboard" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - img [ref=e9]
+        - text: Dashboard
+      - link "Customers" [ref=e14] [cursor=pointer]:
+        - /url: /customers
+        - img [ref=e15]
+        - text: Customers
+      - link "Purchase Orders" [ref=e20] [cursor=pointer]:
+        - /url: /purchase-orders
+        - img [ref=e21]
+        - text: Purchase Orders
+      - link "Documents" [ref=e24] [cursor=pointer]:
+        - /url: /documents
+        - img [ref=e25]
+        - text: Documents
+      - link "Search" [ref=e29] [cursor=pointer]:
+        - /url: /search
+        - img [ref=e30]
+        - text: Search
+      - link "Assistant" [ref=e33] [cursor=pointer]:
+        - /url: /chat
+        - img [ref=e34]
+        - text: Assistant
+      - link "System" [ref=e36] [cursor=pointer]:
+        - /url: /admin
+        - img [ref=e37]
+        - text: System
+    - generic [ref=e40]:
+      - button "Collapse" [ref=e41] [cursor=pointer]:
+        - img [ref=e42]
+        - generic [ref=e44]: Collapse
+      - generic [ref=e45]: DocPlatform v2.2.0
+  - generic [ref=e46]:
+    - banner [ref=e47]:
+      - generic [ref=e49]:
+        - img [ref=e50]
+        - textbox "Search invoice, DC, PO, customer..." [ref=e53]
+    - main [ref=e54]:
+      - generic [ref=e55]:
+        - heading "Dashboard" [level=2] [ref=e56]
+        - generic [ref=e88]:
+          - button "Create PO" [ref=e89] [cursor=pointer]:
+            - img [ref=e90]
+            - text: Create PO
+          - button "Upload Document" [ref=e91] [cursor=pointer]:
+            - img [ref=e92]
+            - text: Upload Document
+          - button "Review Pending (0)" [ref=e95] [cursor=pointer]:
+            - img [ref=e96]
+            - text: Review Pending (0)
+        - generic [ref=e99]:
+          - generic [ref=e100]:
+            - generic [ref=e101]:
+              - img [ref=e102]
+              - heading "Pending Review Queue" [level=3] [ref=e105]
+            - link "View all pending" [ref=e106] [cursor=pointer]:
+              - /url: /documents?status=PENDING_REVIEW
+              - text: View all pending
+              - img [ref=e107]
+          - table [ref=e110]:
+            - rowgroup [ref=e111]:
+              - row "Document Type File PO Number Customer Note Action" [ref=e112]:
+                - columnheader "Document Type" [ref=e113]
+                - columnheader "File" [ref=e114]
+                - columnheader "PO Number" [ref=e115]
+                - columnheader "Customer" [ref=e116]
+                - columnheader "Note" [ref=e117]
+                - columnheader "Action" [ref=e118]
+            - rowgroup [ref=e119]:
+              - row [ref=e120]:
+                - cell [ref=e121]
+                - cell [ref=e123]
+                - cell [ref=e125]
+                - cell [ref=e127]
+                - cell [ref=e129]
+                - cell [ref=e131]
+              - row [ref=e133]:
+                - cell [ref=e134]
+                - cell [ref=e136]
+                - cell [ref=e138]
+                - cell [ref=e140]
+                - cell [ref=e142]
+                - cell [ref=e144]
+              - row [ref=e146]:
+                - cell [ref=e147]
+                - cell [ref=e149]
+                - cell [ref=e151]
+                - cell [ref=e153]
+                - cell [ref=e155]
+                - cell [ref=e157]
+              - row [ref=e159]:
+                - cell [ref=e160]
+                - cell [ref=e162]
+                - cell [ref=e164]
+                - cell [ref=e166]
+                - cell [ref=e168]
+                - cell [ref=e170]
+              - row "✓ No documents pending review" [ref=e172]:
+                - cell "✓ No documents pending review" [ref=e173]
+        - generic [ref=e174]:
+          - heading "Recent Purchase Orders" [level=3] [ref=e176]
+          - table [ref=e178]:
+            - rowgroup [ref=e179]:
+              - row "PO Number Customer Date Chain % Status" [ref=e180]:
+                - columnheader "PO Number" [ref=e181]
+                - columnheader "Customer" [ref=e182]
+                - columnheader "Date" [ref=e183]
+                - columnheader "Chain %" [ref=e184]
+                - columnheader "Status" [ref=e185]
+            - rowgroup [ref=e186]:
+              - row [ref=e187]:
+                - cell [ref=e188]
+                - cell [ref=e190]
+                - cell [ref=e192]
+                - cell [ref=e194]
+                - cell [ref=e196]
+              - row [ref=e198]:
+                - cell [ref=e199]
+                - cell [ref=e201]
+                - cell [ref=e203]
+                - cell [ref=e205]
+                - cell [ref=e207]
+              - row [ref=e209]:
+                - cell [ref=e210]
+                - cell [ref=e212]
+                - cell [ref=e214]
+                - cell [ref=e216]
+                - cell [ref=e218]
+              - row [ref=e220]:
+                - cell [ref=e221]
+                - cell [ref=e223]
+                - cell [ref=e225]
+                - cell [ref=e227]
+                - cell [ref=e229]
+              - row [ref=e231]:
+                - cell [ref=e232]
+                - cell [ref=e234]
+                - cell [ref=e236]
+                - cell [ref=e238]
+                - cell [ref=e240]
+              - row "No purchase orders yet." [ref=e242]:
+                - cell "No purchase orders yet." [ref=e243]

@@ -1,7 +1,7 @@
-# Document Processing Platform (DPP) — v2.4.0
+# Document Processing Platform (DPP) — v2.5.0
 
 PO-centric logistics document management with two-layer AI extraction.
-Handles the full document chain — Customer PO, Company PO, Vendor DC, Vendor Invoice, Company DC, Company Invoice — grouped under each Purchase Order with chain completeness tracking.
+Handles the full document chain — Customer PO, Company PO, Vendor DC, Vendor Invoice, Company DC, Company Invoice — grouped under each Purchase Order with scenario-aware chain completeness tracking.
 
 ---
 
@@ -19,13 +19,21 @@ Handles the full document chain — Customer PO, Company PO, Vendor DC, Vendor I
 
 **OCR endpoint:** RunPod remote (`https://<id>.proxy.runpod.net/`) or local Ollama at `http://localhost:11434`
 
+**Current architecture docs:** see [`docs/architecture/README.md`](docs/architecture/README.md) for the maintained current-state architecture set. Some older repo docs and version labels are behind the current codebase.
+
 ---
 
 ## Features
 
 - **Customer and PO management** — CRUD with status tracking and chain completeness score
 - **Two-layer AI extraction** — `glm-ocr` converts document to Markdown, `qwen2.5:7b` extracts structured JSON
-- **Document chain** — 6 document types per PO with 0–100% completeness score
+- **Scenario-aware document chain** — Chain requirements differ by order type (Stock / Procurement / Drop-Ship / Service AMC). Completeness is calculated against scenario-specific required docs only.
+- **GST type auto-detection** — IGST/CGST+SGST automatically inferred from supplier vs company state; overridable per PO
+- **Invoice split flag** — Mark POs where a single customer PO maps to multiple vendor invoices
+- **Manual order closure** — "Complete" button lets managers close orders with a note when chain is operationally done but documents are incomplete. One-way — cannot be undone from UI.
+- **Cross-document item comparison** — Side-by-side COMPANY_PO vs VENDOR_DC item grid with qty match, part number match, and price match (2% tolerance)
+- **AI item description linking** — LLM matches customer item descriptions to vendor part numbers (cached 1h in Redis)
+- **Address parser** — Structured address search across delivery locations
 - **SO number validation** — COMPANY_DC and COMPANY_INVOICE auto-validated against stored SO number
 - **Human review workflow** — Operators verify or correct extracted fields with full audit trail
 - **Operator remarks + custom fields** — Free-text notes and ad-hoc fields per document, persisted in extracted data
@@ -135,6 +143,8 @@ Copy `.env.example` to `.env` and adjust. Key settings:
 | `OCR_SAVE_DEBUG_MARKDOWN` | `false` | Save raw OCR output to disk |
 | `CORS_ORIGINS` | `["http://localhost:5174"]` | Allowed frontend origins |
 | `DEBUG` | `false` | FastAPI debug mode |
+| `COMPANY_STATE` | `""` | Company state name for GST auto-detection (e.g. `"Tamil Nadu"`) |
+| `OCR_EXTRACTOR_CA_BUNDLE` | `""` | Path to CA bundle for TLS verification of OCR extractor (leave empty = system default) |
 
 ---
 
@@ -161,7 +171,9 @@ DPP 2.2.0/
 │   │   │   │   ├── response_parser.py
 │   │   │   │   └── so_validator.py
 │   │   │   ├── storage_service.py  # NAS file I/O + availability check
-│   │   │   └── po_service.py
+│   │   │   ├── item_matcher.py     # AI description → part number matching
+│   │   │   ├── address_parser.py   # Structured address search
+│   │   │   └── po_service.py       # PO profile, item comparison, chain logic
 │   │   ├── config.py          # Settings (pydantic-settings)
 │   │   ├── database.py        # Async + sync engines, connection pooling
 │   │   └── main.py            # FastAPI app entry
@@ -209,7 +221,7 @@ DPP 2.2.0/
 | GET | `/api/v1/customers/{id}` | Customer detail |
 | PATCH | `/api/v1/customers/{id}` | Update customer |
 | GET | `/api/v1/customers/{id}/purchase-orders` | Customer's PO list |
-
+| 
 ### Purchase Orders
 
 | Method | Endpoint | Description |
@@ -222,6 +234,7 @@ DPP 2.2.0/
 | GET | `/api/v1/purchase-orders/{id}/chain-status` | Chain completeness per slot |
 | POST | `/api/v1/purchase-orders/{id}/documents` | Upload document to a PO |
 | GET | `/api/v1/purchase-orders/{id}/documents` | List documents for a PO |
+| POST | `/api/v1/purchase-orders/{id}/close` | Manually close/complete an order with optional note |
 
 ### Documents
 
@@ -339,7 +352,21 @@ UPLOADED → EXTRACTING → PENDING_REVIEW → VERIFIED
 | -------- | ------- |
 | `master` | Stable production baseline |
 | `staging` | Demo-ready — frozen at DPP-2.4.0 |
-| `development` | Active development (next version) |
+| `development` | Active development (v2.5.0) |
+
+---
+
+## Changelog
+
+### v2.5.0 (2026-04-07)
+- Scenario-aware chain completeness (Stock / Procurement / Drop-Ship / Service AMC)
+- GST type auto-detection (IGST/CGST+SGST) from company state config
+- Invoice split flag per PO
+- Manual order closure with one-way semantics and completion note
+- Cross-document item comparison grid (qty, part number, price with 2% tolerance)
+- AI item description → part number matching (LLM + Redis cache)
+- Address parser service
+- **Fixes:** completeness count restricted to scenario-required docs only (was inflating >100%); manually-closed orders now immune to chain recalculation; TLS verification enabled for LLM calls (`verify=False` removed); `price_match` now compares actual prices, not part numbers
 
 ---
 

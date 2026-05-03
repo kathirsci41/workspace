@@ -9,11 +9,16 @@ interface Props {
 /** Pick the representative status for a doc-type slot list */
 function pickStatus(slots: ChainSlot[]): string {
   if (slots.length === 0) return 'empty';
+  if (slots.some((s) => s.status === 'not_applicable')) return 'not_applicable';
   if (slots.some((s) => s.status === 'VERIFIED')) return 'VERIFIED';
   if (slots.some((s) => s.status === 'PENDING_REVIEW')) return 'PENDING_REVIEW';
   if (slots.some((s) => s.status === 'EXTRACTING')) return 'EXTRACTING';
   if (slots.some((s) => s.status === 'UPLOADED')) return 'UPLOADED';
   return slots[0].status;
+}
+
+function isOptionalSlot(slots: ChainSlot[]): boolean {
+  return slots.length > 0 && slots[0].optional === true;
 }
 
 /** Pick the most relevant slot_message to show as tooltip */
@@ -43,47 +48,59 @@ export default function ChainStatusBar({ chain }: Props) {
           const confidence = pickConfidence(slots);
           const isLast = idx === CHAIN_ORDER.length - 1;
           const message = pickMessage(slots);
+          const notApplicable = status === 'not_applicable';
+          const optional = isOptionalSlot(slots);
 
           return (
             <div key={docType} className="flex items-center flex-1">
-              <div className="flex flex-col items-center">
+              <div className={clsx('flex flex-col items-center', notApplicable && 'opacity-30')}>
                 {/* Circle with tooltip */}
                 <div className="relative group">
                   <div
                     className={clsx(
                       'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2',
-                      status === 'VERIFIED' &&
+                      notApplicable &&
+                        'bg-gray-100 border-gray-200 text-gray-300',
+                      !notApplicable && status === 'VERIFIED' &&
                         'bg-green-500 border-green-500 text-white',
-                      status === 'PENDING_REVIEW' &&
+                      !notApplicable && status === 'PENDING_REVIEW' &&
                         'bg-amber-400 border-amber-400 text-white',
-                      status === 'EXTRACTING' &&
+                      !notApplicable && status === 'EXTRACTING' &&
                         'bg-blue-500 border-blue-500 text-white animate-pulse',
-                      (status === 'EXTRACTION_FAILED' ||
-                        status === 'REJECTED') &&
+                      !notApplicable && (status === 'EXTRACTION_FAILED' || status === 'REJECTED') &&
                         'bg-red-500 border-red-500 text-white',
-                      status === 'UPLOADED' &&
+                      !notApplicable && status === 'UPLOADED' &&
                         'bg-blue-300 border-blue-300 text-white',
-                      status === 'empty' &&
+                      !notApplicable && status === 'empty' && optional &&
+                        'bg-white border-dashed border-gray-300 text-gray-300',
+                      !notApplicable && status === 'empty' && !optional &&
                         'bg-white border-gray-300 text-gray-400'
                     )}
                   >
-                    {status === 'VERIFIED'
-                      ? '\u2713'
-                      : status === 'PENDING_REVIEW'
-                        ? '!'
-                        : status === 'EXTRACTING'
-                          ? '\u25CF'
-                          : status === 'EXTRACTION_FAILED' ||
-                              status === 'REJECTED'
-                            ? '\u2717'
-                            : status === 'UPLOADED'
-                              ? '\u2191'
-                              : '\u25CB'}
+                    {notApplicable
+                      ? '—'
+                      : status === 'VERIFIED'
+                        ? '\u2713'
+                        : status === 'PENDING_REVIEW'
+                          ? '!'
+                          : status === 'EXTRACTING'
+                            ? '\u25CF'
+                            : status === 'EXTRACTION_FAILED' || status === 'REJECTED'
+                              ? '\u2717'
+                              : status === 'UPLOADED'
+                                ? '\u2191'
+                                : '\u25CB'}
                   </div>
                   {/* Count badge when multiple docs */}
-                  {slots.length > 1 && (
+                  {slots.length > 1 && !notApplicable && (
                     <span className="absolute -top-1.5 -right-1.5 bg-gray-700 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                       {slots.length}
+                    </span>
+                  )}
+                  {/* Optional badge */}
+                  {optional && !notApplicable && (
+                    <span className="absolute -bottom-1 -right-1 bg-gray-200 text-gray-500 text-[8px] font-semibold px-0.5 rounded">
+                      opt
                     </span>
                   )}
                   {/* Tooltip — shows slot_message on hover */}
@@ -97,12 +114,12 @@ export default function ChainStatusBar({ chain }: Props) {
                   )}
                 </div>
                 {/* Label */}
-                <span className="text-[10px] text-gray-500 mt-1 font-medium">
+                <span className={clsx('text-[10px] mt-1 font-medium', notApplicable ? 'text-gray-300' : 'text-gray-500')}>
                   {DOC_TYPE_SHORT[docType]}
                 </span>
-                {/* Confidence */}
+                {/* Confidence or N/A hint */}
                 <span className="text-[10px] text-gray-400">
-                  {confidence != null ? `${confidence}%` : '\u00A0'}
+                  {notApplicable ? 'N/A' : confidence != null ? `${confidence}%` : '\u00A0'}
                 </span>
               </div>
               {/* Connector line */}
@@ -110,6 +127,7 @@ export default function ChainStatusBar({ chain }: Props) {
                 <div
                   className={clsx(
                     'flex-1 h-0.5 mx-1',
+                    notApplicable ? 'bg-gray-100 border-dashed' :
                     status !== 'empty' ? 'bg-green-300' : 'bg-gray-200'
                   )}
                 />

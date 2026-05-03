@@ -1,0 +1,105 @@
+<h2>Document Detail Page — /documents/:id</h2>
+<p class="subtitle">Mockup of the new page. Two layout options — pick the one that feels right.</p>
+
+<div class="options">
+
+  <!-- Option A: Side by side -->
+  <div class="option" data-choice="side-by-side" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Split view — PDF left, metadata right</h3>
+      <p>Same pattern as PO Detail. Familiar layout. PDF preview takes up most of the screen, metadata panel on the right.</p>
+
+      <div style="margin-top:12px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;font-size:11px;">
+        <!-- Breadcrumb -->
+        <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:8px 12px;display:flex;align-items:center;gap:6px;color:#64748b;">
+          <span>Purchase Orders</span><span>›</span><span>PO-1045</span><span>›</span><span style="color:#1e293b;font-weight:600;">Vendor Invoice</span>
+        </div>
+
+        <!-- Header bar -->
+        <div style="padding:10px 12px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;background:white;">
+          <span style="font-weight:700;color:#1e293b;font-size:13px;">INV-2024-001</span>
+          <span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;">VERIFIED</span>
+          <span style="color:#64748b;">Vendor Invoice · Redington India</span>
+          <div style="margin-left:auto;display:flex;gap:6px;">
+            <button style="font-size:10px;border:1px solid #e2e8f0;background:white;padding:3px 10px;border-radius:5px;color:#374151;">↓ Download</button>
+            <button style="font-size:10px;border:1px solid #e2e8f0;background:white;padding:3px 10px;border-radius:5px;color:#374151;">↺ Re-extract</button>
+          </div>
+        </div>
+
+        <!-- Body: two panels -->
+        <div style="display:grid;grid-template-columns:1.4fr 1fr;min-height:180px;">
+          <!-- PDF Panel -->
+          <div style="background:#f1f5f9;border-right:1px solid #e2e8f0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;padding:16px;">
+            <div style="width:80px;height:100px;background:white;border:1px solid #e2e8f0;border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:center;">
+              <span style="font-size:20px;">📄</span>
+            </div>
+            <span style="color:#94a3b8;font-size:10px;">PDF Preview</span>
+          </div>
+          <!-- Metadata Panel -->
+          <div style="padding:12px;background:white;">
+            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Extracted Fields</div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">Invoice No</span><span style="font-weight:600;color:#1e293b;">INV-2024-001</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">Invoice Date</span><span style="font-weight:600;color:#1e293b;">12 Mar 2024</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">Vendor</span><span style="font-weight:600;color:#1e293b;">Redington India</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">Total Amount</span><span style="font-weight:600;color:#1e293b;">₹1,24,500</span></div>
+              <div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">Confidence</span><span style="font-weight:600;color:#16a34a;">94%</span></div>
+            </div>
+            <div style="margin-top:10px;padding:6px 8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:5px;">
+              <span style="font-size:10px;color:#166534;">↗ Parent PO: <span style="font-weight:600;text-decoration:underline;cursor:pointer;">PO-1045 — Redington</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Option B: Top-down focused -->
+  <div class="option" data-choice="top-down" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Focused view — metadata on top, PDF below</h3>
+      <p>Document info and actions are prominent at the top. PDF viewer is full-width below. Better when you need to read extracted fields first, then verify against the PDF.</p>
+
+      <div style="margin-top:12px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;font-size:11px;">
+        <!-- Breadcrumb -->
+        <div style="background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:8px 12px;display:flex;align-items:center;gap:6px;color:#64748b;">
+          <span>Purchase Orders</span><span>›</span><span>PO-1045</span><span>›</span><span style="color:#1e293b;font-weight:600;">Vendor Invoice</span>
+        </div>
+
+        <!-- Info card -->
+        <div style="padding:12px;background:white;border-bottom:1px solid #e2e8f0;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <span style="font-weight:700;color:#1e293b;font-size:13px;">INV-2024-001</span>
+            <span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;">VERIFIED</span>
+            <span style="background:#f0fdf4;color:#166534;padding:2px 8px;border-radius:10px;font-size:10px;">94% confidence</span>
+            <div style="margin-left:auto;display:flex;gap:5px;">
+              <button style="font-size:10px;background:#3b82f6;color:white;border:none;padding:4px 10px;border-radius:5px;">✓ Verify</button>
+              <button style="font-size:10px;border:1px solid #e2e8f0;background:white;padding:3px 8px;border-radius:5px;color:#374151;">↺ Re-extract</button>
+              <button style="font-size:10px;border:1px solid #e2e8f0;background:white;padding:3px 8px;border-radius:5px;color:#374151;">↓ Download</button>
+            </div>
+          </div>
+          <!-- Fields grid -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+            <div style="background:#f8fafc;border-radius:6px;padding:7px 10px;"><span style="display:block;color:#94a3b8;font-size:10px;margin-bottom:1px;">Vendor</span><span style="font-weight:600;color:#1e293b;">Redington India</span></div>
+            <div style="background:#f8fafc;border-radius:6px;padding:7px 10px;"><span style="display:block;color:#94a3b8;font-size:10px;margin-bottom:1px;">Invoice Date</span><span style="font-weight:600;color:#1e293b;">12 Mar 2024</span></div>
+            <div style="background:#f8fafc;border-radius:6px;padding:7px 10px;"><span style="display:block;color:#94a3b8;font-size:10px;margin-bottom:1px;">Total Amount</span><span style="font-weight:600;color:#1e293b;">₹1,24,500</span></div>
+            <div style="background:#f0fdf4;border-radius:6px;padding:7px 10px;border:1px solid #bbf7d0;"><span style="display:block;color:#94a3b8;font-size:10px;margin-bottom:1px;">Parent PO</span><span style="font-weight:600;color:#2563eb;text-decoration:underline;cursor:pointer;">PO-1045 →</span></div>
+          </div>
+        </div>
+
+        <!-- PDF full-width -->
+        <div style="background:#f1f5f9;height:80px;display:flex;align-items:center;justify-content:center;gap:8px;color:#94a3b8;">
+          <span style="font-size:18px;">📄</span>
+          <span style="font-size:11px;">Full-width PDF viewer</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top:16px;padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;">
+  <p style="font-size:12px;color:#1e40af;margin:0;"><strong>Both options use existing components</strong> — PDFPreviewPanel, ReviewModal, and the extraction metadata display are all already built. This is mostly wiring + a new route.</p>
+</div>

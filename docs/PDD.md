@@ -11,12 +11,15 @@
 | 0.1 | 2026-01-13 | Initial PDD — AS-IS analysis, MVP scope, NAS-based portal concept |
 | 2.2.0 | 2026-03-14 | Production baseline: AI extraction pipeline, PENDING_MODEL status, SO cross-document validation, admin requeue |
 | 2.3.0 | 2026-03-17 | Production hardening: Docker Compose prod setup, bug fixes, admin console |
+| 3.0 (PDD) | 2026-03-26 | Added dispute resolution use case and cross-document data validation requirements (Sections 3, 4, 8.4, 10.3) |
 
 ---
 
 ## 1. Executive Summary
 
 This PDD defines a centralised, on-premise platform to improve file management and document traceability for a logistics-oriented order lifecycle. The platform links all documents created against a customer requirement to a single unique ID and enables fast retrieval (file path + optional preview/download), with governance controls such as audit logs and approval-based update/delete.
+
+From v3.0, the platform extends to **cross-document data validation**: automatically comparing extracted items, quantities, delivery addresses, and amounts across the 6-document chain to pre-build dispute evidence at processing time — eliminating manual comparison when customer claims arise months after delivery.
 
 ---
 
@@ -42,10 +45,12 @@ Customer issues PO → Company performs internal processing and procurement → 
 - Required document set spans both company-side and vendor-side files (Customer PO; Vendor PO/DC/Invoice; Company Invoice/DC; signed acknowledgement/POD)
 - Missing or misplaced files create operational risk
 - Vendor negotiation and procurement variability causes timeline shifts, making it harder to track the latest document set
+- Even when all documents are available, **verifying accuracy across the chain is manual and slow**. When a customer raises a dispute 2–3 months after delivery (wrong product, missing items, wrong delivery address), the team must manually open and compare 6 separate PDFs to verify what was ordered, what the vendor shipped, and what was actually delivered. This cross-checking is error-prone and time-consuming — and there is no pre-built evidence trail to quickly resolve the dispute.
 
 **What the business expects:**
 - Assign a unique ID per customer requirement (or reuse an existing stable ID)
 - When a user enters the ID, the platform fetches and displays all related documents with file paths (Must), and optionally a preview + download (Good-to-have)
+- When a dispute arises, the platform can immediately show a comparison of ordered vs delivered items, delivery addresses, and invoice amounts — pre-built at document processing time, retrievable in seconds
 
 ---
 
@@ -61,6 +66,8 @@ Customer issues PO → Company performs internal processing and procurement → 
 - Average time to locate a case's key documents < 30 seconds
 - ≥ 95% of cases meet the configured document checklist
 - 100% of delete/update operations are approved and audited
+- Cross-document item, address, and amount discrepancies flagged automatically at time of verification — before disputes arise
+- Dispute evidence package for any PO retrievable in < 30 seconds
 
 ---
 
@@ -547,17 +554,24 @@ A centralised portal indexes all documents in the order lifecycle against a uniq
 
 ---
 
-### 8.1 What Works Today (DPP v2.3.0)
+### 8.1 What Works Today (DPP v2.5.1)
 
 - Upload and store all 6 document types under a Purchase Order
-- AI extraction (GLM-OCR → Qwen2.5) from scanned PDFs and images
-- Structured metadata extraction with field-level validation
+- AI extraction (GLM-OCR → Qwen2.5:3b) from scanned PDFs and images; digital PDF fast path (no GPU) for text-selectable PDFs
+- Structured metadata extraction with field-level validation and per-field confidence scores
 - Chain completeness tracking (% of documents verified)
 - Human review and correction of AI-extracted fields (PENDING_REVIEW → VERIFIED / REJECTED)
 - Manual Entry fallback — when AI is unavailable or fails, operator fills all fields by hand; same Verify/Reject workflow applies; work continues uninterrupted
+- Operator Remarks — free-text notes field always visible in Review modal; persisted per document
 - Custom Fields — operator can add any extra label+value pair to a document during review (e.g. freight charge, special reference); stored alongside standard fields
+- PENDING_MODEL status — pre-flight model check before extraction; if endpoint or model unavailable, document is held in PENDING_MODEL and retried manually via admin requeue; distinguishes model outages from extraction failures
 - Cross-document SO number validation — runs automatically when COMPANY_DC or COMPANY_INVOICE is processed; frontend SO entry prompt not yet built
-- Admin health monitoring (DB, Redis, OCR service, storage)
+- **PO Profile page** — consolidated read-only view of all 6 document slots for a PO; shows extracted fields, per-field confidence colours, document status, and cross-reference discrepancies (SO mismatches, missing PO references); includes a chronological event timeline
+- **Excel Export** — export full PO data as a workbook; two modes: multi-sheet (summary, chain, fields, items, locations, timeline, discrepancies) or single consolidated sheet; auto-downloads from profile page
+- PDF preview with zoom (Ctrl+scroll / pinch) and rotation — available in Review modal and Profile page
+- Global toast notifications for extraction outcomes, network errors, and service status
+- Admin health monitoring (DB, Redis, OCR service, storage) with parallelised health checks and 30s cache
+- Celery queue status and worker visibility in Admin console
 - Docker Compose production setup (on-prem deployment ready)
 
 ---
@@ -602,6 +616,18 @@ Maps every business scenario documented in Section 7 to the current system's abi
 | Delivery address extracted from Company DC | ✅ | Same — captured in extracted JSON |
 | Structured `delivery_address` field on PO model | ❌ | Address in JSON blob only; not a dedicated searchable column |
 
+#### Cross-Document Data Validation
+
+| Scenario | Status | Gap / Note |
+|---|---|---|
+| Item extraction from CUSTOMER_PO | ✅ | `order_items` array extracted |
+| Item extraction from other 5 document types | ❌ | Not extracted — prompts do not capture line items for these types |
+| Item cross-matching (CUSTOMER_PO vs COMPANY_DC) | ❌ | Not built |
+| Delivery address cross-matching (CUSTOMER_PO vs COMPANY_DC) | ❌ | Not built |
+| Amount cross-matching (CUSTOMER_PO vs COMPANY_INVOICE) | ❌ | Not built |
+| Dispute discrepancy panel on PO Profile | ⚠️ | SO/PO reference discrepancies shown; item/address/amount comparisons not yet added |
+| Dispute evidence export | ⚠️ | Excel export exists; item-level dispute comparison view not added |
+
 ---
 
 ### 8.3 Roadmap Gaps
@@ -617,6 +643,72 @@ The following capabilities are not yet built and are required for full business 
 | Partial billing tracking (batch invoices summing to PO total) | Medium | v3.0 |
 | Recurring billing model (`billing_frequency`, `contract_duration`) | Low | v3.1 |
 | Structured `delivery_address` field on PO model (from CPO extraction) | Medium | v2.4.0 |
+| Item extraction from all 6 document types | High | v3.0 |
+| Item + address + amount cross-matching engine | High | v3.0 |
+| Discrepancy panel extended with item-level comparison detail | High | v3.0 |
+| Dispute evidence export tab in Excel workbook | Medium | v3.0 |
+
+---
+
+### 8.4 Cross-Document Data Validation (Planned — v3.0)
+
+The core value addition for the dispute resolution use case. After documents are uploaded and extracted, the system automatically compares structured data across the chain and surfaces discrepancies — so when a customer dispute arrives months later, the evidence is already pre-built and retrievable in seconds.
+
+#### What Gets Cross-Matched
+
+**1. Item Matching**
+
+Extract line items (product description, quantity, unit, HSN/part number) from all 6 document types and compare:
+
+| Comparison | What it detects |
+|---|---|
+| CUSTOMER_PO items vs COMPANY_DC items | Items ordered by customer vs items actually dispatched |
+| COMPANY_DC items vs VENDOR_DC items | Items delivered to customer vs items received from vendor |
+| COMPANY_PO items vs VENDOR_INVOICE items | Items ordered from vendor vs items vendor billed for |
+
+Flags raised:
+
+- **Missing item** — item on source document not found in target (e.g. item on CUSTOMER_PO not on COMPANY_DC)
+- **Item mismatch** — description or part number differs across documents
+- **Quantity mismatch** — quantity differs across the chain
+
+**2. Delivery Address Matching**
+
+- Extract `ship_to` / `delivery_address` from CUSTOMER_PO
+- Extract `dispatch_to` / `delivery_address` from COMPANY_DC
+- Flag as **Address mismatch** if they differ
+
+**3. Amount Matching**
+
+| Comparison | What it detects |
+|---|---|
+| CUSTOMER_PO total vs COMPANY_INVOICE total | Was the customer billed the correct amount? |
+| COMPANY_PO total vs VENDOR_INVOICE total | Did the vendor bill what was agreed? |
+
+Flags raised:
+
+- **Amount mismatch** — totals differ beyond a configurable tolerance (default: ₹0)
+
+#### Discrepancy Severity Model
+
+| Type | Severity | Meaning |
+|---|---|---|
+| Missing item | Error | Item ordered but not present in delivery or invoice |
+| Item mismatch | Error | Wrong product description or part number in chain |
+| Quantity mismatch | Error | Wrong quantity delivered or billed |
+| Address mismatch | Warning | Delivery location on DC differs from Customer PO |
+| Amount mismatch | Warning | Invoice total differs from PO total |
+| Missing PO reference | Info | Document does not reference the linked PO number |
+
+#### Dispute Evidence Access
+
+All discrepancies are computed when each document is verified and stored against the PO. When a dispute arises, the operator opens the PO Profile page to see:
+
+- Green banner if no discrepancies found across the chain
+- Error/warning rows with: document pair, field name, expected value, actual value
+- Downloadable dispute evidence report (extends existing Excel export) with side-by-side comparison of key fields
+
+This eliminates manual cross-checking at the time of the dispute — the comparison is done at processing time and the result is instant to retrieve.
 
 ---
 
@@ -697,6 +789,12 @@ The v0.1 plan called for a lightweight NAS index portal as MVP, with AI extracti
 | FR-21 | Must | SO number cross-validated on COMPANY_DC and COMPANY_INVOICE | ✅ so_validator.py |
 | FR-22 | Should | Mismatch flagged in document validation errors (PENDING_REVIEW) | ✅ |
 | FR-23 | Could | Structured delivery address field extracted from Customer PO and stored on PO model | ❌ Pending |
+| FR-24 | Must | Extract line items (description, qty, unit price, HSN/part number) from all 6 document types during extraction | ❌ Pending — v3.0 |
+| FR-25 | Must | Cross-match CUSTOMER_PO items vs COMPANY_DC items — flag missing items, item mismatches, and quantity mismatches | ❌ Pending — v3.0 |
+| FR-26 | Must | Cross-match delivery address: CUSTOMER_PO `ship_to` vs COMPANY_DC `dispatch_to` — flag address mismatches | ❌ Pending — v3.0 |
+| FR-27 | Should | Cross-match amounts: CUSTOMER_PO total vs COMPANY_INVOICE total; COMPANY_PO total vs VENDOR_INVOICE total | ❌ Pending — v3.0 |
+| FR-28 | Should | Cross-match VENDOR_DC items vs COMPANY_PO items — detect vendor shipment accuracy against what was ordered | ❌ Pending — v3.0 |
+| FR-29 | Must | All discrepancies surfaced on PO Profile page with severity level, affected document pair, expected vs actual values | ❌ Pending — v3.0 |
 
 ### 10.4 Search and Navigation
 

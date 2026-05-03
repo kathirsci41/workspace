@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UX Overhaul — Spec Overview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; padding: 24px; }
+  h1 { font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+  .meta { font-size: 12px; color: #64748b; margin-bottom: 24px; }
+  .branch { border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+  .branch-header { padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
+  .branch-header h2 { font-size: 15px; font-weight: 700; color: white; }
+  .branch-header .sub { font-size: 11px; color: rgba(255,255,255,0.75); margin-top: 1px; }
+  .branch-header .badge { margin-left: auto; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.2); color: white; padding: 3px 10px; border-radius: 20px; }
+  .branch-b1 .branch-header { background: #2563eb; }
+  .branch-b2 .branch-header { background: #7c3aed; }
+  .pages-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #e2e8f0; }
+  .page-card { background: white; padding: 14px 16px; }
+  .page-card.new { background: #faf5ff; }
+  .page-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .page-label .tag { padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+  .tag-fix { background: #dbeafe; color: #1e40af; }
+  .tag-new { background: #ede9fe; color: #6d28d9; }
+  .tag-redesign { background: #fce7f3; color: #9d174d; }
+  .tag-global { background: #f0fdf4; color: #166534; }
+  .change { display: flex; align-items: flex-start; gap: 6px; font-size: 11px; color: #374151; margin-bottom: 5px; line-height: 1.4; }
+  .change .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+  .dot-fix { background: #60a5fa; }
+  .dot-new { background: #a78bfa; }
+  .dot-feat { background: #34d399; }
+  .dot-backend { background: #fb923c; }
+  strong { font-weight: 600; color: #0f172a; }
+
+  .section-divider { background: #f8fafc; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 8px 16px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; }
+
+  .bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 0; }
+  .info-card { background: white; border-radius: 10px; padding: 16px; border: 1px solid #e2e8f0; }
+  .info-card h3 { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+  .reuse-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #374151; margin-bottom: 6px; }
+  .reuse-row code { font-family: monospace; font-size: 10px; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; color: #475569; }
+  .arrow { color: #94a3b8; }
+  .scope-item { font-size: 11px; color: #64748b; margin-bottom: 4px; padding-left: 12px; position: relative; }
+  .scope-item::before { content: '—'; position: absolute; left: 0; color: #cbd5e1; }
+
+  .visual-dir { background: linear-gradient(135deg, #eff6ff, #f8fafc); border: 1px solid #bfdbfe; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px; }
+  .palette { display: flex; gap: 4px; align-items: center; }
+  .swatch { width: 20px; height: 20px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.06); }
+</style>
+</head>
+<body>
+
+<h1>UX Overhaul — Spec Overview</h1>
+<div class="meta">2026-04-09 · 2 branches · 13 enhancements + all UX fixes · visual direction: hybrid (same palette, better density)</div>
+
+<!-- Visual direction strip -->
+<div class="visual-dir">
+  <div>
+    <div style="font-size:11px;font-weight:700;color:#1e40af;margin-bottom:4px;">VISUAL DIRECTION — Hybrid</div>
+    <div style="font-size:12px;color:#374151;">Keep white/gray/blue palette · Improve data density · Card grids · Stronger hierarchy · No gradients</div>
+  </div>
+  <div class="palette" style="margin-left:auto;">
+    <div class="swatch" style="background:#ffffff;"></div>
+    <div class="swatch" style="background:#f8fafc;"></div>
+    <div class="swatch" style="background:#e2e8f0;"></div>
+    <div class="swatch" style="background:#2563eb;"></div>
+    <div class="swatch" style="background:#0f172a;"></div>
+  </div>
+</div>
+
+<!-- BRANCH 1 -->
+<div class="branch branch-b1">
+  <div class="branch-header">
+    <div>
+      <h2>Branch 1 — feature/ux-quick-wins</h2>
+      <div class="sub">Ships first · 6 pages + global polish + 1 new page</div>
+    </div>
+    <div class="badge">19 changes</div>
+  </div>
+
+  <div class="pages-grid">
+
+    <!-- AppShell -->
+    <div class="page-card">
+      <div class="page-label">AppShell / Nav <span class="tag tag-fix">fix</span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>Rename "Admin" → <strong>System</strong> + icon</span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>Sidebar default <strong>open</strong> for new users</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span>New <strong>Breadcrumb</strong> component on PO Detail + Profile</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span>Extend <strong>toast notifications</strong> to all pages</span></div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="page-card">
+      <div class="page-label">Dashboard <span class="tag tag-feat" style="background:#dcfce7;color:#166534;">enhance</span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>Add <strong>total_documents</strong> stat card (5th card)</span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>All 5 stat cards <strong>clickable</strong> → relevant page</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span><strong>Stats with trends</strong> ↑3 since yesterday <span style="color:#fb923c;">[BE]</span></span></div>
+      <div class="change"><div class="dot dot-feat"></div><span><strong>Document status donut</strong> (CSS conic-gradient)</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span><strong>Quick action bar</strong> — Create PO, Upload, Review</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span><strong>SLA aging alerts</strong> ≥3 days pending <span style="color:#fb923c;">[BE]</span></span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>Review queue <strong>deep-links to modal</strong></span></div>
+    </div>
+
+    <!-- PO List -->
+    <div class="page-card">
+      <div class="page-label">PO List <span class="tag tag-fix">fix</span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>Chain bar: <code>80px</code> → <strong>120px</strong></span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>Fix customer name <strong>leading space</strong> bug</span></div>
+    </div>
+
+    <!-- Documents -->
+    <div class="page-card">
+      <div class="page-label">Documents <span class="tag tag-fix">fix</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span>New <strong>Ref No</strong> column (primary_ref_no)</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span>Direct <strong>Review →</strong> action on PENDING rows</span></div>
+    </div>
+
+    <!-- Search -->
+    <div class="page-card">
+      <div class="page-label">Search <span class="tag tag-fix">fix</span></div>
+      <div class="change"><div class="dot dot-fix"></div><span><strong>Tab state</strong> persisted in URL (<code>?tab=address</code>)</span></div>
+      <div class="change"><div class="dot dot-fix"></div><span><strong>Advanced filters</strong> persisted in URL</span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>Document results → <code>/documents/:id</code></span></div>
+    </div>
+
+    <!-- PO Detail -->
+    <div class="page-card">
+      <div class="page-label">PO Detail <span class="tag tag-fix">fix</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span><strong>Chain complete banner</strong> at 100%</span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>Dashed border on <strong>empty upload slots</strong></span></div>
+      <div class="change"><div class="dot dot-fix"></div><span><code>?review=docId</code> auto-opens <strong>ReviewModal</strong></span></div>
+    </div>
+
+    <!-- Review Modal -->
+    <div class="page-card">
+      <div class="page-label">Review Modal <span class="tag tag-feat" style="background:#dcfce7;color:#166534;">enhance</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span><strong>V</strong> = Verify, <strong>R</strong> = Reject, <strong>Esc</strong> = Close</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span>Keyboard hint shown in modal footer</span></div>
+    </div>
+
+    <!-- Empty States -->
+    <div class="page-card">
+      <div class="page-label">Global — Empty States <span class="tag tag-global">global</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span>PO List: <em>"No POs yet — Create +"</em></span></div>
+      <div class="change"><div class="dot dot-feat"></div><span>Customers: <em>"No customers — Add +"</em></span></div>
+      <div class="change"><div class="dot dot-feat"></div><span>Documents: <em>"No results — Reset filters"</em></span></div>
+      <div class="change"><div class="dot dot-feat"></div><span>Search: <em>"Try shorter term / Advanced"</em></span></div>
+      <div class="change"><div class="dot dot-feat"></div><span>Dashboard queue: <em>"All clear ✓"</em> (green)</span></div>
+    </div>
+
+    <!-- Document Detail NEW -->
+    <div class="page-card new">
+      <div class="page-label">Document Detail <span class="tag tag-new">new page</span></div>
+      <div class="change"><div class="dot dot-new"></div><span>Route: <code>/documents/:id</code></span></div>
+      <div class="change"><div class="dot dot-new"></div><span>Split: <strong>PDF left</strong> + data right</span></div>
+      <div class="change"><div class="dot dot-new"></div><span>Extracted fields — <strong>2-col card grid</strong></span></div>
+      <div class="change"><div class="dot dot-new"></div><span><strong>Cross-check alerts</strong> (amber, actionable)</span></div>
+      <div class="change"><div class="dot dot-new"></div><span>Extraction validation checklist</span></div>
+      <div class="change"><div class="dot dot-new"></div><span>Parent PO link — always visible</span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>All 3 APIs <strong>already exist</strong> ✓</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- BRANCH 2 -->
+<div class="branch branch-b2">
+  <div class="branch-header">
+    <div>
+      <h2>Branch 2 — feature/page-redesigns</h2>
+      <div class="sub">Ships after Branch 1 · Customers + PO Profile structural overhaul</div>
+    </div>
+    <div class="badge">10 changes</div>
+  </div>
+
+  <div class="pages-grid">
+
+    <!-- Customers List -->
+    <div class="page-card">
+      <div class="page-label">Customers List <span class="tag tag-redesign">redesign</span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>Remove <strong>GST / Email</strong> columns (always blank)</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span>Add <strong>PO Count</strong>, <strong>Total Value</strong>, <strong>Chain Health %</strong></span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>Row click → <code>/customers/:id</code> + chevron <strong>›</strong></span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>Tooltip: "Click to view customer details"</span></div>
+    </div>
+
+    <!-- Customer Detail NEW -->
+    <div class="page-card new">
+      <div class="page-label">Customer Detail <span class="tag tag-new">new page</span></div>
+      <div class="change"><div class="dot dot-new"></div><span>Route: <code>/customers/:id</code></span></div>
+      <div class="change"><div class="dot dot-new"></div><span>Summary: name, ID, GST + <strong>3 stat cards</strong></span></div>
+      <div class="change"><div class="dot dot-new"></div><span><strong>Avg Chain Health</strong> computed from PO list</span></div>
+      <div class="change"><div class="dot dot-new"></div><span>Recent POs table (last 10)</span></div>
+      <div class="change"><div class="dot dot-new"></div><span>Contact + GST details panel</span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>Both APIs <strong>already exist</strong> ✓</span></div>
+    </div>
+
+    <!-- PO Profile -->
+    <div class="page-card">
+      <div class="page-label">PO Profile <span class="tag tag-redesign">redesign</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span><strong>Sticky section sidebar nav</strong> (IntersectionObserver)</span></div>
+      <div class="change"><div class="dot dot-fix"></div><span>Header split: <strong>Identity row</strong> + collapsible Settings row</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span><strong>Scenario selector</strong> made visually prominent</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span><strong>Side-by-side doc compare</strong> drawer</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span><strong>Print Profile</strong> via @media print</span></div>
+      <div class="change"><div class="dot dot-feat"></div><span>Collapsible sections with 1-line summaries</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Bottom info row -->
+<div class="bottom-row">
+
+  <div class="info-card">
+    <h3>Backend changes needed</h3>
+    <div class="reuse-row"><span class="dot dot-backend" style="width:8px;height:8px;border-radius:50%;flex-shrink:0;"></span><span><code>admin/stats</code> — add <strong>stats_delta</strong> (yesterday comparison)</span></div>
+    <div class="reuse-row"><span class="dot dot-backend" style="width:8px;height:8px;border-radius:50%;flex-shrink:0;"></span><span><code>documents</code> list — add <strong>days_pending</strong> computed field</span></div>
+    <div class="reuse-row" style="color:#64748b;"><span style="width:8px;height:8px;flex-shrink:0;"></span><span>All other changes are <strong>frontend-only</strong></span></div>
+  </div>
+
+  <div class="info-card">
+    <h3>Out of scope (deferred)</h3>
+    <div class="scope-item">Autocomplete in inline search</div>
+    <div class="scope-item">Notification bell</div>
+    <div class="scope-item">Bulk re-extract</div>
+    <div class="scope-item">Saved filter presets</div>
+    <div class="scope-item">Dark mode</div>
+    <div class="scope-item">Intelligence / Chat page (next phase)</div>
+  </div>
+
+</div>
+
+<div style="margin-top:16px;padding:12px 16px;background:white;border:1px solid #e2e8f0;border-radius:10px;display:flex;align-items:center;gap:12px;">
+  <div style="font-size:11px;color:#64748b;display:flex;gap:16px;flex-wrap:wrap;">
+    <span><span class="dot dot-fix" style="display:inline-block;width:8px;height:8px;border-radius:50;background:#60a5fa;border-radius:50%;margin-right:4px;"></span>Bug fix</span>
+    <span><span class="dot dot-feat" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34d399;margin-right:4px;"></span>Enhancement</span>
+    <span><span class="dot dot-new" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#a78bfa;margin-right:4px;"></span>New</span>
+    <span><span class="dot dot-backend" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#fb923c;margin-right:4px;"></span>Needs backend change</span>
+  </div>
+  <div style="margin-left:auto;font-size:11px;color:#94a3b8;">Spec: docs/superpowers/specs/2026-04-09-ux-overhaul-design.md</div>
+</div>
+
+</body>
+</html>

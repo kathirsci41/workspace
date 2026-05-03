@@ -5,7 +5,7 @@ Records every human correction made during document review.
 Captures original vs corrected values for LayoutLMv3 fine-tuning.
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import String, Text, Boolean, Integer, ForeignKey, DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -52,7 +52,7 @@ class ExtractionCorrection(TimestampMixin, Base):
         String(100), nullable=True
     )  # user who made the correction
     corrected_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )
     extraction_version: Mapped[int] = mapped_column(
         Integer, nullable=False, default=1

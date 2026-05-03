@@ -4,6 +4,7 @@ import { Plus, Search, X } from 'lucide-react';
 import { usePurchaseOrders, useCreatePO } from '@/hooks/usePurchaseOrders';
 import { useCustomers } from '@/hooks/useCustomers';
 import CustomerCombobox from '@/components/CustomerCombobox';
+import { SkeletonTableRow } from '@/components/Skeleton';
 import clsx from 'clsx';
 
 const DOC_TYPE_OPTIONS = [
@@ -67,10 +68,10 @@ export default function POListPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold">Purchase Orders</h2>
+        <h2 className="text-2xl font-bold font-display tracking-tight">Purchase Orders</h2>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+          className="flex items-center gap-2 bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors"
         >
           <Plus size={18} />
           Create PO
@@ -162,8 +163,8 @@ export default function POListPage() {
                 className={clsx(
                   'px-3 py-1.5 text-xs rounded-full border font-medium transition-colors',
                   chainFilter === opt.value
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'
+                    ? 'bg-accent text-white border-accent'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-accent'
                 )}
               >
                 {opt.label}
@@ -200,6 +201,7 @@ export default function POListPage() {
             <tr>
               <th className="text-left px-5 py-3 font-medium">PO Number</th>
               <th className="text-left px-5 py-3 font-medium">Customer</th>
+              <th className="text-left px-5 py-3 font-medium">SO Number</th>
               <th className="text-left px-5 py-3 font-medium">Date</th>
               <th className="text-left px-5 py-3 font-medium">Amount</th>
               <th className="text-left px-5 py-3 font-medium">Chain %</th>
@@ -207,24 +209,23 @@ export default function POListPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {isLoading ? (
-              <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-gray-400">
-                  Loading...
-                </td>
-              </tr>
-            ) : data?.items?.length ? (
+            {isLoading
+              ? Array.from({ length: 8 }).map((_, i) => <SkeletonTableRow key={i} columns={6} />)
+              : data?.items?.length ? (
               data.items.map((po) => (
                 <tr
                   key={po.id}
                   className="hover:bg-gray-50 cursor-pointer"
                   onClick={() => navigate(`/purchase-orders/${po.id}`)}
                 >
-                  <td className="px-5 py-3 font-medium">{po.po_number}</td>
-                  <td className="px-5 py-3 text-gray-600">
+                  <td className="px-5 py-3 font-mono font-medium text-ink" title={po.po_number.length > 16 ? po.po_number : undefined}>{po.po_number}</td>
+                  <td className="px-5 py-3 text-ink/70 max-w-[200px] truncate" title={po.customer_name ? `${po.customer_sky_id ? `${po.customer_sky_id} ` : ''}${po.customer_name}` : undefined}>
                     {po.customer_name
-                      ? `${po.customer_sky_id ?? ''} ${po.customer_name}`
+                      ? `${po.customer_sky_id ? `${po.customer_sky_id} ` : ''}${po.customer_name}`
                       : '—'}
+                  </td>
+                  <td className="px-5 py-3 font-mono text-xs text-gray-600">
+                    {(po as any).so_number ?? '—'}
                   </td>
                   <td className="px-5 py-3 text-gray-600">
                     {po.po_date ?? '—'}
@@ -236,7 +237,7 @@ export default function POListPage() {
                   </td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-gray-200 rounded-full max-w-[80px]">
+                      <div className="flex-1 h-2 bg-gray-200 rounded-full max-w-[120px]">
                         <div
                           className={clsx(
                             'h-full rounded-full',
@@ -261,8 +262,14 @@ export default function POListPage() {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="px-5 py-8 text-center text-gray-400">
-                  No purchase orders found.
+                <td colSpan={7} className="px-5 py-8 text-center text-gray-400">
+                  <p className="mb-2">No purchase orders yet.</p>
+                  <button
+                    onClick={() => setShowModal(true)}
+                    className="text-sm text-blue-600 hover:underline font-medium"
+                  >
+                    + Create your first PO
+                  </button>
                 </td>
               </tr>
             )}
@@ -392,8 +399,8 @@ function CreatePOModal({
     : '';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
         <h3 className="text-lg font-semibold mb-4">Create Purchase Order</h3>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
@@ -470,7 +477,7 @@ function CreatePOModal({
             <button
               type="submit"
               disabled={isLoading}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 text-sm bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50"
             >
               {isLoading ? 'Creating...' : 'Create'}
             </button>

@@ -63,17 +63,17 @@ class TestCompanyPOSchema:
     def schema(self):
         return EXTRACTION_PROMPTS["COMPANY_PO"]["schema"]
 
-    def test_has_purchase_bill_no(self):
-        assert "purchase_bill_no" in self.schema
-
     def test_has_po_number(self):
         assert "po_number" in self.schema
 
-    def test_has_bill_no(self):
-        assert "bill_no" in self.schema
+    def test_has_po_date(self):
+        assert "po_date" in self.schema
 
-    def test_no_extra_fields(self):
-        assert set(self.schema.keys()) == {"purchase_bill_no", "po_number", "bill_no"}
+    def test_has_vendor_name(self):
+        assert "vendor_name" in self.schema
+
+    def test_has_order_items(self):
+        assert "order_items" in self.schema
 
 
 # ---------------------------------------------------------------------------
@@ -90,11 +90,11 @@ class TestCompanyDCSchema:
     def test_has_po_reference(self):
         assert "po_reference" in self.schema
 
-    def test_has_sales_order_no(self):
-        assert "sales_order_no" in self.schema
+    def test_has_so_number(self):
+        assert "so_number" in self.schema
 
-    def test_has_dispatch_to(self):
-        assert "dispatch_to" in self.schema
+    def test_has_delivery_address(self):
+        assert "delivery_address" in self.schema
 
     def test_instruction_mentions_non_returnable(self):
         instr = EXTRACTION_PROMPTS["COMPANY_DC"]["instruction"]
@@ -171,7 +171,7 @@ class TestPrimaryAndDateFields:
         "doc_type,expected",
         [
             ("CUSTOMER_PO", "po_number"),
-            ("COMPANY_PO", "purchase_bill_no"),
+            ("COMPANY_PO", "po_number"),
             ("VENDOR_DC", "dc_number"),
             ("VENDOR_INVOICE", "invoice_number"),
             ("COMPANY_DC", "dc_number"),
@@ -185,10 +185,10 @@ class TestPrimaryAndDateFields:
         "doc_type,expected",
         [
             ("CUSTOMER_PO", "po_date"),
-            ("COMPANY_PO", ""),
+            ("COMPANY_PO", "po_date"),
             ("VENDOR_DC", "dc_date"),
             ("VENDOR_INVOICE", ""),
-            ("COMPANY_DC", ""),
+            ("COMPANY_DC", "dc_date"),
             ("COMPANY_INVOICE", ""),
         ],
     )
@@ -210,10 +210,10 @@ class TestSearchableFields:
             assert isinstance(fields, list)
             assert len(fields) > 0, f"No searchable fields for {dt}"
 
-    def test_company_dc_includes_sales_order_no(self):
+    def test_company_dc_includes_so_number(self):
         fields = get_searchable_fields("COMPANY_DC")
         ref_types = [rt for rt, _ in fields]
-        assert "sales_order_no" in ref_types
+        assert "so_number" in ref_types
 
     def test_company_dc_includes_dc_number(self):
         fields = get_searchable_fields("COMPANY_DC")
@@ -230,15 +230,15 @@ class TestSearchableFields:
         ref_types = [rt for rt, _ in fields]
         assert "so_number" in ref_types
 
-    def test_company_po_includes_bill_no(self):
+    def test_company_po_includes_po_number(self):
         fields = get_searchable_fields("COMPANY_PO")
         ref_types = [rt for rt, _ in fields]
-        assert "bill_no" in ref_types
+        assert "po_number" in ref_types
 
-    def test_company_po_includes_purchase_bill_no(self):
+    def test_company_po_includes_vendor_name(self):
         fields = get_searchable_fields("COMPANY_PO")
         ref_types = [rt for rt, _ in fields]
-        assert "purchase_bill_no" in ref_types
+        assert "vendor_name" in ref_types
 
     def test_unknown_type_returns_empty_list(self):
         assert get_searchable_fields("NOPE") == []

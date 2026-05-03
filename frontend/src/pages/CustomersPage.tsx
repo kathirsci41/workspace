@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
 import { useCustomers, useCreateCustomer } from '@/hooks/useCustomers';
+import { useToast } from '@/context/ToastContext';
 
 export default function CustomersPage() {
   const [search, setSearch] = useState('');
@@ -11,6 +12,7 @@ export default function CustomersPage() {
 
   const { data, isLoading, isError, error } = useCustomers(page, 20, search || undefined);
   const createMutation = useCreateCustomer();
+  const showToast = useToast();
 
   return (
     <div>
@@ -94,8 +96,22 @@ export default function CustomersPage() {
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="px-5 py-8 text-center text-gray-400">
-                  No customers found.
+                <td colSpan={5} className="px-5 py-16 text-center">
+                  {search ? (
+                    <span className="text-gray-400">No customers found.</span>
+                  ) : (
+                    <div className="flex flex-col items-center gap-3">
+                      <p className="text-lg font-semibold text-gray-700">No customers yet</p>
+                      <p className="text-sm text-gray-400">Add your first customer to start processing purchase orders.</p>
+                      <button
+                        onClick={() => setShowModal(true)}
+                        className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+                      >
+                        <Plus size={16} />
+                        Add Customer
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             )}
@@ -137,7 +153,10 @@ export default function CustomersPage() {
           }}
           onCreate={(body) => {
             createMutation.mutate(body, {
-              onSuccess: () => setShowModal(false),
+              onSuccess: () => {
+                setShowModal(false);
+                showToast('Customer added successfully', 'success');
+              },
             });
           }}
           isLoading={createMutation.isPending}

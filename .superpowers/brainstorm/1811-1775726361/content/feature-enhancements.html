@@ -1,0 +1,114 @@
+<h2>Which feature enhancements do you want?</h2>
+<p class="subtitle">Select any that are in scope — these are additions on top of the UX fixes. Multi-select.</p>
+
+<div class="options" data-multiselect>
+
+  <div class="option" data-choice="dash-quickactions" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#dbeafe;color:#1e40af;font-size:11px;padding:4px 6px;">DASH</div>
+    <div class="content">
+      <h3>Dashboard — Quick Action Bar</h3>
+      <p>One-click shortcuts at the top: "Create PO", "Upload Doc", "Review Pending (N)". Saves 2-3 clicks for the most common daily actions.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="dash-trends" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#dbeafe;color:#1e40af;font-size:11px;padding:4px 6px;">DASH</div>
+    <div class="content">
+      <h3>Dashboard — Stats with Trends</h3>
+      <p>Show delta vs yesterday on each stat card (e.g. "↑3 pending reviews"). Helps operators spot if backlog is growing.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="dash-docstatus" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#dbeafe;color:#1e40af;font-size:11px;padding:4px 6px;">DASH</div>
+    <div class="content">
+      <h3>Dashboard — Document Status Donut</h3>
+      <p>Visual breakdown of all documents by status (Verified / Pending / Failed / Extracting). Instant pipeline health at a glance.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="polist-savedfilters" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#f0fdf4;color:#166534;font-size:11px;padding:4px 6px;">PO LIST</div>
+    <div class="content">
+      <h3>PO List — Saved Filter Presets</h3>
+      <p>Save frequently used filter combos (e.g. "My pending Redington POs") and recall them with one click. Useful when the same filters are applied daily.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="customers-detail" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#fdf4ff;color:#7e22ce;font-size:11px;padding:4px 6px;">CUST</div>
+    <div class="content">
+      <h3>Customers — Customer Detail Page</h3>
+      <p>Dedicated page showing: PO count, total order value, recent POs list, contact info, chain health summary. Currently all this is hidden.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="docs-bulkreextract" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#fff7ed;color:#c2410c;font-size:11px;padding:4px 6px;">DOCS</div>
+    <div class="content">
+      <h3>Documents — Bulk Re-extract</h3>
+      <p>Select multiple failed/pending documents and trigger re-extraction in one click. Avoids opening each PO individually.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="podetail-completionstate" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#f0fdf4;color:#166534;font-size:11px;padding:4px 6px;">PO DTL</div>
+    <div class="content">
+      <h3>PO Detail — Chain Complete State</h3>
+      <p>When chain hits 100%, show a green "All documents complete" banner with a link to the Profile view. Currently looks identical at 50% and 100%.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="profile-stickynav" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#fff1f2;color:#be123c;font-size:11px;padding:4px 6px;">PROFILE</div>
+    <div class="content">
+      <h3>PO Profile — Sticky Section Navigation</h3>
+      <p>Fixed left sidebar with jump-links to each section (Overview, Discrepancies, Items, Vendors, Documents, Timeline). Essential — the page has 8 sections and no way to navigate.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="profile-printexport" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#fff1f2;color:#be123c;font-size:11px;padding:4px 6px;">PROFILE</div>
+    <div class="content">
+      <h3>PO Profile — Print / PDF Export</h3>
+      <p>Clean print layout of the full profile (for physical records or email attachments). Different from the Excel export — this is the human-readable summary.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="search-history" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#f0f9ff;color:#0369a1;font-size:11px;padding:4px 6px;">SEARCH</div>
+    <div class="content">
+      <h3>Search — Recent Searches + URL State</h3>
+      <p>Persist tab and filter state in the URL (shareable links). Show last 5 searches as quick-picks. Small but makes search feel polished.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="admin-activityfeed" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#fafaf9;color:#44403c;font-size:11px;padding:4px 6px;">ADMIN</div>
+    <div class="content">
+      <h3>Admin/System — Live Activity Feed</h3>
+      <p>Rolling log of recent events: "INV-001 verified by admin", "PO-1045 extraction failed", "Re-extraction queued". Replaces the silent "currently active" table.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="global-toasts" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#f8fafc;color:#475569;font-size:11px;padding:4px 6px;">GLOBAL</div>
+    <div class="content">
+      <h3>Global — Toast Notifications</h3>
+      <p>Success/error toasts for all actions (verify, reject, upload, create PO). Currently most actions are silent. Already exists on POProfile — extend to all pages.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="global-breadcrumbs" onclick="toggleSelect(this)">
+    <div class="letter" style="background:#f8fafc;color:#475569;font-size:11px;padding:4px 6px;">GLOBAL</div>
+    <div class="content">
+      <h3>Global — Breadcrumbs</h3>
+      <p>Show hierarchy trail on detail pages: Dashboard → Purchase Orders → PO-1045 → Profile. Helps users know where they are and navigate back.</p>
+    </div>
+  </div>
+
+</div>
+
+<div style="margin-top: 20px; padding: 14px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px;">
+  <p style="font-size: 12px; color: #166534; margin: 0;"><strong>Note:</strong> Global Toasts + Customer Detail Page + PO Profile Sticky Nav are the three I'd consider essential. Everything else is a genuine enhancement.</p>
+</div>

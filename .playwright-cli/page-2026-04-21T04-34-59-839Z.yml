@@ -1,0 +1,44 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - heading "DocPlatform" [level=1] [ref=e6]
+    - navigation [ref=e7]:
+      - link "Dashboard" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - img [ref=e9]
+        - text: Dashboard
+      - link "Customers" [ref=e14] [cursor=pointer]:
+        - /url: /customers
+        - img [ref=e15]
+        - text: Customers
+      - link "Purchase Orders" [ref=e20] [cursor=pointer]:
+        - /url: /purchase-orders
+        - img [ref=e21]
+        - text: Purchase Orders
+      - link "Documents" [ref=e24] [cursor=pointer]:
+        - /url: /documents
+        - img [ref=e25]
+        - text: Documents
+      - link "Search" [ref=e29] [cursor=pointer]:
+        - /url: /search
+        - img [ref=e30]
+        - text: Search
+      - link "Assistant" [ref=e33] [cursor=pointer]:
+        - /url: /chat
+        - img [ref=e34]
+        - text: Assistant
+      - link "System" [ref=e36] [cursor=pointer]:
+        - /url: /admin
+        - img [ref=e37]
+        - text: System
+    - generic [ref=e40]:
+      - button "Collapse" [ref=e41] [cursor=pointer]:
+        - img [ref=e42]
+        - generic [ref=e44]: Collapse
+      - generic [ref=e45]: DocPlatform v2.2.0
+  - generic [ref=e46]:
+    - banner [ref=e47]:
+      - generic [ref=e49]:
+        - img [ref=e50]
+        - textbox "Search invoice, DC, PO, customer..." [ref=e53]
+    - main [ref=e54]:
+      - img [ref=e56]

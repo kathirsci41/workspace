@@ -12,6 +12,7 @@ export type DocumentStatus =
   | 'UPLOADED'
   | 'EXTRACTING'
   | 'PENDING_REVIEW'
+  | 'PENDING_MODEL'
   | 'VERIFIED'
   | 'EXTRACTION_FAILED'
   | 'REJECTED';
@@ -59,7 +60,18 @@ export interface PurchaseOrder {
   status: POStatus;
   chain_completeness: number;
   so_number: string | null;
+  customer_po_ref?: string | null;
   notes: string | null;
+  fulfillment_type: 'procurement' | 'stock';
+  items_verified: boolean;
+  order_scenario: 'unknown' | 'procurement' | 'stock' | 'drop_ship' | 'service_amc';
+  gst_type: 'unknown' | 'igst' | 'cgst_sgst';
+  invoice_split: boolean;
+  manually_completed: boolean;
+  completed_at: string | null;
+  completion_note: string | null;
+  billing_type?: 'full' | 'staged' | 'recurring';
+  billing_milestones?: BillingMilestone[];
   created_at: string;
   updated_at: string;
 }
@@ -119,6 +131,7 @@ export interface Document {
   metadata: DocumentMetadata | null;
   created_at: string;
   updated_at: string;
+  days_pending?: number | null;
 }
 
 export interface ChainSlot {
@@ -128,6 +141,8 @@ export interface ChainSlot {
   uploaded_at: string | null;
   confidence: number | null;
   has_validation_errors?: boolean;
+  required?: boolean;
+  optional?: boolean;
   extraction_route?: ExtractionRoute;
   slot_message?: string | null;    // Why this slot is pending/failed
 }
@@ -137,6 +152,13 @@ export interface ChainStatus {
   po_number: string;
   completeness_pct: number;
   chain: Record<string, ChainSlot[]>;
+}
+
+export interface BillingMilestone {
+  name: string;
+  percentage: number;
+  trigger: string;
+  due_date: string | null;
 }
 
 // ── NEW: correction payload sent to POST /corrections ────────────
@@ -198,3 +220,121 @@ export const DOC_TYPE_SHORT: Record<DocumentType, string> = {
   COMPANY_DC: 'C.DC',
   COMPANY_INVOICE: 'C.Inv',
 };
+
+// PO Profile types
+
+export interface POProfileDocument {
+  document_id: string;
+  status: string;
+  filename: string | null;
+  original_filename: string | null;
+  primary_ref_no: string | null;
+  po_ref_no: string | null;
+  doc_date: string | null;
+  total_amount: number | null;
+  confidence_score: number | null;
+  field_confidences: Record<string, number> | null;
+  extraction_route: string | null;
+  extracted_data: Record<string, unknown> | null;
+  verified_at: string | null;
+  uploaded_at: string | null;
+}
+
+export interface POProfileDocumentSlot {
+  document_type: string;
+  status: string;  // 'empty' | 'not_applicable' | DocumentStatus value
+  documents: POProfileDocument[];
+  required: boolean;
+  optional: boolean;
+}
+
+export interface POProfileDiscrepancy {
+  type: string;
+  doc_type: string;
+  message: string;
+  severity: 'error' | 'warning';
+}
+
+export interface POProfileTimelineEvent {
+  event_type: string;
+  doc_type: string;
+  timestamp: string;
+  detail: string | null;
+}
+
+export interface FieldComparison {
+  field_label: string;
+  source_doc: string;
+  source_value: string | null;
+  compared_doc: string;
+  compared_value: string | null;
+  match: boolean | null;
+  note: string | null;
+}
+
+export interface VendorGroup {
+  vendor_po_ref: string;
+  vendor_name: string | null;
+  completeness_pct: number;
+  slots: POProfileDocumentSlot[];
+}
+
+export interface ItemComparison {
+  sr_no: string | null;
+  description: string | null;
+  part_no: string | null;
+  source_doc: string;
+  source_qty: number | null;
+  compared_doc: string;
+  compared_qty: number | null;
+  qty_match: boolean | null;
+  source_price?: number | null;
+  compared_price?: number | null;
+  price_match?: boolean | null;
+}
+
+export interface ItemMatch {
+  sr_no: string | null;
+  description: string | null;
+  matched_part_no: string | null;
+  confidence: number;
+  match_type: 'exact' | 'ai' | 'unmatched';
+}
+
+export interface ParsedAddress {
+  pin_code: string | null;
+  city: string | null;
+  state: string | null;
+  full_address: string | null;
+}
+
+export interface POProfile {
+  po_id: string;
+  po_number: string;
+  customer_name: string;
+  customer_sky_id: string;
+  so_number: string | null;
+  po_date: string | null;
+  total_amount: number | null;
+  status: string;
+  chain_completeness: number;
+  chain_completeness_display: string | null;  // "72.5%" | "—" when scenario unknown
+  fulfillment_type: 'procurement' | 'stock';
+  order_scenario: 'unknown' | 'procurement' | 'stock' | 'drop_ship' | 'service_amc';
+  gst_type: 'unknown' | 'igst' | 'cgst_sgst';
+  invoice_split: boolean;
+  manually_completed: boolean;
+  completed_at: string | null;
+  completion_note: string | null;
+  created_at: string;
+  slots: POProfileDocumentSlot[];
+  timeline: POProfileTimelineEvent[];
+  discrepancies: POProfileDiscrepancy[];
+  cross_references: Record<string, string[]>;
+  vendor_groups: VendorGroup[];
+  items_verified: boolean;
+  field_comparisons: FieldComparison[];
+  item_comparisons: ItemComparison[];
+  item_matches: ItemMatch[];
+  delivery_address_parsed: ParsedAddress | null;
+}

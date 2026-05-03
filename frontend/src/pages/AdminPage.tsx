@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   ArrowRight,
   Users,
+  Layers,
 } from 'lucide-react';
 import client from '@/api/client';
 import clsx from 'clsx';
@@ -21,6 +22,7 @@ interface HealthResult {
   database: string;
   redis: string;
   ollama: string;
+  models: string;
   storage: string;
 }
 
@@ -34,6 +36,7 @@ interface Stats {
   verified: number;
   extraction_failures: number;
   rejected: number;
+  pending_model: number;
 }
 
 interface QueueStatus {
@@ -176,6 +179,54 @@ export default function AdminPage() {
   const [activeTs, setActiveTs]     = useState<Date | null>(null);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [requeuing, setRequeuing]         = useState(false);
+  const [requeueResult, setRequeueResult] = useState<{ requeued: number } | null>(null);
+  const [requeueFailing, setRequeueFailing] = useState(false);
+  const [requeueFailResult, setRequeueFailResult] = useState<{ requeued: number } | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<{ updated: number } | null>(null);
+
+  const handleRequeue = async () => {
+    setRequeuing(true);
+    setRequeueResult(null);
+    try {
+      const { data } = await client.post('/api/v1/admin/requeue-pending-models');
+      setRequeueResult({ requeued: data.requeued });
+      await refreshAll();
+    } catch {
+      // toast shown by axios interceptor
+    } finally {
+      setRequeuing(false);
+    }
+  };
+
+  const handleRequeueFailed = async () => {
+    setRequeueFailing(true);
+    setRequeueFailResult(null);
+    try {
+      const { data } = await client.post('/api/v1/admin/requeue-failed?limit=20');
+      setRequeueFailResult({ requeued: data.requeued });
+      await refreshAll();
+    } catch {
+      // toast shown by axios interceptor
+    } finally {
+      setRequeueFailing(false);
+    }
+  };
+
+  const handleBackfillCpoRefs = async () => {
+    setBackfilling(true);
+    setBackfillResult(null);
+    try {
+      const { data } = await client.post('/api/v1/admin/backfill-cpo-refs');
+      setBackfillResult({ updated: data.updated });
+      await refreshAll();
+    } catch {
+      // toast shown by axios interceptor
+    } finally {
+      setBackfilling(false);
+    }
+  };
 
   // ── Fetch functions ──────────────────────────────────────────────────────
 
@@ -273,14 +324,63 @@ export default function AdminPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Admin Console</h2>
-        <button
-          onClick={() => refreshAll()}
-          disabled={refreshing}
-          className="flex items-center gap-2 text-sm px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-        >
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-          Refresh all
-        </button>
+        <div className="flex items-center gap-2">
+          {requeueResult && (
+            <span className="text-xs text-green-600 font-medium">
+              {requeueResult.requeued === 0
+                ? 'No pending model docs'
+                : `Requeued ${requeueResult.requeued} document${requeueResult.requeued > 1 ? 's' : ''}`}
+            </span>
+          )}
+          <button
+            onClick={handleRequeue}
+            disabled={requeuing || refreshing}
+            title="Re-queue all documents waiting for the AI model"
+            className="flex items-center gap-2 text-sm px-3 py-1.5 border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={requeuing ? 'animate-spin' : ''} />
+            {requeuing ? 'Requeuing…' : 'Requeue Pending'}
+          </button>
+          {requeueFailResult && (
+            <span className="text-xs text-red-600">
+              ✓{' '}
+              {requeueFailResult.requeued === 0
+                ? 'No failed documents to retry'
+                : `Retried ${requeueFailResult.requeued} document${requeueFailResult.requeued > 1 ? 's' : ''}`}
+            </span>
+          )}
+          <button
+            onClick={handleRequeueFailed}
+            disabled={requeueFailing || refreshing}
+            title="Retry extraction on failed documents"
+            className="flex items-center gap-2 text-sm px-3 py-1.5 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={requeueFailing ? 'animate-spin' : ''} />
+            {requeueFailing ? 'Retrying…' : 'Retry Failed'}
+          </button>
+          {backfillResult && (
+            <span className="text-xs text-purple-600">
+              ✓ Backfilled {backfillResult.updated} PO{backfillResult.updated > 1 ? 's' : ''}
+            </span>
+          )}
+          <button
+            onClick={handleBackfillCpoRefs}
+            disabled={backfilling || refreshing}
+            title="Populate customer_po_ref for existing documents"
+            className="flex items-center gap-2 text-sm px-3 py-1.5 border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={backfilling ? 'animate-spin' : ''} />
+            {backfilling ? 'Backfilling…' : 'Backfill CPO Refs'}
+          </button>
+          <button
+            onClick={() => refreshAll()}
+            disabled={refreshing}
+            className="flex items-center gap-2 text-sm px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            Refresh all
+          </button>
+        </div>
       </div>
 
       {/* ── Section 1: System Health ─────────────────────────────────────── */}
@@ -292,16 +392,17 @@ export default function AdminPage() {
             One or more services are unhealthy. See details below.
           </div>
         )}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {health ? (
             <>
               <ServiceCard name="database" value={health.database} icon={Database} />
               <ServiceCard name="redis"    value={health.redis}    icon={Server} />
               <ServiceCard name="model endpoint" value={health.ollama} icon={Cpu} />
+              <ServiceCard name="models loaded"  value={health.models}   icon={Layers} />
               <ServiceCard name="storage"  value={health.storage}  icon={HardDrive} />
             </>
           ) : (
-            <p className="col-span-4 text-sm text-gray-400 py-4 text-center">Checking services…</p>
+            <p className="col-span-5 text-sm text-gray-400 py-4 text-center">Checking services…</p>
           )}
         </div>
       </div>
@@ -322,6 +423,12 @@ export default function AdminPage() {
             <div className="w-px h-10 bg-gray-200 mx-1" />
             <PipelineCounter label="Failed"         count={stats.extraction_failures} status="EXTRACTION_FAILED" color="border-red-200 bg-red-50 text-red-700 hover:border-red-400" />
             <PipelineCounter label="Rejected"       count={stats.rejected}            status="REJECTED"          color="border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-400" />
+            {stats.pending_model > 0 && (
+              <>
+                <div className="w-px h-10 bg-orange-200 mx-1" />
+                <PipelineCounter label="Awaiting Model" count={stats.pending_model} status="PENDING_MODEL" color="border-orange-300 bg-orange-50 text-orange-700 hover:border-orange-400" />
+              </>
+            )}
           </div>
         ) : (
           <p className="text-sm text-gray-400 py-4 text-center">Loading stats…</p>

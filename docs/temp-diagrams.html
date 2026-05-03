@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Approach B vs C</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    body { font-family: sans-serif; background: #0d1117; color: #e6edf3; margin: 0; padding: 20px; }
+    h1 { font-size: 18px; color: #58a6ff; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #8b949e; margin-bottom: 20px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 20px; }
+    .card h2 { font-size: 15px; color: #f0883e; margin: 0 0 6px; }
+    .card .tag { display: inline-block; font-size: 11px; background: #1f6feb; color: #e6edf3; border-radius: 4px; padding: 2px 8px; margin-bottom: 14px; }
+    .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; font-size: 12px; }
+    .pros { background: #0d1f12; border-left: 3px solid #3fb950; padding: 8px 10px; border-radius: 4px; }
+    .cons { background: #1f0d0d; border-left: 3px solid #f85149; padding: 8px 10px; border-radius: 4px; }
+    .pros li, .cons li { margin: 4px 0; color: #c9d1d9; }
+    .mermaid { background: #0d1117; border-radius: 6px; padding: 10px; }
+    .badge-recommended { background: #3fb950; color: #0d1117; font-size: 11px; font-weight: bold; border-radius: 4px; padding: 2px 8px; margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <h1>DPP Chain Validation — Architectural Approaches</h1>
+  <p class="subtitle">Comparing Approach B (Reference Enrichment) vs Approach C (Explicit Chain Groups)</p>
+
+  <div class="grid">
+
+    <!-- Approach B -->
+    <div class="card">
+      <h2>Approach B — Reference Enrichment <span class="badge-recommended">RECOMMENDED</span></h2>
+      <span class="tag">Minimal migration · CPO-centric preserved</span>
+      <div class="mermaid">
+erDiagram
+    PurchaseOrder ||--o{ Document : "po_id"
+    PurchaseOrder ||--o{ VendorPO : "po_id"
+
+    PurchaseOrder {
+        int id PK
+        string po_number
+        string so_number
+        string billing_type
+        string scenario
+        json billing_milestones
+    }
+
+    Document {
+        int id PK
+        int po_id FK
+        string doc_type
+        string so_number "NEW"
+        string vpo_number "NEW"
+        int billing_stage "NEW"
+        json extracted_data
+    }
+
+    VendorPO {
+        int id PK
+        int po_id FK
+        string vpo_number
+        string vendor_name
+    }
+      </div>
+      <div class="pros-cons">
+        <div class="pros">
+          <b style="color:#3fb950">Pros</b>
+          <ul>
+            <li>3 new columns only</li>
+            <li>No UI redesign needed</li>
+            <li>Works without ERP</li>
+            <li>Chain queries via so_number</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <b style="color:#f85149">Cons</b>
+          <ul>
+            <li>SO not a first-class entity</li>
+            <li>Multi-SO per CPO needs join logic</li>
+            <li>Chain state lives in query, not model</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Approach C -->
+    <div class="card">
+      <h2>Approach C — Explicit Chain Groups</h2>
+      <span class="tag">Most flexible · Extra abstraction layer</span>
+      <div class="mermaid">
+erDiagram
+    PurchaseOrder ||--o{ DocumentChain : "po_id"
+    PurchaseOrder ||--o{ Document : "po_id"
+    DocumentChain ||--o{ DocumentChainMember : "chain_id"
+    Document ||--o{ DocumentChainMember : "document_id"
+
+    PurchaseOrder {
+        int id PK
+        string po_number
+        string scenario
+        string billing_type
+    }
+
+    DocumentChain {
+        int id PK
+        int po_id FK
+        string chain_ref
+        string chain_type
+        string status
+        json required_docs
+    }
+
+    DocumentChainMember {
+        int id PK
+        int chain_id FK
+        int document_id FK
+        string role
+        bool is_validated
+    }
+
+    Document {
+        int id PK
+        int po_id FK
+        string doc_type
+        json extracted_data
+    }
+      </div>
+      <div class="pros-cons">
+        <div class="pros">
+          <b style="color:#3fb950">Pros</b>
+          <ul>
+            <li>Chain is a real model object</li>
+            <li>Easy to query chain status</li>
+            <li>Handles any grouping key</li>
+            <li>Per-document validation roles</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <b style="color:#f85149">Cons</b>
+          <ul>
+            <li>2 new tables + migration</li>
+            <li>Chain creation must be triggered</li>
+            <li>More code to write and test</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

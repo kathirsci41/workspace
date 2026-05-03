@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, func, distinct
+from sqlalchemy import select, delete
 from sqlalchemy.orm.attributes import flag_modified
 from uuid import UUID
 from datetime import datetime
@@ -17,6 +17,7 @@ from app.services.extraction.prompts import (
 )
 from app.services.extraction.response_parser import ResponseParser
 from app.services.extraction.so_validator import validate_so_number
+from app.services.po_service import update_chain_completeness
 import logging
 
 logger = logging.getLogger(__name__)
@@ -213,8 +214,16 @@ async def verify_metadata(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # Update extracted data
-    meta.extracted_data = body.extracted_data
+    # Update extracted data — preserve existing array fields (order_items,
+    # delivery_locations, etc.) that the ReviewModal intentionally omits from
+    # its editedData payload to avoid string-coercing them.
+    ARRAY_PRESERVE_KEYS = {"order_items", "delivery_locations"}
+    merged = dict(body.extracted_data)
+    if meta.extracted_data:
+        for key in ARRAY_PRESERVE_KEYS:
+            if key not in merged and key in meta.extracted_data:
+                merged[key] = meta.extracted_data[key]
+    meta.extracted_data = merged
 
     # Re-derive key fields
     doc_type = meta.document_type.value if hasattr(meta.document_type, "value") else str(meta.document_type)
@@ -285,7 +294,7 @@ async def verify_metadata(
     meta.status = MetadataStatus.VERIFIED
     meta.verified_at = datetime.utcnow()
     doc.status = DocumentStatus.VERIFIED
-    await _update_chain_async(db, doc.po_id)
+    await update_chain_completeness(db, doc.po_id)
     await db.commit()
     await db.refresh(meta)
     response = ExtractionResponse.model_validate(meta)
@@ -320,43 +329,23 @@ async def reject_metadata(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
+    # Clear search index — rejected document should not appear in search results
+    await db.execute(
+        delete(ReferenceIndex).where(
+            ReferenceIndex.document_id == document_id
+        )
+    )
+
     # Set status
     meta.status = MetadataStatus.FAILED
     doc.status = DocumentStatus.REJECTED
 
     # Update PO chain completeness
-    await _update_chain_async(db, doc.po_id)
+    await update_chain_completeness(db, doc.po_id)
 
     await db.commit()
     await db.refresh(meta)
     return meta
-
-
-async def _update_chain_async(db: AsyncSession, po_id: UUID):
-    """Update PO chain completeness asynchronously."""
-    count_result = await db.execute(
-        select(func.count(distinct(Document.document_type))).where(
-            Document.po_id == po_id,
-            Document.status.notin_([DocumentStatus.EXTRACTION_FAILED, DocumentStatus.REJECTED]),
-        )
-    )
-    count = count_result.scalar() or 0
-    completeness = round((count / 6) * 100, 1)
-
-    po_result = await db.execute(
-        select(PurchaseOrder).where(PurchaseOrder.id == po_id)
-    )
-    po = po_result.scalar_one_or_none()
-    if po:
-        po.chain_completeness = completeness
-        if completeness == 0:
-            po.status = POStatus.INITIATED
-        elif completeness < 50:
-            po.status = POStatus.IN_PROGRESS
-        elif completeness < 100:
-            po.status = POStatus.NEAR_COMPLETE
-        else:
-            po.status = POStatus.COMPLETE
 
 
 # Phase 8: Corrections Capture + Active Learning

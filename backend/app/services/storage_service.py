@@ -57,6 +57,7 @@ class StorageService:
     async def read_file(self, relative_path: str) -> bytes:
         """Read file from NAS."""
         self._validate_path(relative_path)
+        self.check_accessible()
         full_path = os.path.join(self.base_path, relative_path)
         if not os.path.exists(full_path):
             raise FileNotFoundError(f"File not found: {relative_path}")

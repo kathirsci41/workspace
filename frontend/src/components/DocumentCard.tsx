@@ -22,6 +22,8 @@ interface Props {
   showLabel?: boolean;
   /** If set, shows "#n" next to the label to distinguish docs */
   docIndex?: number;
+  /** When true, renders a yellow highlight ring (used for deep-link from search) */
+  highlighted?: boolean;
 }
 
 export default function DocumentCard({
@@ -37,6 +39,7 @@ export default function DocumentCard({
   onEdit,
   showLabel = true,
   docIndex,
+  highlighted = false,
 }: Props) {
   const status = slot?.status ?? 'empty';
 
@@ -51,13 +54,18 @@ export default function DocumentCard({
     REJECTED: 'border-red-400',
   }[status] ?? 'border-gray-300';
 
+  const borderStyle = status === 'empty' ? 'border-dashed' : 'border-solid';
+
   return (
     <div
+      id={slot?.document_id ?? undefined}
       className={clsx(
-        'rounded-lg border-2 p-4 transition-all cursor-pointer',
+        'rounded-lg border-2 p-4 transition-all',
+        borderStyle,
         borderColor,
         isSelected && 'ring-2 ring-blue-500 shadow-md',
-        status !== 'empty' && 'hover:shadow-sm'
+        highlighted && 'ring-2 ring-yellow-400 shadow-lg',
+        status === 'empty' ? 'cursor-default' : 'cursor-pointer hover:shadow-sm'
       )}
       onClick={() => {
         if (slot?.document_id) onSelect(slot.document_id);
@@ -131,14 +139,15 @@ export default function DocumentCard({
 
       {/* Empty state */}
       {status === 'empty' && (
-        <div className="text-center py-3">
-          <p className="text-sm text-gray-400 mb-2">Not uploaded yet</p>
+        <div className="text-center py-5">
+          <Upload size={24} className="mx-auto mb-2 text-gray-300" />
+          <p className="text-sm text-gray-400 mb-3">No document uploaded yet</p>
           <button
             onClick={(e) => {
               e.stopPropagation();
               onUpload();
             }}
-            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium"
+            className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium border border-blue-200 hover:border-blue-400 px-3 py-1.5 rounded-lg transition-colors"
           >
             <Upload size={14} />
             Upload Document

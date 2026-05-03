@@ -16,7 +16,7 @@ def test_jpeg_rejected():
             return False
         except HTTPException as e:
             assert e.status_code == 415
-            assert "JPEG" in e.detail
+            assert "PDF" in e.detail
             print("OK JPEG correctly rejected with 415 and clear message")
             return True
     except ImportError:

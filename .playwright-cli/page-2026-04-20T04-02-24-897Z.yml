@@ -1,0 +1,203 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - heading "DocPlatform" [level=1] [ref=e6]
+    - navigation [ref=e7]:
+      - link "Dashboard" [ref=e8] [cursor=pointer]:
+        - /url: /
+        - img [ref=e9]
+        - text: Dashboard
+      - link "Customers" [ref=e14] [cursor=pointer]:
+        - /url: /customers
+        - img [ref=e15]
+        - text: Customers
+      - link "Purchase Orders" [active] [ref=e20] [cursor=pointer]:
+        - /url: /purchase-orders
+        - img [ref=e21]
+        - text: Purchase Orders
+      - link "Documents" [ref=e24] [cursor=pointer]:
+        - /url: /documents
+        - img [ref=e25]
+        - text: Documents
+      - link "Search" [ref=e29] [cursor=pointer]:
+        - /url: /search
+        - img [ref=e30]
+        - text: Search
+      - link "Assistant" [ref=e33] [cursor=pointer]:
+        - /url: /chat
+        - img [ref=e34]
+        - text: Assistant
+      - link "System" [ref=e36] [cursor=pointer]:
+        - /url: /admin
+        - img [ref=e37]
+        - text: System
+    - generic [ref=e40]:
+      - button "Collapse" [ref=e41] [cursor=pointer]:
+        - img [ref=e42]
+        - generic [ref=e44]: Collapse
+      - generic [ref=e45]: DocPlatform v2.2.0
+  - generic [ref=e46]:
+    - banner [ref=e47]:
+      - generic [ref=e49]:
+        - img [ref=e50]
+        - textbox "Search invoice, DC, PO, customer..." [ref=e53]
+    - main [ref=e54]:
+      - generic [ref=e510]:
+        - generic [ref=e511]:
+          - heading "Purchase Orders" [level=2] [ref=e512]
+          - button "Create PO" [ref=e513] [cursor=pointer]:
+            - img [ref=e514]
+            - text: Create PO
+        - generic [ref=e515]:
+          - generic [ref=e516]:
+            - generic [ref=e517]:
+              - img [ref=e518]
+              - textbox "Search PO or SO number..." [ref=e521]
+            - generic [ref=e523]:
+              - textbox "All Customers" [ref=e524]
+              - button [ref=e525] [cursor=pointer]:
+                - img [ref=e526]
+            - combobox [ref=e528]:
+              - option "All Statuses" [selected]
+              - option "Initiated"
+              - option "In Progress"
+              - option "Near Complete"
+              - option "Complete"
+              - option "Cancelled"
+          - generic [ref=e529]:
+            - generic [ref=e530]:
+              - generic [ref=e531]: From
+              - textbox [ref=e532]
+              - generic [ref=e533]: To
+              - textbox [ref=e534]
+            - combobox [ref=e535]:
+              - option "Newest First" [selected]
+              - option "Oldest First"
+              - option "PO Date ↓"
+              - option "PO Date ↑"
+              - option "Most Complete"
+              - option "Least Complete"
+              - option "Amount ↓"
+          - generic [ref=e536]:
+            - generic [ref=e537]:
+              - button "All" [ref=e538] [cursor=pointer]
+              - button "Incomplete" [ref=e539] [cursor=pointer]
+              - button "Critical (<25%)" [ref=e540] [cursor=pointer]
+              - button "Complete" [ref=e541] [cursor=pointer]
+            - combobox [ref=e542]:
+              - option "Any Documents" [selected]
+              - option "Missing Customer PO"
+              - option "Missing Company PO"
+              - option "Missing Vendor DC"
+              - option "Missing Vendor Invoice"
+              - option "Missing Company DC"
+              - option "Missing Company Invoice"
+        - table [ref=e544]:
+          - rowgroup [ref=e545]:
+            - row "PO Number Customer SO Number Date Amount Chain % Status" [ref=e546]:
+              - columnheader "PO Number" [ref=e547]
+              - columnheader "Customer" [ref=e548]
+              - columnheader "SO Number" [ref=e549]
+              - columnheader "Date" [ref=e550]
+              - columnheader "Amount" [ref=e551]
+              - columnheader "Chain %" [ref=e552]
+              - columnheader "Status" [ref=e553]
+          - rowgroup [ref=e554]:
+            - row "PO-2026-SF005 SKY-SF001 SHRIRAM FINANCE — — — 100% COMPLETE" [ref=e555] [cursor=pointer]:
+              - cell "PO-2026-SF005" [ref=e556]
+              - cell "SKY-SF001 SHRIRAM FINANCE" [ref=e557]
+              - cell "—" [ref=e558]
+              - cell "—" [ref=e559]
+              - cell "—" [ref=e560]
+              - cell "100%" [ref=e561]:
+                - generic [ref=e565]: 100%
+              - cell "COMPLETE" [ref=e566]
+            - row "QA-PO-TEST-001 SKY-QA001 QA Test Customer — — — 0% INITIATED" [ref=e567] [cursor=pointer]:
+              - cell "QA-PO-TEST-001" [ref=e568]
+              - cell "SKY-QA001 QA Test Customer" [ref=e569]
+              - cell "—" [ref=e570]
+              - cell "—" [ref=e571]
+              - cell "—" [ref=e572]
+              - cell "0%" [ref=e573]:
+                - generic [ref=e576]: 0%
+              - cell "INITIATED" [ref=e577]
+            - row "PO-2026-SF004 SKY-SF001 SHRIRAM FINANCE TEST-SO-001 — — 16.7% IN PROGRESS" [ref=e578] [cursor=pointer]:
+              - cell "PO-2026-SF004" [ref=e579]
+              - cell "SKY-SF001 SHRIRAM FINANCE" [ref=e580]
+              - cell "TEST-SO-001" [ref=e581]
+              - cell "—" [ref=e582]
+              - cell "—" [ref=e583]
+              - cell "16.7%" [ref=e584]:
+                - generic [ref=e588]: 16.7%
+              - cell "IN PROGRESS" [ref=e589]
+            - row "SAMPLE-TEST-001 SKY-002 PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE — — — 100% COMPLETE" [ref=e590] [cursor=pointer]:
+              - cell "SAMPLE-TEST-001" [ref=e591]
+              - cell "SKY-002 PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE" [ref=e592]
+              - cell "—" [ref=e593]
+              - cell "—" [ref=e594]
+              - cell "—" [ref=e595]
+              - cell "100%" [ref=e596]:
+                - generic [ref=e600]: 100%
+              - cell "COMPLETE" [ref=e601]
+            - row "PO-2026-SF003 SKY-SF001 SHRIRAM FINANCE SO-TEST-999 — — 100% COMPLETE" [ref=e602] [cursor=pointer]:
+              - cell "PO-2026-SF003" [ref=e603]
+              - cell "SKY-SF001 SHRIRAM FINANCE" [ref=e604]
+              - cell "SO-TEST-999" [ref=e605]
+              - cell "—" [ref=e606]
+              - cell "—" [ref=e607]
+              - cell "100%" [ref=e608]:
+                - generic [ref=e612]: 100%
+              - cell "COMPLETE" [ref=e613]
+            - row "Po-2026-WE001 SKY-WE001 Weels — — — 0% INITIATED" [ref=e614] [cursor=pointer]:
+              - cell "Po-2026-WE001" [ref=e615]
+              - cell "SKY-WE001 Weels" [ref=e616]
+              - cell "—" [ref=e617]
+              - cell "—" [ref=e618]
+              - cell "—" [ref=e619]
+              - cell "0%" [ref=e620]:
+                - generic [ref=e623]: 0%
+              - cell "INITIATED" [ref=e624]
+            - row "PO-2026-SF001 SKY-SF001 SHRIRAM FINANCE — — — 16.7% IN PROGRESS" [ref=e625] [cursor=pointer]:
+              - cell "PO-2026-SF001" [ref=e626]
+              - cell "SKY-SF001 SHRIRAM FINANCE" [ref=e627]
+              - cell "—" [ref=e628]
+              - cell "—" [ref=e629]
+              - cell "—" [ref=e630]
+              - cell "16.7%" [ref=e631]:
+                - generic [ref=e635]: 16.7%
+              - cell "IN PROGRESS" [ref=e636]
+            - row "PO-2026-SF002 SKY-SF001 SHRIRAM FINANCE — — — 16.7% IN PROGRESS" [ref=e637] [cursor=pointer]:
+              - cell "PO-2026-SF002" [ref=e638]
+              - cell "SKY-SF001 SHRIRAM FINANCE" [ref=e639]
+              - cell "—" [ref=e640]
+              - cell "—" [ref=e641]
+              - cell "—" [ref=e642]
+              - cell "16.7%" [ref=e643]:
+                - generic [ref=e647]: 16.7%
+              - cell "IN PROGRESS" [ref=e648]
+            - row "PO-2026-AM001 SKY-KA001 Amasqis 1OTM2526001611 2026-03-17 — 50% NEAR COMPLETE" [ref=e649] [cursor=pointer]:
+              - cell "PO-2026-AM001" [ref=e650]
+              - cell "SKY-KA001 Amasqis" [ref=e651]
+              - cell "1OTM2526001611" [ref=e652]
+              - cell "2026-03-17" [ref=e653]
+              - cell "—" [ref=e654]
+              - cell "50%" [ref=e655]:
+                - generic [ref=e659]: 50%
+              - cell "NEAR COMPLETE" [ref=e660]
+            - row "PO-2026-EL001 SKY-KM324 Elite 1OTM2526001448 2026-03-13 — 50% NEAR COMPLETE" [ref=e661] [cursor=pointer]:
+              - cell "PO-2026-EL001" [ref=e662]
+              - cell "SKY-KM324 Elite" [ref=e663]
+              - cell "1OTM2526001448" [ref=e664]
+              - cell "2026-03-13" [ref=e665]
+              - cell "—" [ref=e666]
+              - cell "50%" [ref=e667]:
+                - generic [ref=e671]: 50%
+              - cell "NEAR COMPLETE" [ref=e672]
+            - row "PO-2026-001 SKY-BH001 Billion Honour 1OTM2526001544 — — 66.7% NEAR COMPLETE" [ref=e673] [cursor=pointer]:
+              - cell "PO-2026-001" [ref=e674]
+              - cell "SKY-BH001 Billion Honour" [ref=e675]
+              - cell "1OTM2526001544" [ref=e676]
+              - cell "—" [ref=e677]
+              - cell "—" [ref=e678]
+              - cell "66.7%" [ref=e679]:
+                - generic [ref=e681]: 66.7%
+              - cell "NEAR COMPLETE" [ref=e682]
