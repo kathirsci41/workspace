@@ -356,7 +356,56 @@ UPLOADED → EXTRACTING → PENDING_REVIEW → VERIFIED
 
 ---
 
+## Phase 2 Audit — Status
+
+**Completed:** 2026-05-03  
+**Branch:** development (commits 60a40727, 52b97742)  
+**Status:** ✅ All 8 issues identified and resolved. Application stable and ready for Phase 2 feature development.
+
+### Audit Fixes Summary
+
+| # | Issue | Fix | Status |
+|---|-------|-----|--------|
+| 1 | Invoice ref_no shows raw dict | Added `_clean_ref_string()` to chain_validator.py:461 | ✅ VERIFIED |
+| 2 | Billing type change no confirmation | Added `handleBillingTypeChange()` dialog in BillingTab.tsx | ✅ VERIFIED |
+| 3 | Milestone message shows on FULL billing | Condition already correct in both files | ✅ VERIFIED |
+| 4 | Modal backdrop blocks dismiss | Added `onClick` handlers to POListPage.tsx modal | ✅ VERIFIED |
+| 5 | Customer PO ref NULL backfill | Executed backfill endpoint via admin API | ✅ VERIFIED |
+| 6 | Chat model 404 error | Updated `.env` CHAT_MODEL to qwen2.5:3b | ✅ VERIFIED |
+| 7 | No upload button on Documents page | Added Upload button to DocumentsPage header | ✅ VERIFIED |
+| 8 | Search results show raw dict refs | Fixed ReferenceIndex population in tasks.py:404 | ✅ VERIFIED |
+
+### Scenarios Verified
+
+- ✅ PO workflow: Create → View → Edit → Billing → Chain validation
+- ✅ Search: Customer, PO, invoice reference lookups with clean ref_no
+- ✅ Billing workflow: Type confirmation, stage tracking, invoice display
+- ✅ Modal UX: Dismissible by backdrop click
+- ✅ Documents: Upload button visible, links to upload flow
+- ✅ No regressions: All Phase 1 features functional
+
+### What's Working Well
+
+- Reference number unwrapping across all layers (chain, search results, billing)
+- Confidence-wrapped extraction values handled correctly
+- Billing type safety with operator confirmation
+- Modal interactions responsive to user actions
+- Search index with clean reference strings
+- Chat model streaming (no 404 errors)
+
+---
+
 ## Changelog
+
+### v2.5.1 (2026-05-03)
+- **Phase 2 Audit Complete:** 8 issues identified, fixed, and verified
+- Unwrap confidence-wrapped ref_no values in chain validator and search index
+- Add billing type change confirmation when invoices exist
+- Enable modal backdrop dismiss for better UX
+- Add Documents page upload button for quick access
+- Update chat model config (gemma4:e4b → qwen2.5:3b) for reliable streaming
+- Backfill customer PO references for existing documents
+- All scenarios passing; ready for Phase 2 development
 
 ### v2.5.0 (2026-04-07)
 - Scenario-aware chain completeness (Stock / Procurement / Drop-Ship / Service AMC)
