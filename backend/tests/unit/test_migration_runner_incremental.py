@@ -445,3 +445,97 @@ def test_field_candidates_indexes_exist(tmp_path: Path):
     for expected in ("ix_field_candidates_document_id", "ix_field_candidates_field_key",
                      "ix_field_candidates_selection_status"):
         assert expected in indexes, f"{expected} missing. Found: {indexes}"
+
+
+# ===========================================================================
+# Phase 1b correction — text_sources NOT NULL + text_source_id index
+# ===========================================================================
+
+def test_text_sources_settings_hash_is_not_null(tmp_path: Path):
+    """text_sources.settings_hash must be NOT NULL.
+
+    Cache identity must be deterministic. Allowing NULL in a unique-key column
+    silently breaks duplicate detection in SQLite (NULL != NULL).
+    Digital-text runs must supply a synthetic deterministic hash instead of NULL.
+    """
+    import pytest as _pytest
+    from sqlalchemy.exc import IntegrityError
+
+    db_url, engine = _make_db(tmp_path)
+    replace_settings(Settings(database_url=db_url))
+    run("up")
+
+    with _pytest.raises(IntegrityError):
+        with engine.begin() as conn:
+            conn.execute(text(
+                "INSERT INTO text_sources "
+                "(id, document_id, page_number, source_type, provider, "
+                " settings_hash, image_hash, success, created_at) "
+                "VALUES ('ts-1', 'doc-1', 1, 'digital_pdf', 'digital', "
+                "        NULL, 'hash-abc', 1, '2026-01-01')"
+            ))
+
+
+def test_text_sources_image_hash_is_not_null(tmp_path: Path):
+    """text_sources.image_hash must be NOT NULL.
+
+    Same rationale as settings_hash: NULL in the unique key breaks reliable
+    duplicate detection.
+    """
+    import pytest as _pytest
+    from sqlalchemy.exc import IntegrityError
+
+    db_url, engine = _make_db(tmp_path)
+    replace_settings(Settings(database_url=db_url))
+    run("up")
+
+    with _pytest.raises(IntegrityError):
+        with engine.begin() as conn:
+            conn.execute(text(
+                "INSERT INTO text_sources "
+                "(id, document_id, page_number, source_type, provider, "
+                " settings_hash, image_hash, success, created_at) "
+                "VALUES ('ts-1', 'doc-1', 1, 'digital_pdf', 'digital', "
+                "        'hash-settings', NULL, 1, '2026-01-01')"
+            ))
+
+
+def test_text_sources_unique_cache_key_prevents_duplicate(tmp_path: Path):
+    """Two text_source rows with identical cache keys must be rejected.
+
+    This proves the UNIQUE(document_id, page_number, provider,
+    settings_hash, image_hash) constraint is reliable once all columns
+    are NOT NULL.
+    """
+    import pytest as _pytest
+    from sqlalchemy.exc import IntegrityError
+
+    db_url, engine = _make_db(tmp_path)
+    replace_settings(Settings(database_url=db_url))
+    run("up")
+
+    row = (
+        "INSERT INTO text_sources "
+        "(id, document_id, page_number, source_type, provider, "
+        " settings_hash, image_hash, success, created_at) "
+        "VALUES (:id, 'doc-1', 1, 'digital_pdf', 'digital', "
+        "        'sha-settings', 'sha-image', 1, '2026-01-01')"
+    )
+    with engine.begin() as conn:
+        conn.execute(text(row), {"id": "ts-1"})
+
+    with _pytest.raises(IntegrityError):
+        with engine.begin() as conn:
+            conn.execute(text(row), {"id": "ts-2"})  # same cache key, different id
+
+
+def test_field_candidates_text_source_id_index_exists(tmp_path: Path):
+    """field_candidates must have ix_field_candidates_text_source_id."""
+    db_url, engine = _make_db(tmp_path)
+    replace_settings(Settings(database_url=db_url))
+    run("up")
+
+    indexes = {idx["name"] for idx in inspect(engine).get_indexes("field_candidates")}
+    assert "ix_field_candidates_text_source_id" in indexes, (
+        f"ix_field_candidates_text_source_id missing. Found: {indexes}"
+    )
