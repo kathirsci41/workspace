@@ -10,6 +10,7 @@ from app.logging_config import log_event
 from app.models.document import DocumentRecord
 from app.models.document_metadata import DocumentMetadataRecord
 from app.repositories.reference_index import ReferenceIndexRepository
+from app.services.evidence_service import EvidenceService
 from app.services.extraction.digital_text_extractor import extract_pdf_text_pages, normalize_ocr_text
 from app.services.extraction.glm_ocr_client import extract_text_with_ocr
 from app.services.extraction.model_layer2 import extract_structured_fields_with_model
@@ -68,6 +69,7 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
                     "digital_text_page_lengths": page_lengths,
                 }
             )
+            _capture_digital_text_evidence(db, document, pages)
         except Exception as exc:
             diagnostics.update(
                 {
@@ -466,6 +468,7 @@ def _mode_diagnostics() -> dict[str, Any]:
     return {
         "digital_text_enabled": settings.digital_text_enabled,
         "digital_text_max_pages": settings.digital_text_max_pages,
+        "evidence_capture_enabled": settings.evidence_capture_enabled,
         "digital_text_used": False,
         "ocr_enabled": settings.ocr_enabled,
         "ocr_provider": settings.ocr_provider,
@@ -552,6 +555,37 @@ def _confidence_summary(field_metadata: dict[str, dict[str, Any]], alternatives:
     model = sum(1 for details in field_metadata.values() if details.get("source") == "model_layer2")
     manual = sum(1 for details in field_metadata.values() if details.get("source") == "manual_entry")
     return f"rules={rules}; model_layer2={model}; manual_entry={manual}; conflicts={len(alternatives)}"
+
+
+def _capture_digital_text_evidence(
+    db: Session, document: DocumentRecord, pages: list[str]
+) -> None:
+    """Record each digital PDF page as a text_sources row.
+
+    Uses a fresh module attribute access for settings so that replace_settings()
+    in tests is reflected correctly. Silently logs and returns on any error so
+    extraction is never disrupted.
+    """
+    import app.config as _cfg  # module reference tracks replace_settings() rebinds
+    cur = _cfg.settings
+    if not cur.evidence_capture_enabled:
+        return
+    try:
+        svc = EvidenceService(db)
+        svc_settings = {"max_pages": cur.digital_text_max_pages}
+        for page_number, page_text in enumerate(pages, start=1):
+            svc.record_text_source(
+                document_id=document.id,
+                page_number=page_number,
+                source_type="digital_text",
+                provider="digital_pdf",
+                settings=svc_settings,
+                image_data=None,
+                success=True,
+                raw_text=page_text,
+            )
+    except Exception as exc:
+        log_event("evidence_capture_failed", document_id=document.id, error=str(exc)[:200])
 
 
 def _record_extraction_run(diagnostics: dict[str, Any], *, status: str) -> None:
