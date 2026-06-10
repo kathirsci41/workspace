@@ -1,0 +1,10 @@
+{
+  "run_status": "SKIPPED",
+  "reason": "Verification was not executed against real/redacted PDFs because the fixture documents are absent.",
+  "expected_after_successful_or_manual_vendor_linking": {
+    "bundle_status": "REVIEW_REQUIRED",
+    "customer_delivery_status": "PARTIAL_PASS",
+    "vendor_procurement_status": "REVIEW_REQUIRED",
+    "difference": 141600
+  }
+}

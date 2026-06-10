@@ -1,0 +1,6 @@
+services:
+  backend:
+    environment:
+      APP_ENV: development
+      ENABLE_DEV_TOOLS: "true"
+

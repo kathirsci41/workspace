@@ -1,0 +1,493 @@
+{
+  "phase": "13B",
+  "input_archive": "order-assurance/sample/sample.zip",
+  "run_configuration": {
+    "pipeline": "app.services.extraction_service.extract_document",
+    "digital_text_enabled": true,
+    "structured_rules_enabled": true,
+    "ocr_enabled": true,
+    "ocr_provider": "glm_ocr",
+    "ocr_model": "glm-ocr:latest",
+    "model_layer2_enabled": false,
+    "isolated_run_database": "temporary SQLite database removed after measurement"
+  },
+  "archive_inventory": {
+    "pdfs_processed": 33,
+    "phase13_primary_cohort_documents": 24,
+    "primary_cohort_definition": "Panimalar, AMC, Trade, and Hindalco business documents; Hindalco Customer PO Annexure is treated as a supporting attachment, and Sriram is reported as the additional OCR validation set.",
+    "additional_supporting_documents": 1,
+    "additional_sriram_ocr_documents": 8
+  },
+  "evaluation_rule": {
+    "PASS": "Digital document extracted the assurance-critical values without a demonstrated wrong value; customer/vendor parser documents reported PASS only when required extraction was not left for manual entry.",
+    "PARTIAL": "Digital document has a missing or demonstrably incorrect assurance-critical value, or the extraction pipeline reported required fields missing.",
+    "SCANNED_OCR": "Document entered the live GLM OCR route; reported separately from digital PASS/PARTIAL to preserve the Phase 13A comparison."
+  },
+  "summary": {
+    "primary_cohort": {
+      "before_phase13b": {
+        "source": "Phase 13A real-sample baseline supplied with the Phase 13B request",
+        "documents": 24,
+        "pass": 13,
+        "partial": 9,
+        "scanned_ocr": 2,
+        "fail": 0
+      },
+      "after_phase13b_measured": {
+        "documents": 24,
+        "pass": 9,
+        "partial": 13,
+        "scanned_ocr": 2,
+        "fail": 0
+      },
+      "pass_delta": -4,
+      "note": "The measured after-count rejects populated but incorrect values as PASS. The run exposed residual wrong-value defects not covered by the Phase 13B synthetic tests."
+    },
+    "all_archive_pdfs_executed": {
+      "documents": 33,
+      "digital_pass": 9,
+      "digital_partial": 14,
+      "scanned_ocr": 10,
+      "pipeline_hard_failures": 0
+    }
+  },
+  "documents": [
+    {
+      "bundle": "Panimalar",
+      "sample": "Panimalar/Customer Invoice 1ITR2526001878.pdf",
+      "document_type": "COMPANY_INVOICE",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "invoice_no": "1ITR2526001878",
+        "so_no": "1OTM2526001611",
+        "customer_order_no": "PMCH&RI/024/2025-2026",
+        "net_amount": 874439
+      },
+      "status": "PASS"
+    },
+    {
+      "bundle": "Panimalar",
+      "sample": "Panimalar/Customer PO_.pdf",
+      "document_type": "CUSTOMER_PO",
+      "route": "ocr_glm",
+      "pipeline_status": "MANUAL_ENTRY",
+      "ocr_text_length": 2780,
+      "missing_key_fields": [
+        "customer_po_no"
+      ],
+      "status": "SCANNED_OCR"
+    },
+    {
+      "bundle": "Panimalar",
+      "sample": "Panimalar/DC 1DNT2526DC3100.pdf",
+      "document_type": "COMPANY_DC",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "dc_no": "1DNT2526DC3100",
+        "so_no": "1OTM2526001611",
+        "customer_order_no": "PMCH&RI/024/2025-2026",
+        "estimated_amount": 741050
+      },
+      "status": "PASS"
+    },
+    {
+      "bundle": "Panimalar",
+      "sample": "Panimalar/Vendor Bill 2526PSI25087738.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "route": "ocr_glm",
+      "pipeline_status": "MANUAL_ENTRY",
+      "ocr_text_length": 1894,
+      "missing_key_fields": [
+        "vendor_invoice_no",
+        "po_reference"
+      ],
+      "status": "SCANNED_OCR"
+    },
+    {
+      "bundle": "Panimalar",
+      "sample": "Panimalar/Vendor PO 1PTR2526000467.pdf",
+      "document_type": "COMPANY_PO",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "vendor_po_no": "1PTR2526000467",
+        "vendor_name": "SUPREME COMPUTERS INDIA P LTD",
+        "net_amount": 696200
+      },
+      "status": "PASS"
+    },
+    {
+      "bundle": "AMC",
+      "sample": "AMC/AMC/AMC - CUSTOMER PO.pdf",
+      "document_type": "CUSTOMER_PO",
+      "route": "digital",
+      "pipeline_status": "MANUAL_ENTRY",
+      "key_fields": {
+        "customer_po_no": "CHIPL/2025-26/682",
+        "grand_total": 496000
+      },
+      "reason": "Fix 4 correctly extracted grand_total as 496000, but the pipeline still reports other required fields missing.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "AMC",
+      "sample": "AMC/AMC/AMC - INVOICE - 1IAM2526000527.pdf",
+      "document_type": "COMPANY_INVOICE",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "invoice_no": "1IAM2526000527",
+        "so_no": "SOSC2526000429",
+        "customer_order_no": "CHIPL/2025-26/682",
+        "net_amount": null
+      },
+      "reason": "SO extraction is corrected; invoice amount remains missing in table layout.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "AMC",
+      "sample": "AMC/AMC/AMC - PURCHASE ORDER.pdf",
+      "document_type": "COMPANY_PO",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "vendor_po_no": "1POC2526000408",
+        "vendor_name": "INFLOW TECHNOLOGIES PVT LTD",
+        "net_amount": 463365.55
+      },
+      "status": "PASS"
+    },
+    {
+      "bundle": "AMC",
+      "sample": "AMC/AMC/AMC - VENDOR BILL -  CHIIND30853 -  333335674.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "vendor_invoice_no": "333335674",
+        "vendor_name": "Inflow Technologies Private Limited",
+        "po_reference": "1POC2526000408",
+        "invoice_total": 9983.13
+      },
+      "reason": "invoice_total is wrong; the PDF amount-in-words footer states 463365.55.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "Trade",
+      "sample": "Trade/Trade/TRADE - CUSTOMER PO.pdf",
+      "document_type": "CUSTOMER_PO",
+      "route": "digital",
+      "pipeline_status": "MANUAL_ENTRY",
+      "key_fields": {
+        "customer_po_no": "SIGNATURE",
+        "grand_total": 503137
+      },
+      "reason": "customer_po_no is a false extraction from the computer-generated signature footer.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "Trade",
+      "sample": "Trade/Trade/TRADE - DC 1DNT2526DC2915.pdf",
+      "document_type": "COMPANY_DC",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "dc_no": "1DNT2526DC2915",
+        "so_no": "1OTM2526001429",
+        "customer_order_no": null,
+        "estimated_amount": 851769
+      },
+      "reason": "Customer PO reference is absent from this document.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "Trade",
+      "sample": "Trade/Trade/TRADE - INVOICE 1ITR2526001785.pdf",
+      "document_type": "COMPANY_INVOICE",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "invoice_no": "1ITR2526001785",
+        "so_no": "1OTM2526001429",
+        "customer_order_no": null,
+        "net_amount": 593701.66
+      },
+      "reason": "SO extraction is corrected; customer PO reference is absent from this document.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "Trade",
+      "sample": "Trade/Trade/TRADE - PURCHASE ORDER.pdf",
+      "document_type": "COMPANY_PO",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "vendor_po_no": "1PTR2526000400",
+        "vendor_name": "REDINGTON LIMITED",
+        "net_amount": 512741.2
+      },
+      "status": "PASS"
+    },
+    {
+      "bundle": "Trade",
+      "sample": "Trade/Trade/TRADE - VENDOR BILL -C190224826.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "vendor_invoice_no": "C190224826",
+        "vendor_name": "and governed by these terms.",
+        "po_reference": "1PTR2526000400",
+        "invoice_total": 502430.78
+      },
+      "reason": "vendor_name remains a false match from terms text; the PDF header is REDINGTON LIMITED.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "Trade",
+      "sample": "Trade/Trade/TRADE -VENDOR BILL - C190224835.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "vendor_invoice_no": "C190224835",
+        "vendor_name": "and governed by these terms.",
+        "po_reference": "1PTR2526000400",
+        "invoice_total": 10946.2
+      },
+      "reason": "vendor_name remains a false match from terms text; the PDF header is REDINGTON LIMITED.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "Hindalco",
+      "sample": "Single PO & SO  - Multi Vendor PO- Customer Side 2 DC 1 Invoice/New folder (2)/1st Vendor PO  9POT2526000007.pdf",
+      "document_type": "COMPANY_PO",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "vendor_po_no": "9POT2526000007",
+        "vendor_name": "TECHKNOWLOGIC CONSULTANTS INDIA PRIVATE LIMITED-BLR",
+        "net_amount": 388035.92
+      },
+      "status": "PASS"
+    },
+    {
+      "bundle": "Hindalco",
+      "sample": "Single PO & SO  - Multi Vendor PO- Customer Side 2 DC 1 Invoice/New folder (2)/2nd Vendor Invoice 273012549.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "vendor_invoice_no": "273012549",
+        "vendor_name": "Inflow Technologies Private Limited",
+        "po_reference": "9POT2526000008",
+        "invoice_total": 8517.62
+      },
+      "reason": "invoice_total is wrong; the PDF amount-in-words footer states 183825.12.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "Hindalco",
+      "sample": "Single PO & SO  - Multi Vendor PO- Customer Side 2 DC 1 Invoice/New folder (2)/2nd Vendor PO 9POT2526000008.pdf",
+      "document_type": "COMPANY_PO",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "vendor_po_no": "9POT2526000008",
+        "vendor_name": "INFLOW TECHNOLOGIES PVT LTD",
+        "net_amount": 183825.12
+      },
+      "status": "PASS"
+    },
+    {
+      "bundle": "Hindalco",
+      "sample": "Single PO & SO  - Multi Vendor PO- Customer Side 2 DC 1 Invoice/New folder (2)/9STG2526000009  Customer Invoice.pdf",
+      "document_type": "COMPANY_INVOICE",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "invoice_no": "9STG2526000009",
+        "so_no": "9OTM2526000011",
+        "customer_order_no": null,
+        "net_amount": 1492087.58
+      },
+      "reason": "SO extraction is corrected; customer PO reference is absent from this document.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "Hindalco",
+      "sample": "Single PO & SO  - Multi Vendor PO- Customer Side 2 DC 1 Invoice/New folder (2)/CustomerPO.pdf",
+      "document_type": "CUSTOMER_PO",
+      "route": "digital",
+      "pipeline_status": "MANUAL_ENTRY",
+      "key_fields": {
+        "customer_po_no": "SP-IT/Mum-148/25-26",
+        "grand_total": 1264481
+      },
+      "reason": "Core identifiers extract, but required customer-PO fields remain missing in pipeline diagnostics.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "Hindalco",
+      "sample": "Single PO & SO  - Multi Vendor PO- Customer Side 2 DC 1 Invoice/New folder (2)/MBDNT2526DC010 Customer DC.pdf",
+      "document_type": "COMPANY_DC",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "dc_no": "MBDNT2526DC010",
+        "so_no": "9OTM2526000011",
+        "customer_order_no": null,
+        "estimated_amount": 1064481
+      },
+      "reason": "Customer PO reference is absent from this document.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "Hindalco",
+      "sample": "Single PO & SO  - Multi Vendor PO- Customer Side 2 DC 1 Invoice/New folder (2)/MBDNT2526DC011 Customer DC.pdf",
+      "document_type": "COMPANY_DC",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "dc_no": "MBDNT2526DC011",
+        "so_no": "9OTM2526000011",
+        "customer_order_no": null,
+        "estimated_amount": 200000
+      },
+      "reason": "Customer PO reference is absent from this document.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "Hindalco",
+      "sample": "Single PO & SO  - Multi Vendor PO- Customer Side 2 DC 1 Invoice/New folder (2)/Vendor  Invoice_694_.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "vendor_invoice_no": "BLR/2025-26/694",
+        "vendor_name": "Techknowlogic Consultants India Private Limited",
+        "po_reference": "9POT2526000007",
+        "invoice_total": 11278.44
+      },
+      "status": "PASS"
+    },
+    {
+      "bundle": "Hindalco",
+      "sample": "Single PO & SO  - Multi Vendor PO- Customer Side 2 DC 1 Invoice/New folder (2)/Vendor Invoice_693_.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "route": "digital",
+      "pipeline_status": "EXTRACTED",
+      "key_fields": {
+        "vendor_invoice_no": "BLR/2025-26/693",
+        "vendor_name": "Techknowlogic Consultants India Private Limited",
+        "po_reference": "9POT2526000007",
+        "invoice_total": 47913.48
+      },
+      "status": "PASS"
+    }
+  ],
+  "additional_documents_executed": [
+    {
+      "bundle": "Hindalco",
+      "sample": "Single PO & SO  - Multi Vendor PO- Customer Side 2 DC 1 Invoice/New folder (2)/Customer PO Annexure.pdf",
+      "document_type": "CUSTOMER_PO",
+      "route": "digital",
+      "pipeline_status": "MANUAL_ENTRY",
+      "reason": "Supporting annexure parsed independently and lacks primary customer-PO identifiers and amount fields.",
+      "status": "PARTIAL"
+    },
+    {
+      "bundle": "Sriram",
+      "sample": "Sriram fin/PO AMC corro health.pdf",
+      "document_type": "COMPANY_PO",
+      "route": "ocr_glm",
+      "ocr_text_length": 4028,
+      "pipeline_status": "EXTRACTED",
+      "status": "SCANNED_OCR"
+    },
+    {
+      "bundle": "Sriram",
+      "sample": "Sriram fin/Purchase order Inflow.pdf",
+      "document_type": "COMPANY_PO",
+      "route": "ocr_glm",
+      "ocr_text_length": 2796,
+      "pipeline_status": "EXTRACTED",
+      "status": "SCANNED_OCR"
+    },
+    {
+      "bundle": "Sriram",
+      "sample": "Sriram fin/purchase order reddington.pdf",
+      "document_type": "COMPANY_PO",
+      "route": "ocr_glm",
+      "ocr_text_length": 2198,
+      "pipeline_status": "EXTRACTED",
+      "status": "SCANNED_OCR"
+    },
+    {
+      "bundle": "Sriram",
+      "sample": "Sriram fin/Purchase order shriram fin.pdf",
+      "document_type": "COMPANY_PO",
+      "route": "ocr_glm",
+      "ocr_text_length": 4096,
+      "pipeline_status": "EXTRACTED",
+      "status": "SCANNED_OCR"
+    },
+    {
+      "bundle": "Sriram",
+      "sample": "Sriram fin/Tax invoice corro health.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "route": "ocr_glm",
+      "ocr_text_length": 7791,
+      "pipeline_status": "MANUAL_ENTRY",
+      "missing_key_fields": [
+        "po_reference"
+      ],
+      "status": "SCANNED_OCR"
+    },
+    {
+      "bundle": "Sriram",
+      "sample": "Sriram fin/Tax invoice inflow AMC.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "route": "ocr_glm",
+      "ocr_text_length": 3417,
+      "pipeline_status": "EXTRACTED",
+      "status": "SCANNED_OCR"
+    },
+    {
+      "bundle": "Sriram",
+      "sample": "Sriram fin/Tax invoice reddington.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "route": "ocr_glm",
+      "ocr_text_length": 3079,
+      "pipeline_status": "MANUAL_ENTRY",
+      "missing_key_fields": [
+        "vendor_invoice_no"
+      ],
+      "status": "SCANNED_OCR"
+    },
+    {
+      "bundle": "Sriram",
+      "sample": "Sriram fin/Tax Invoice Shriram fin.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "route": "ocr_glm",
+      "ocr_text_length": 1953,
+      "pipeline_status": "MANUAL_ENTRY",
+      "missing_key_fields": [
+        "vendor_invoice_no",
+        "po_reference"
+      ],
+      "status": "SCANNED_OCR"
+    }
+  ],
+  "remaining_gaps": [
+    "AMC customer invoice: SO now extracts correctly, but the net amount remains missing from table-layout text.",
+    "AMC vendor bill: invoice_total incorrectly resolves to 9983.13; footer evidence states 463365.55.",
+    "Trade customer PO: customer_po_no incorrectly resolves to SIGNATURE.",
+    "Trade vendor bills: vendor_name incorrectly resolves to terms text rather than REDINGTON LIMITED.",
+    "Hindalco second vendor invoice: invoice_total incorrectly resolves to 8517.62; footer evidence states 183825.12.",
+    "Trade and Hindalco invoice/DC customer PO references remain absent from the source documents, as expected.",
+    "Scanned/OCR inputs were exercised with GLM OCR but remain outside the digital PASS/PARTIAL count."
+  ]
+}

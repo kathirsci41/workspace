@@ -1,0 +1,6 @@
+{
+  "run_status": "SKIPPED",
+  "document_type": "CUSTOMER_PO",
+  "reason": "customer-po.pdf is not present in the approved real/redacted fixture pack.",
+  "manual_fallback_available": true
+}

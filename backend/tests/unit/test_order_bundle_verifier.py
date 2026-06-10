@@ -1,0 +1,153 @@
+from app.services.document_normalizer import NormalizedDocument
+from app.services.order_bundle_verifier import verify_order_bundle
+
+
+def doc(document_id: str, document_type: str, **fields):
+    return NormalizedDocument(document_id=document_id, document_type=document_type, fields=fields)
+
+
+def test_customer_invoice_dc_so_and_customer_order_match_passes():
+    summary = verify_order_bundle(
+        [
+            doc(
+                "inv",
+                "CUSTOMER_INVOICE",
+                invoice_no="1ITR2526001878",
+                customer_order_no="PMCH&RI/024/2025-2026",
+                so_no="1OTM2526001611",
+                customer_name="PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+                taxable_amount=741050,
+            ),
+            doc(
+                "dc",
+                "DELIVERY_CHALLAN",
+                dc_no="1DNT2526DC3100",
+                customer_order_no="PMCH&RI/024/2025-2026",
+                so_no="1OTM2526001611",
+                customer_name="PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+                estimated_amount=741050,
+            ),
+        ]
+    )
+
+    assert summary["customer_delivery_status"] in {"PASS", "PARTIAL_PASS"}
+    assert any(check["check_id"] == "INVOICE_DC_SO_MATCH" and check["result"] == "PASS" for check in summary["checks"])
+    assert any(check["check_id"] == "INVOICE_DC_CUSTOMER_ORDER_MATCH" and check["result"] == "PASS" for check in summary["checks"])
+
+
+def test_vendor_bill_is_not_counted_without_matching_po_reference():
+    summary = verify_order_bundle(
+        [
+            doc(
+                "vpo",
+                "VENDOR_PO",
+                vendor_po_no="1PTR2526000467",
+                vendor_name="SUPREME COMPUTERS INDIA P LTD",
+                grand_total=696200,
+                part_shipment_allowed="NOT ALLOWED",
+                mode_of_bill="ON FULL DELIVERY",
+            ),
+            doc(
+                "vbill",
+                "VENDOR_INVOICE",
+                vendor_invoice_no="2526PSI25087738",
+                vendor_name="SUPREME COMPUTERS INDIA P LTD",
+                invoice_total=554600,
+            ),
+        ]
+    )
+
+    assert summary["vendor_procurement_status"] in {"REVIEW_REQUIRED", "BLOCKED"}
+    assert any(
+        "reference missing" in issue["message"].lower() or "not counting" in issue["message"].lower()
+        for issue in summary["issues"]
+    )
+
+
+def test_partial_vendor_billing_with_not_allowed_is_review_required():
+    summary = verify_order_bundle(
+        [
+            doc(
+                "vpo",
+                "VENDOR_PO",
+                vendor_po_no="1PTR2526000467",
+                vendor_name="SUPREME COMPUTERS INDIA P LTD",
+                grand_total=696200,
+                part_shipment_allowed="NOT ALLOWED",
+                mode_of_bill="ON FULL DELIVERY",
+            ),
+            doc(
+                "vbill",
+                "VENDOR_INVOICE",
+                vendor_invoice_no="2526PSI25087738",
+                po_reference="1PTR2526000467",
+                vendor_name="SUPREME COMPUTERS INDIA P LTD",
+                invoice_total=554600,
+            ),
+        ]
+    )
+
+    assert summary["vendor_procurement_status"] == "REVIEW_REQUIRED"
+    assert any(issue.get("difference") == 141600 for issue in summary["issues"])
+
+
+def test_vendor_invoice_is_only_matched_to_referenced_vendor_po():
+    summary = verify_order_bundle(
+        [
+            doc("vpo-a", "VENDOR_PO", vendor_po_no="PO-A", vendor_name="Alpha Systems", grand_total=1000),
+            doc("vpo-b", "VENDOR_PO", vendor_po_no="PO-B", vendor_name="Beta Systems", grand_total=2000),
+            doc("bill-a", "VENDOR_INVOICE", vendor_invoice_no="BILL-A", po_reference="PO-A", vendor_name="Alpha Systems", invoice_total=1000),
+        ]
+    )
+
+    assert any(
+        check["check_id"] == "VENDOR_PO_INVOICE_REFERENCE_MATCH"
+        and check["left_document_id"] == "vpo-a"
+        and check["right_document_id"] == "bill-a"
+        and check["result"] == "PASS"
+        for check in summary["checks"]
+    )
+    assert not any(
+        check["check_id"] == "VENDOR_PO_INVOICE_REFERENCE_MATCH"
+        and check["left_document_id"] == "vpo-b"
+        and check["right_document_id"] == "bill-a"
+        and check["result"] == "MISMATCH"
+        for check in summary["checks"]
+    )
+    assert any(issue["code"] == "VENDOR_BILL_MISSING_FOR_PO" and issue["vendor_po_no"] == "PO-B" for issue in summary["issues"])
+
+
+def test_vendor_invoice_reference_to_unknown_po_is_not_counted():
+    summary = verify_order_bundle(
+        [
+            doc("vpo-a", "VENDOR_PO", vendor_po_no="PO-A", vendor_name="Alpha Systems", grand_total=1000),
+            doc("bill-x", "VENDOR_INVOICE", vendor_invoice_no="BILL-X", po_reference="PO-X", vendor_name="Alpha Systems", invoice_total=1000),
+        ]
+    )
+
+    assert summary["vendor_procurement_status"] in {"REVIEW_REQUIRED", "BLOCKED"}
+    assert any(issue["code"] == "VENDOR_BILL_REFERENCE_UNMATCHED" for issue in summary["issues"])
+    assert not any(check["check_id"] == "VENDOR_BILLING_COVERAGE" and check["result"] == "PASS" for check in summary["checks"])
+
+
+def test_multiple_vendor_bills_for_same_vendor_po_sum_coverage():
+    summary = verify_order_bundle(
+        [
+            doc(
+                "vpo",
+                "VENDOR_PO",
+                vendor_po_no="PO-1",
+                vendor_name="Alpha Systems",
+                grand_total=1000,
+                part_shipment_allowed="ALLOWED",
+            ),
+            doc("bill-1", "VENDOR_INVOICE", vendor_invoice_no="BILL-1", po_reference="PO-1", vendor_name="Alpha Systems", invoice_total=400),
+            doc("bill-2", "VENDOR_INVOICE", vendor_invoice_no="BILL-2", po_reference="PO-1", vendor_name="Alpha Systems", invoice_total=600),
+        ]
+    )
+
+    assert any(
+        check["check_id"] == "VENDOR_BILLING_COVERAGE" and check["result"] == "PASS" and check["right_value"] == 1000
+        for check in summary["checks"]
+    )
+    assert not any(issue.get("code") == "VENDOR_PARTIAL_BILLING_REVIEW_REQUIRED" for issue in summary["issues"])

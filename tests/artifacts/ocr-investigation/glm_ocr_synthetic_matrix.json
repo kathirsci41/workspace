@@ -1,0 +1,61 @@
+{
+  "date": "2026-05-23",
+  "model": "glm-ocr:latest",
+  "ollama_version": "0.24.0",
+  "model_metadata": {
+    "family": "glmocr",
+    "capabilities": ["completion", "vision", "tools"],
+    "requires": "0.15.5"
+  },
+  "input": {
+    "kind": "synthetic_document_image",
+    "contains_private_document_content": false,
+    "formats_tested": ["png", "jpeg"],
+    "dpi_tested": [72, 150, 200, 300],
+    "endpoints_tested": ["/api/generate", "/api/chat"]
+  },
+  "outcome": {
+    "total_variants": 16,
+    "successful_variants": 0,
+    "error_http_code": 500,
+    "error_summary": "model failed to load, this may be due to resource limitations or an internal error",
+    "text_only_generate_failed": true,
+    "text_only_chat_failed": true
+  },
+  "representative_requests": [
+    {
+      "endpoint": "/api/generate",
+      "format": "png",
+      "dpi": 72,
+      "image_width": 336,
+      "image_height": 336,
+      "image_bytes": 5801,
+      "base64_bytes": 7736,
+      "status": "http_error",
+      "http_code": 500
+    },
+    {
+      "endpoint": "/api/chat",
+      "format": "png",
+      "dpi": 200,
+      "image_width": 934,
+      "image_height": 934,
+      "image_bytes": 20667,
+      "base64_bytes": 27556,
+      "status": "http_error",
+      "http_code": 500
+    },
+    {
+      "endpoint": "/api/generate",
+      "format": "jpeg",
+      "dpi": 300,
+      "image_width": 1400,
+      "image_height": 1400,
+      "image_bytes": 52786,
+      "base64_bytes": 70384,
+      "status": "http_error",
+      "http_code": 500
+    }
+  ],
+  "conclusion": "Failure occurs while loading the local glm-ocr model and is not isolated to endpoint choice, PNG/JPEG format, image dimension, or image payload size."
+}

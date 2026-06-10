@@ -1,0 +1,14 @@
+**/__pycache__/
+**/.pytest_cache/
+backend/storage/
+backend/order_assurance.db
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+tests/artifacts/
+backups/
+output/
+sample/
+validation-runs/
+.claude/

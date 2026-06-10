@@ -1,0 +1,40 @@
+{
+  "bundle_id": "35f6a705-c2f2-4cac-af7e-4fdfc0028cd1",
+  "bundle_number": "REAL-001 Panimalar",
+  "baseline_rows": 24,
+  "baseline_pass": 24,
+  "baseline_fail": 0,
+  "export_fail": 0,
+  "bundle_status": "REVIEW_REQUIRED",
+  "customer_delivery_status": "PARTIAL_PASS",
+  "vendor_procurement_status": "REVIEW_REQUIRED",
+  "verification_checks": 10,
+  "derived_issues": 1,
+  "audit_events": 0,
+  "document_statuses": {
+    "CUSTOMER_PO": {
+      "document": "PENDING_REVIEW",
+      "metadata": "EXTRACTED"
+    },
+    "COMPANY_INVOICE": {
+      "document": "PENDING_REVIEW",
+      "metadata": "EXTRACTED"
+    },
+    "COMPANY_DC": {
+      "document": "PENDING_REVIEW",
+      "metadata": "EXTRACTED"
+    },
+    "COMPANY_PO": {
+      "document": "PENDING_REVIEW",
+      "metadata": "EXTRACTED"
+    },
+    "VENDOR_INVOICE": {
+      "document": "PENDING_REVIEW",
+      "metadata": "EXTRACTED"
+    }
+  },
+  "xlsx_summary": {
+    "Vendor PO Total": 696200,
+    "Vendor Invoice Total": 554600
+  }
+}

@@ -1,0 +1,135 @@
+[
+  {
+    "id": "18e8bf03-a3d0-44fe-aa20-1ec6899a44ee",
+    "order_bundle_id": "cc87d9d4-b41a-4b0f-bdcc-e41aeeab0790",
+    "document_type": "COMPANY_INVOICE",
+    "filename": "Customer Invoice 1ITR2526001878.pdf",
+    "content_type": "application/pdf",
+    "storage_path": null,
+    "status": "PENDING_REVIEW",
+    "last_error": null,
+    "created_at": "2026-05-22T14:16:37.426595+00:00",
+    "updated_at": "2026-05-22T14:16:37.426599+00:00",
+    "metadata": {
+      "id": "d9df09ea-0d30-4b5b-810f-d189d26a7e93",
+      "document_id": "18e8bf03-a3d0-44fe-aa20-1ec6899a44ee",
+      "status": "EXTRACTED",
+      "extracted_data": {
+        "invoice_no": "1ITR2526001878",
+        "invoice_date": "13/02/2026",
+        "customer_order_no": "PMCH&RI/024/2025-2026",
+        "so_no": "1OTM2526001611",
+        "customer_name": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+        "taxable_amount": 741050,
+        "tax_amount": 133389,
+        "net_amount": 874439,
+        "extraction_source": "seeded_fixture"
+      },
+      "diagnostics": {
+        "extraction_route": "digital",
+        "parser_route": "seed_fixture",
+        "parser_confidence": 100
+      },
+      "primary_ref_no": null,
+      "po_ref_no": null,
+      "last_error": null
+    }
+  },
+  {
+    "id": "5250fd11-f3ea-4039-8602-a895fc01941b",
+    "order_bundle_id": "cc87d9d4-b41a-4b0f-bdcc-e41aeeab0790",
+    "document_type": "COMPANY_DC",
+    "filename": "DC 1DNT2526DC3100.pdf",
+    "content_type": "application/pdf",
+    "storage_path": null,
+    "status": "PENDING_REVIEW",
+    "last_error": null,
+    "created_at": "2026-05-22T14:16:37.469121+00:00",
+    "updated_at": "2026-05-22T14:16:37.469129+00:00",
+    "metadata": {
+      "id": "e5790083-5d29-41f0-b2e5-455ae1ff74d4",
+      "document_id": "5250fd11-f3ea-4039-8602-a895fc01941b",
+      "status": "EXTRACTED",
+      "extracted_data": {
+        "dc_no": "1DNT2526DC3100",
+        "dc_date": "13/02/2026",
+        "customer_order_no": "PMCH&RI/024/2025-2026",
+        "so_no": "1OTM2526001611",
+        "customer_name": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+        "total_quantity": 9,
+        "estimated_amount": 741050,
+        "extraction_source": "seeded_fixture"
+      },
+      "diagnostics": {
+        "extraction_route": "digital",
+        "parser_route": "seed_fixture",
+        "parser_confidence": 100
+      },
+      "primary_ref_no": null,
+      "po_ref_no": null,
+      "last_error": null
+    }
+  },
+  {
+    "id": "0fb31662-d79a-4f61-ba2e-d08cf652ac53",
+    "order_bundle_id": "cc87d9d4-b41a-4b0f-bdcc-e41aeeab0790",
+    "document_type": "COMPANY_PO",
+    "filename": "Vendor PO 1PTR2526000467.pdf",
+    "content_type": "application/pdf",
+    "storage_path": null,
+    "status": "PENDING_REVIEW",
+    "last_error": null,
+    "created_at": "2026-05-22T14:16:37.481531+00:00",
+    "updated_at": "2026-05-22T14:16:37.481536+00:00",
+    "metadata": {
+      "id": "352981df-2ac1-40f8-bf56-1f5156029931",
+      "document_id": "0fb31662-d79a-4f61-ba2e-d08cf652ac53",
+      "status": "EXTRACTED",
+      "extracted_data": {
+        "vendor_po_no": "1PTR2526000467",
+        "vendor_po_date": "30/01/2026",
+        "vendor_name": "SUPREME COMPUTERS INDIA P LTD",
+        "part_shipment_allowed": "NOT ALLOWED",
+        "mode_of_bill": "ON FULL DELIVERY",
+        "net_amount": 696200,
+        "extraction_source": "seeded_fixture"
+      },
+      "diagnostics": {
+        "extraction_route": "digital",
+        "parser_route": "seed_fixture",
+        "parser_confidence": 100
+      },
+      "primary_ref_no": null,
+      "po_ref_no": null,
+      "last_error": null
+    }
+  },
+  {
+    "id": "fdd8f95d-b1ed-4a67-b84f-b3b2ee599a84",
+    "order_bundle_id": "cc87d9d4-b41a-4b0f-bdcc-e41aeeab0790",
+    "document_type": "VENDOR_INVOICE",
+    "filename": "Vendor Bill 2526PSI25087738.pdf",
+    "content_type": "application/pdf",
+    "storage_path": null,
+    "status": "EXTRACTION_FAILED",
+    "last_error": "MANUAL_ENTRY_REQUIRED: missing vendor_name",
+    "created_at": "2026-05-22T14:16:37.490899+00:00",
+    "updated_at": "2026-05-22T14:16:37.490906+00:00",
+    "metadata": {
+      "id": "11782c85-ac0c-446a-8ff6-03fbc8e63633",
+      "document_id": "fdd8f95d-b1ed-4a67-b84f-b3b2ee599a84",
+      "status": "MANUAL_ENTRY",
+      "extracted_data": {
+        "vendor_invoice_no": "2526PSI25087738",
+        "vendor_invoice_date": "12-02-2026",
+        "po_reference": "1PTR2526000467",
+        "invoice_total": 554600,
+        "extraction_source": "manual_entry"
+      },
+      "diagnostics": {},
+      "primary_ref_no": null,
+      "po_ref_no": null,
+      "last_error": "MANUAL_ENTRY_REQUIRED: missing vendor_name"
+    }
+  }
+]

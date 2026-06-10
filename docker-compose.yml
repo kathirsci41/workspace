@@ -1,0 +1,76 @@
+services:
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: order_assurance
+      POSTGRES_USER: order_assurance
+      POSTGRES_PASSWORD: order_assurance
+    ports:
+      - "15432:5432"
+    volumes:
+      - order_assurance_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U order_assurance -d order_assurance"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      APP_ENV: production
+      ENABLE_DEV_TOOLS: "false"
+      LOG_LEVEL: INFO
+      LOG_FORMAT: text
+      DATABASE_URL: postgresql+psycopg://order_assurance:order_assurance@database:5432/order_assurance
+      STORAGE_DIR: /app/storage/documents
+      MAX_UPLOAD_MB: "20"
+      FILE_RETENTION_DAYS: "30"
+      TEMP_FILE_RETENTION_HOURS: "24"
+      DB_STARTUP_MAX_ATTEMPTS: "30"
+      DB_STARTUP_RETRY_SECONDS: "2"
+      DIGITAL_TEXT_ENABLED: "true"
+      STRUCTURED_RULES_ENABLED: "true"
+      OCR_ENABLED: "true"
+      OCR_PROVIDER: glm_ocr
+      OCR_MODEL: glm-ocr:latest
+      OCR_BASE_URL: http://host.docker.internal:11434
+      OCR_DPI: "200"
+      OCR_MAX_PAGES: "5"
+      OCR_TIMEOUT_SECONDS: "90"
+      OCR_RETRY_ATTEMPTS: "1"
+      OCR_MIN_TEXT_LENGTH: "30"
+      OCR_CONTEXT_LENGTH: "8192"
+      MODEL_LAYER2_ENABLED: "false"
+      MODEL_LAYER2_PROVIDER: ollama
+      MODEL_LAYER2_MODEL: gemma4:31b-cloud
+      MODEL_LAYER2_BASE_URL: http://host.docker.internal:11434
+      MODEL_LAYER2_TIMEOUT_SECONDS: "120"
+      MODEL_LAYER2_CONTEXT_LENGTH: "8192"
+      MODEL_LAYER2_RETRY_ATTEMPTS: "1"
+    ports:
+      - "8100:8100"
+    volumes:
+      - order_assurance_storage:/app/storage
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    ports:
+      - "5180:80"
+    depends_on:
+      - backend
+
+volumes:
+  order_assurance_pg:
+  order_assurance_storage:

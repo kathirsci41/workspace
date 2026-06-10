@@ -1,0 +1,3 @@
+Controlled real/redacted OCR run skipped.
+Missing fixture files: customer-po.pdf, customer-invoice.pdf, delivery-challan.pdf, vendor-po.pdf, vendor-bill.pdf.
+No OCR text was captured.

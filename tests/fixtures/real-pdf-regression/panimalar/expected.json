@@ -1,0 +1,21 @@
+{
+  "bundle_status": "REVIEW_REQUIRED",
+  "customer_delivery_status": "PARTIAL_PASS",
+  "vendor_procurement_status": "REVIEW_REQUIRED",
+  "difference": 141600,
+  "manual_vendor_bill": {
+    "vendor_invoice_no": "2526PSI25087738",
+    "vendor_invoice_date": "12-02-2026",
+    "vendor_name": "SUPREME COMPUTERS INDIA P LTD",
+    "po_reference": "1PTR2526000467",
+    "invoice_total": 554600
+  },
+  "model_layer2_expected": {
+    "VENDOR_INVOICE": {
+      "vendor_invoice_no": "2526PSI25087738",
+      "vendor_invoice_date": "12-02-2026",
+      "po_reference": "1PTR2526000467",
+      "invoice_total": 554600
+    }
+  }
+}

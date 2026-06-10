@@ -1,0 +1,133 @@
+{
+  "bundle_status": "REVIEW_REQUIRED",
+  "customer_delivery_status": "PARTIAL_PASS",
+  "vendor_procurement_status": "REVIEW_REQUIRED",
+  "extracted_summary": {
+    "customer_po_no": null,
+    "so_no": "1OTM2526001611",
+    "customer_name": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+    "customer_invoice_numbers": [
+      "1ITR2526001878"
+    ],
+    "dc_numbers": [
+      "1DNT2526DC3100"
+    ],
+    "vendor_po_numbers": [
+      "1PTR2526000467"
+    ],
+    "vendor_invoice_numbers": [
+      "2526PSI25087738"
+    ],
+    "customer_total": 874439,
+    "vendor_total": 554600
+  },
+  "connections": [],
+  "checks": [
+    {
+      "check_id": "INVOICE_DC_CUSTOMER_ORDER_MATCH",
+      "check_name": "Customer order number matches between invoice and DC",
+      "result": "PASS",
+      "severity": "BLOCKER",
+      "left_document_type": "CUSTOMER_INVOICE",
+      "left_document_id": "18e8bf03-a3d0-44fe-aa20-1ec6899a44ee",
+      "left_value": "PMCH&RI/024/2025-2026",
+      "right_document_type": "DELIVERY_CHALLAN",
+      "right_document_id": "5250fd11-f3ea-4039-8602-a895fc01941b",
+      "right_value": "PMCH&RI/024/2025-2026",
+      "message": "Customer order number matches between invoice and DC."
+    },
+    {
+      "check_id": "INVOICE_DC_SO_MATCH",
+      "check_name": "SO number matches between invoice and DC",
+      "result": "PASS",
+      "severity": "BLOCKER",
+      "left_document_type": "CUSTOMER_INVOICE",
+      "left_document_id": "18e8bf03-a3d0-44fe-aa20-1ec6899a44ee",
+      "left_value": "1OTM2526001611",
+      "right_document_type": "DELIVERY_CHALLAN",
+      "right_document_id": "5250fd11-f3ea-4039-8602-a895fc01941b",
+      "right_value": "1OTM2526001611",
+      "message": "SO number matches between invoice and DC."
+    },
+    {
+      "check_id": "CUSTOMER_NAME_MATCH",
+      "check_name": "Customer name match",
+      "result": "PASS",
+      "severity": "WARNING",
+      "left_document_type": "CUSTOMER_INVOICE",
+      "left_document_id": "18e8bf03-a3d0-44fe-aa20-1ec6899a44ee",
+      "left_value": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+      "right_document_type": "DELIVERY_CHALLAN",
+      "right_document_id": "5250fd11-f3ea-4039-8602-a895fc01941b",
+      "right_value": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+      "message": "Customer names compared with normalized matching."
+    },
+    {
+      "check_id": "INVOICE_DC_AMOUNT_MATCH",
+      "check_name": "Amount comparison",
+      "result": "PASS",
+      "severity": "WARNING",
+      "left_document_type": "CUSTOMER_INVOICE",
+      "left_document_id": "18e8bf03-a3d0-44fe-aa20-1ec6899a44ee",
+      "left_value": 741050,
+      "right_document_type": "DELIVERY_CHALLAN",
+      "right_document_id": "5250fd11-f3ea-4039-8602-a895fc01941b",
+      "right_value": 741050,
+      "message": "Amounts match within rounding tolerance."
+    },
+    {
+      "check_id": "VENDOR_PO_INVOICE_REFERENCE_MATCH",
+      "check_name": "Vendor PO reference matches vendor invoice",
+      "result": "PASS",
+      "severity": "BLOCKER",
+      "left_document_type": "VENDOR_PO",
+      "left_document_id": "0fb31662-d79a-4f61-ba2e-d08cf652ac53",
+      "left_value": "1PTR2526000467",
+      "right_document_type": "VENDOR_INVOICE",
+      "right_document_id": "fdd8f95d-b1ed-4a67-b84f-b3b2ee599a84",
+      "right_value": "1PTR2526000467",
+      "message": "Vendor PO reference matches vendor invoice."
+    },
+    {
+      "check_id": "VENDOR_NAME_MATCH",
+      "check_name": "Vendor name match",
+      "result": "REVIEW_REQUIRED",
+      "severity": "WARNING",
+      "left_document_type": "VENDOR_PO",
+      "left_document_id": "0fb31662-d79a-4f61-ba2e-d08cf652ac53",
+      "left_value": "SUPREME COMPUTERS INDIA P LTD",
+      "right_document_type": "VENDOR_INVOICE",
+      "right_document_id": "fdd8f95d-b1ed-4a67-b84f-b3b2ee599a84",
+      "right_value": null,
+      "message": "Vendor names compared with normalized matching."
+    },
+    {
+      "check_id": "VENDOR_BILLING_COVERAGE",
+      "check_name": "Vendor invoice total covers Vendor PO total",
+      "result": "REVIEW_REQUIRED",
+      "severity": "BLOCKER",
+      "left_document_type": "VENDOR_PO",
+      "left_document_id": "0fb31662-d79a-4f61-ba2e-d08cf652ac53",
+      "left_value": 696200,
+      "right_document_type": "VENDOR_INVOICE",
+      "right_document_id": "fdd8f95d-b1ed-4a67-b84f-b3b2ee599a84",
+      "right_value": 554600,
+      "message": "Vendor billing coverage evaluated against matching invoice references."
+    }
+  ],
+  "issues": [
+    {
+      "code": "CUSTOMER_PO_MISSING",
+      "message": "Customer PO is absent or unreadable; invoice and DC checks were evaluated independently."
+    },
+    {
+      "code": "VENDOR_PARTIAL_BILLING_REVIEW_REQUIRED",
+      "message": "Vendor invoice total 554600 does not fully cover Vendor PO 696200.",
+      "vendor_po_no": "1PTR2526000467",
+      "vendor_invoice_total": 554600,
+      "vendor_po_total": 696200,
+      "difference": 141600
+    }
+  ],
+  "recommendation": "Review vendor-side partial billing before closure."
+}

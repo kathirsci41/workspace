@@ -1,0 +1,116 @@
+{
+  "phase": "13A",
+  "scope": "Readable Panimalar PDF samples available within order-assurance runtime storage",
+  "limitations": [
+    "The committed real-pdf-regression fixture folder contains expected.json and README.md only; the private/redacted PDFs are not present.",
+    "Only three readable Panimalar digital PDF samples were available for this extraction run.",
+    "Customer PO and Vendor Bill scanned/OCR results were not executed because corresponding real fixture PDFs were not supplied."
+  ],
+  "summary": {
+    "documents_executed": 3,
+    "pass": 3,
+    "partial": 0,
+    "scanned_ocr_executed": 0,
+    "failed_digital": 0
+  },
+  "documents": [
+    {
+      "bundle": "Panimalar",
+      "sample": "Customer Invoice 1ITR2526001878.pdf",
+      "document_type": "COMPANY_INVOICE",
+      "route": "digital",
+      "char_count": 279,
+      "extracted_fields": [
+        "customer_address",
+        "customer_name",
+        "customer_order_no",
+        "invoice_date",
+        "invoice_no",
+        "invoice_number",
+        "net_amount",
+        "po_reference",
+        "so_no",
+        "so_number",
+        "tax_amount",
+        "taxable_amount",
+        "total_amount"
+      ],
+      "key_fields": {
+        "invoice_no": "1ITR2526001878",
+        "customer_order_no": "PMCH&RI/024/2025-2026",
+        "so_no": "1OTM2526001611"
+      },
+      "missing_key_fields": [],
+      "status": "PASS"
+    },
+    {
+      "bundle": "Panimalar",
+      "sample": "DC 1DNT2526DC3100.pdf",
+      "document_type": "COMPANY_DC",
+      "route": "digital",
+      "char_count": 275,
+      "extracted_fields": [
+        "customer_name",
+        "customer_order_no",
+        "dc_date",
+        "dc_no",
+        "dc_number",
+        "delivery_address",
+        "estimated_amount",
+        "po_reference",
+        "so_no",
+        "so_number",
+        "total_amount",
+        "total_quantity"
+      ],
+      "key_fields": {
+        "dc_no": "1DNT2526DC3100",
+        "customer_order_no": "PMCH&RI/024/2025-2026",
+        "so_no": "1OTM2526001611"
+      },
+      "missing_key_fields": [],
+      "status": "PASS"
+    },
+    {
+      "bundle": "Panimalar",
+      "sample": "Vendor PO 1PTR2526000467.pdf",
+      "document_type": "COMPANY_PO",
+      "route": "digital",
+      "char_count": 199,
+      "extracted_fields": [
+        "mode_of_bill",
+        "net_amount",
+        "part_shipment_allowed",
+        "po_date",
+        "po_number",
+        "total_amount",
+        "vendor_name",
+        "vendor_po_no"
+      ],
+      "key_fields": {
+        "vendor_po_no": "1PTR2526000467"
+      },
+      "missing_key_fields": [],
+      "status": "PASS"
+    }
+  ],
+  "unexecuted_expected_samples": [
+    {
+      "bundle": "Panimalar",
+      "sample": "Customer PO",
+      "expected_route": "scanned_ocr",
+      "reason": "PDF fixture unavailable"
+    },
+    {
+      "bundle": "Panimalar",
+      "sample": "Vendor Bill 2526PSI25087738.pdf",
+      "expected_route": "scanned_ocr",
+      "reason": "Readable real PDF fixture unavailable"
+    },
+    {
+      "bundle": "Multi-vendor, Trade/Shriram, AMC and PO-only samples",
+      "expected_route": "mixed",
+      "reason": "24-document regression fixture pack unavailable in order-assurance"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "date": "2026-05-23",
+  "committed_fixture_directory": "order-assurance/tests/fixtures/real-pdf-regression/panimalar",
+  "pdfs_present_in_fixture_directory": [],
+  "expected_json_present": true,
+  "real_regression_execution": "skipped_when_pdfs_absent",
+  "local_storage_observation": {
+    "valid_generated_digital_pdf_samples_found": [
+      "customer-invoice",
+      "delivery-challan",
+      "vendor-po"
+    ],
+    "valid_scanned_vendor_bill_pdf_found": false,
+    "private_pdf_copied_into_fixture_directory": false
+  }
+}

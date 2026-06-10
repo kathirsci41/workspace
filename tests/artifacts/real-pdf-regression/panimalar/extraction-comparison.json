@@ -1,0 +1,18 @@
+{
+  "run_status": "SKIPPED",
+  "reason": "Approved real/redacted Panimalar PDFs are not present in the fixture directory.",
+  "missing_files": [
+    "customer-po.pdf",
+    "customer-invoice.pdf",
+    "delivery-challan.pdf",
+    "vendor-po.pdf",
+    "vendor-bill.pdf"
+  ],
+  "controlled_mode": {
+    "ocr_enabled": true,
+    "ocr_provider": "glm_ocr",
+    "ocr_context_length": 8192,
+    "model_layer2_enabled": true,
+    "model_layer2_model": "gemma4:31b-cloud"
+  }
+}

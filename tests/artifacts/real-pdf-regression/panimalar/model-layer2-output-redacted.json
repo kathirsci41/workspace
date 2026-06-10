@@ -1,0 +1,5 @@
+{
+  "run_status": "SKIPPED",
+  "reason": "No real/redacted document input was available for controlled Model Layer 2 comparison.",
+  "model_layer2_enabled_in_application_defaults": false
+}

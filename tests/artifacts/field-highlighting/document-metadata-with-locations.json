@@ -1,0 +1,1426 @@
+{
+  "bundle": {
+    "id": "6bc18e7a-c198-4d3f-bc16-c018c1e5ef2b",
+    "bundle_number": "OA-HIGHLIGHT-1780623928616",
+    "customer_name": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+    "customer_po_no": null,
+    "so_no": null,
+    "status": "REVIEW_REQUIRED",
+    "customer_delivery_status": "REVIEW_REQUIRED",
+    "vendor_procurement_status": "REVIEW_REQUIRED",
+    "computed_status": null,
+    "computed_customer_status": null,
+    "computed_vendor_status": null,
+    "status_computed_at": null,
+    "created_at": "2026-06-05T01:45:28.616075Z",
+    "updated_at": "2026-06-05T01:45:28.616081Z"
+  },
+  "invoice": {
+    "id": "ab8bb2c1-f7f7-43df-bc87-2c540317840e",
+    "order_bundle_id": "6bc18e7a-c198-4d3f-bc16-c018c1e5ef2b",
+    "document_type": "COMPANY_INVOICE",
+    "filename": "Customer Invoice 1ITR2526001878.pdf",
+    "content_type": "application/pdf",
+    "status": "PENDING_REVIEW",
+    "last_error": null,
+    "created_at": "2026-06-05T01:45:28.853995+00:00",
+    "updated_at": "2026-06-05T01:45:28.854000+00:00",
+    "metadata": {
+      "id": "910cb389-2d70-430a-93b9-29b218f975bd",
+      "document_id": "ab8bb2c1-f7f7-43df-bc87-2c540317840e",
+      "status": "EXTRACTED",
+      "extracted_data": {
+        "invoice_number": "1ITR2526001878",
+        "so_number": "1OTM2526001611",
+        "po_reference": "PMCH&RI/024/2025-2026",
+        "invoice_date": "13/02/2026",
+        "customer_name": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+        "customer_address": "CHENNAI 600123 1ITR2526001878 1OTM2526001611 PMCH&RI/024/2025-2026 Nett Amount 874439 133389 741050",
+        "total_amount": 874439,
+        "net_amount": 874439,
+        "taxable_amount": 741050,
+        "tax_amount": 133389,
+        "invoice_no": "1ITR2526001878",
+        "customer_order_no": "PMCH&RI/024/2025-2026",
+        "so_no": "1OTM2526001611"
+      },
+      "diagnostics": {
+        "page_count": 1,
+        "force": false,
+        "filename": "Customer Invoice 1ITR2526001878.pdf",
+        "digital_text_enabled": true,
+        "digital_text_max_pages": 10,
+        "digital_text_used": true,
+        "ocr_enabled": true,
+        "ocr_provider": "glm_ocr",
+        "ocr_model": "glm-ocr:latest",
+        "ocr_base_url_host_only": "host.docker.internal:11434",
+        "ocr_dpi": 200,
+        "ocr_max_pages": 5,
+        "ocr_timeout_seconds": 90,
+        "ocr_min_text_length": 30,
+        "ocr_available": true,
+        "ocr_status": "skipped_digital_text",
+        "structured_rules_enabled": true,
+        "model_layer2_enabled": false,
+        "model_layer2_provider": "ollama",
+        "model_layer2_model": "gemma4:31b-cloud",
+        "model_layer2_used": false,
+        "model_extracted_keys": [],
+        "model_extracted_fields": {},
+        "model_field_evidence": {},
+        "model_missing_fields": [],
+        "model_failure_reason": null,
+        "model_response_format": null,
+        "model_response_warning": null,
+        "model_validation_errors": [],
+        "alternative_values": {},
+        "manual_fallback_available": true,
+        "digital_text_length": 206,
+        "digital_text_page_lengths": [
+          206
+        ],
+        "parser_route": "digital_rules",
+        "extracted_field_keys": [
+          "customer_address",
+          "customer_name",
+          "customer_order_no",
+          "invoice_date",
+          "invoice_no",
+          "invoice_number",
+          "net_amount",
+          "po_reference",
+          "so_no",
+          "so_number",
+          "tax_amount",
+          "taxable_amount",
+          "total_amount"
+        ],
+        "missing_required_fields": [],
+        "failure_code": null,
+        "failure_reason": null,
+        "text_length": 206,
+        "context": {
+          "document_id": "ab8bb2c1-f7f7-43df-bc87-2c540317840e"
+        },
+        "rules_extracted_fields": {
+          "invoice_number": "1ITR2526001878",
+          "so_number": "1OTM2526001611",
+          "po_reference": "PMCH&RI/024/2025-2026",
+          "invoice_date": "13/02/2026",
+          "customer_name": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+          "customer_address": "CHENNAI 600123 1ITR2526001878 1OTM2526001611 PMCH&RI/024/2025-2026 Nett Amount 874439 133389 741050",
+          "total_amount": 874439,
+          "net_amount": 874439,
+          "taxable_amount": 741050,
+          "tax_amount": 133389,
+          "invoice_no": "1ITR2526001878",
+          "customer_order_no": "PMCH&RI/024/2025-2026",
+          "so_no": "1OTM2526001611"
+        },
+        "rules_missing_fields": [],
+        "rules_schema_missing_fields": [],
+        "manual_fields_preserved": [],
+        "extraction_route": "digital",
+        "parser_confidence": 100,
+        "raw_text_length": 206,
+        "raw_ocr_text_length": 0,
+        "ocr_text_length": 0,
+        "field_metadata": {
+          "invoice_number": {
+            "field": "invoice_number",
+            "value": "1ITR2526001878",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=206"
+          },
+          "so_number": {
+            "field": "so_number",
+            "value": "1OTM2526001611",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=206"
+          },
+          "po_reference": {
+            "field": "po_reference",
+            "value": "PMCH&RI/024/2025-2026",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=206"
+          },
+          "invoice_date": {
+            "field": "invoice_date",
+            "value": "13/02/2026",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=206"
+          },
+          "customer_name": {
+            "field": "customer_name",
+            "value": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=206"
+          },
+          "customer_address": {
+            "field": "customer_address",
+            "value": "CHENNAI 600123 1ITR2526001878 1OTM2526001611 PMCH&RI/024/2025-2026 Nett Amount 874439 133389 741050",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=206"
+          },
+          "total_amount": {
+            "field": "total_amount",
+            "value": 874439,
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=206"
+          },
+          "net_amount": {
+            "field": "net_amount",
+            "value": 874439,
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=206"
+          },
+          "taxable_amount": {
+            "field": "taxable_amount",
+            "value": 741050,
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=206"
+          },
+          "tax_amount": {
+            "field": "tax_amount",
+            "value": 133389,
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=206"
+          },
+          "invoice_no": {
+            "field": "invoice_no",
+            "value": "1ITR2526001878",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=206"
+          },
+          "customer_order_no": {
+            "field": "customer_order_no",
+            "value": "PMCH&RI/024/2025-2026",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=206"
+          },
+          "so_no": {
+            "field": "so_no",
+            "value": "1OTM2526001611",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=206"
+          }
+        },
+        "field_locations": {
+          "invoice_number": {
+            "page": 1,
+            "bbox": [
+              72,
+              178.18,
+              157,
+              193.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "1ITR2526001878",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "so_number": {
+            "page": 1,
+            "bbox": [
+              72,
+              196.18,
+              163.72,
+              211.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "1OTM2526001611",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "po_reference": {
+            "page": 1,
+            "bbox": [
+              72,
+              214.18,
+              199.78,
+              229.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "PMCH&RI/024/2025-2026",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "invoice_date": {
+            "page": 1,
+            "bbox": [
+              72,
+              106.18,
+              127.04,
+              121.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "13/02/2026",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "customer_name": {
+            "page": 1,
+            "bbox": [
+              72,
+              142.18,
+              379.45,
+              157.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "customer_address": {
+            "page": 1,
+            "bbox": [
+              72,
+              160.18,
+              161.25,
+              175.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "CHENNAI 600123 1ITR2526001878 1OTM2526001611 PMCH&RI/024/2025-2026 Nett Amount 874439 133389 741050",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "total_amount": {
+            "page": 1,
+            "bbox": [
+              72,
+              250.18,
+              108.7,
+              265.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "874439",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "net_amount": {
+            "page": 1,
+            "bbox": [
+              72,
+              250.18,
+              108.7,
+              265.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "874439",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "taxable_amount": {
+            "page": 1,
+            "bbox": [
+              72,
+              286.17,
+              108.7,
+              301.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "741050",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "tax_amount": {
+            "page": 1,
+            "bbox": [
+              72,
+              268.17,
+              108.7,
+              283.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "133389",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "invoice_no": {
+            "page": 1,
+            "bbox": [
+              72,
+              178.18,
+              157,
+              193.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "1ITR2526001878",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "customer_order_no": {
+            "page": 1,
+            "bbox": [
+              72,
+              214.18,
+              199.78,
+              229.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "PMCH&RI/024/2025-2026",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "so_no": {
+            "page": 1,
+            "bbox": [
+              72,
+              196.18,
+              163.72,
+              211.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "1OTM2526001611",
+            "source": "digital_text",
+            "confidence": 0.9
+          }
+        },
+        "final_extracted_keys": [
+          "customer_address",
+          "customer_name",
+          "customer_order_no",
+          "invoice_date",
+          "invoice_no",
+          "invoice_number",
+          "net_amount",
+          "po_reference",
+          "so_no",
+          "so_number",
+          "tax_amount",
+          "taxable_amount",
+          "total_amount"
+        ],
+        "final_missing_fields": [],
+        "confidence_summary": "rules=13; model_layer2=0; manual_entry=0; conflicts=0",
+        "extraction_runs": [
+          {
+            "attempt_no": 1,
+            "extraction_route": "digital",
+            "parser_route": "digital_rules",
+            "model_version": null,
+            "status": "EXTRACTED",
+            "failure_code": null,
+            "failure_reason": null,
+            "raw_text_length": 206,
+            "ocr_text_length": 0,
+            "extracted_field_keys": [
+              "customer_address",
+              "customer_name",
+              "customer_order_no",
+              "invoice_date",
+              "invoice_no",
+              "invoice_number",
+              "net_amount",
+              "po_reference",
+              "so_no",
+              "so_number",
+              "tax_amount",
+              "taxable_amount",
+              "total_amount"
+            ],
+            "missing_required_fields": [],
+            "model_layer2_used": false,
+            "model_extracted_keys": []
+          }
+        ]
+      },
+      "field_confidences": {
+        "invoice_number": 0.9,
+        "so_number": 0.9,
+        "po_reference": 0.9,
+        "invoice_date": 0.9,
+        "customer_name": 0.9,
+        "customer_address": 0.9,
+        "total_amount": 0.9,
+        "net_amount": 0.9,
+        "taxable_amount": 0.9,
+        "tax_amount": 0.9,
+        "invoice_no": 0.9,
+        "customer_order_no": 0.9,
+        "so_no": 0.9
+      },
+      "field_evidence": {
+        "invoice_number": "1ITR2526001878",
+        "so_number": "1OTM2526001611",
+        "po_reference": "PMCH&RI/024/2025-2026",
+        "invoice_date": "13/02/2026",
+        "customer_name": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+        "customer_address": "CHENNAI 600123 1ITR2526001878 1OTM2526001611 PMCH&RI/024/2025-2026 Nett Amount 874439 133389 741050",
+        "total_amount": "874439",
+        "net_amount": "874439",
+        "taxable_amount": "741050",
+        "tax_amount": "133389",
+        "invoice_no": "1ITR2526001878",
+        "customer_order_no": "PMCH&RI/024/2025-2026",
+        "so_no": "1OTM2526001611"
+      },
+      "field_locations": {
+        "invoice_number": {
+          "page": 1,
+          "bbox": [
+            72,
+            178.18,
+            157,
+            193.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "1ITR2526001878",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "so_number": {
+          "page": 1,
+          "bbox": [
+            72,
+            196.18,
+            163.72,
+            211.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "1OTM2526001611",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "po_reference": {
+          "page": 1,
+          "bbox": [
+            72,
+            214.18,
+            199.78,
+            229.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "PMCH&RI/024/2025-2026",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "invoice_date": {
+          "page": 1,
+          "bbox": [
+            72,
+            106.18,
+            127.04,
+            121.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "13/02/2026",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "customer_name": {
+          "page": 1,
+          "bbox": [
+            72,
+            142.18,
+            379.45,
+            157.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "customer_address": {
+          "page": 1,
+          "bbox": [
+            72,
+            160.18,
+            161.25,
+            175.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "CHENNAI 600123 1ITR2526001878 1OTM2526001611 PMCH&RI/024/2025-2026 Nett Amount 874439 133389 741050",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "total_amount": {
+          "page": 1,
+          "bbox": [
+            72,
+            250.18,
+            108.7,
+            265.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "874439",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "net_amount": {
+          "page": 1,
+          "bbox": [
+            72,
+            250.18,
+            108.7,
+            265.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "874439",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "taxable_amount": {
+          "page": 1,
+          "bbox": [
+            72,
+            286.17,
+            108.7,
+            301.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "741050",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "tax_amount": {
+          "page": 1,
+          "bbox": [
+            72,
+            268.17,
+            108.7,
+            283.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "133389",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "invoice_no": {
+          "page": 1,
+          "bbox": [
+            72,
+            178.18,
+            157,
+            193.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "1ITR2526001878",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "customer_order_no": {
+          "page": 1,
+          "bbox": [
+            72,
+            214.18,
+            199.78,
+            229.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "PMCH&RI/024/2025-2026",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "so_no": {
+          "page": 1,
+          "bbox": [
+            72,
+            196.18,
+            163.72,
+            211.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "1OTM2526001611",
+          "source": "digital_text",
+          "confidence": 0.9
+        }
+      },
+      "primary_ref_no": "PMCH&RI/024/2025-2026",
+      "po_ref_no": "PMCH&RI/024/2025-2026",
+      "last_error": null
+    }
+  },
+  "vendor_po": {
+    "id": "c00e2435-7f6b-4d48-95b1-5257064b1bd4",
+    "order_bundle_id": "6bc18e7a-c198-4d3f-bc16-c018c1e5ef2b",
+    "document_type": "COMPANY_PO",
+    "filename": "Vendor PO 1PTR2526000467.pdf",
+    "content_type": "application/pdf",
+    "status": "PENDING_REVIEW",
+    "last_error": null,
+    "created_at": "2026-06-05T01:45:29.364003+00:00",
+    "updated_at": "2026-06-05T01:45:29.364006+00:00",
+    "metadata": {
+      "id": "b05e90c6-073a-474a-bbdc-0f185b016a75",
+      "document_id": "c00e2435-7f6b-4d48-95b1-5257064b1bd4",
+      "status": "EXTRACTED",
+      "extracted_data": {
+        "po_number": "1PTR2526000467",
+        "po_date": "30/01/2026",
+        "mode_of_bill": "ON FULL DELIVERY",
+        "part_shipment_allowed": "NOT ALLOWED",
+        "vendor_name": "SUPREME COMPUTERS INDIA P LTD",
+        "net_amount": 696200,
+        "total_amount": 696200,
+        "vendor_po_no": "1PTR2526000467"
+      },
+      "diagnostics": {
+        "page_count": 1,
+        "force": false,
+        "filename": "Vendor PO 1PTR2526000467.pdf",
+        "digital_text_enabled": true,
+        "digital_text_max_pages": 10,
+        "digital_text_used": true,
+        "ocr_enabled": true,
+        "ocr_provider": "glm_ocr",
+        "ocr_model": "glm-ocr:latest",
+        "ocr_base_url_host_only": "host.docker.internal:11434",
+        "ocr_dpi": 200,
+        "ocr_max_pages": 5,
+        "ocr_timeout_seconds": 90,
+        "ocr_min_text_length": 30,
+        "ocr_available": true,
+        "ocr_status": "skipped_digital_text",
+        "structured_rules_enabled": true,
+        "model_layer2_enabled": false,
+        "model_layer2_provider": "ollama",
+        "model_layer2_model": "gemma4:31b-cloud",
+        "model_layer2_used": false,
+        "model_extracted_keys": [],
+        "model_extracted_fields": {},
+        "model_field_evidence": {},
+        "model_missing_fields": [
+          "vendor_po_date",
+          "taxable_amount",
+          "tax_amount"
+        ],
+        "model_failure_reason": null,
+        "model_response_format": null,
+        "model_response_warning": null,
+        "model_validation_errors": [],
+        "alternative_values": {},
+        "manual_fallback_available": true,
+        "digital_text_length": 150,
+        "digital_text_page_lengths": [
+          150
+        ],
+        "parser_route": "digital_rules",
+        "extracted_field_keys": [
+          "mode_of_bill",
+          "net_amount",
+          "part_shipment_allowed",
+          "po_date",
+          "po_number",
+          "total_amount",
+          "vendor_name",
+          "vendor_po_no"
+        ],
+        "missing_required_fields": [],
+        "failure_code": null,
+        "failure_reason": null,
+        "text_length": 150,
+        "context": {
+          "document_id": "c00e2435-7f6b-4d48-95b1-5257064b1bd4"
+        },
+        "rules_extracted_fields": {
+          "po_number": "1PTR2526000467",
+          "po_date": "30/01/2026",
+          "mode_of_bill": "ON FULL DELIVERY",
+          "part_shipment_allowed": "NOT ALLOWED",
+          "vendor_name": "SUPREME COMPUTERS INDIA P LTD",
+          "net_amount": 696200,
+          "total_amount": 696200,
+          "vendor_po_no": "1PTR2526000467"
+        },
+        "rules_missing_fields": [],
+        "rules_schema_missing_fields": [
+          "vendor_po_date",
+          "taxable_amount",
+          "tax_amount"
+        ],
+        "manual_fields_preserved": [],
+        "extraction_route": "digital",
+        "parser_confidence": 100,
+        "raw_text_length": 150,
+        "raw_ocr_text_length": 0,
+        "ocr_text_length": 0,
+        "field_metadata": {
+          "po_number": {
+            "field": "po_number",
+            "value": "1PTR2526000467",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=150"
+          },
+          "po_date": {
+            "field": "po_date",
+            "value": "30/01/2026",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=150"
+          },
+          "mode_of_bill": {
+            "field": "mode_of_bill",
+            "value": "ON FULL DELIVERY",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=150"
+          },
+          "part_shipment_allowed": {
+            "field": "part_shipment_allowed",
+            "value": "NOT ALLOWED",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=150"
+          },
+          "vendor_name": {
+            "field": "vendor_name",
+            "value": "SUPREME COMPUTERS INDIA P LTD",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=150"
+          },
+          "net_amount": {
+            "field": "net_amount",
+            "value": 696200,
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=150"
+          },
+          "total_amount": {
+            "field": "total_amount",
+            "value": 696200,
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=150"
+          },
+          "vendor_po_no": {
+            "field": "vendor_po_no",
+            "value": "1PTR2526000467",
+            "confidence": 0.9,
+            "source": "rules",
+            "evidence_text": "digital_rules; text_length=150"
+          }
+        },
+        "field_locations": {
+          "po_number": {
+            "page": 1,
+            "bbox": [
+              72,
+              160.18,
+              161.28,
+              175.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "1PTR2526000467",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "po_date": {
+            "page": 1,
+            "bbox": [
+              72,
+              142.18,
+              127.04,
+              157.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "30/01/2026",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "mode_of_bill": {
+            "page": 1,
+            "bbox": [
+              72,
+              196.18,
+              175.92,
+              211.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "ON FULL DELIVERY",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "part_shipment_allowed": {
+            "page": 1,
+            "bbox": [
+              72,
+              178.18,
+              152.07,
+              193.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "NOT ALLOWED",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "vendor_name": {
+            "page": 1,
+            "bbox": [
+              72,
+              88.18,
+              266.36,
+              103.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "SUPREME COMPUTERS INDIA P LTD",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "net_amount": {
+            "page": 1,
+            "bbox": [
+              72,
+              232.18,
+              108.7,
+              247.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "696200",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "total_amount": {
+            "page": 1,
+            "bbox": [
+              72,
+              232.18,
+              108.7,
+              247.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "696200",
+            "source": "digital_text",
+            "confidence": 0.9
+          },
+          "vendor_po_no": {
+            "page": 1,
+            "bbox": [
+              72,
+              160.18,
+              161.28,
+              175.29
+            ],
+            "page_width": 595,
+            "page_height": 842,
+            "evidence_text": "1PTR2526000467",
+            "source": "digital_text",
+            "confidence": 0.9
+          }
+        },
+        "final_extracted_keys": [
+          "mode_of_bill",
+          "net_amount",
+          "part_shipment_allowed",
+          "po_date",
+          "po_number",
+          "total_amount",
+          "vendor_name",
+          "vendor_po_no"
+        ],
+        "final_missing_fields": [
+          "vendor_po_date",
+          "taxable_amount",
+          "tax_amount"
+        ],
+        "confidence_summary": "rules=8; model_layer2=0; manual_entry=0; conflicts=0",
+        "extraction_runs": [
+          {
+            "attempt_no": 1,
+            "extraction_route": "digital",
+            "parser_route": "digital_rules",
+            "model_version": null,
+            "status": "EXTRACTED",
+            "failure_code": null,
+            "failure_reason": null,
+            "raw_text_length": 150,
+            "ocr_text_length": 0,
+            "extracted_field_keys": [
+              "mode_of_bill",
+              "net_amount",
+              "part_shipment_allowed",
+              "po_date",
+              "po_number",
+              "total_amount",
+              "vendor_name",
+              "vendor_po_no"
+            ],
+            "missing_required_fields": [],
+            "model_layer2_used": false,
+            "model_extracted_keys": []
+          }
+        ]
+      },
+      "field_confidences": {
+        "po_number": 0.9,
+        "po_date": 0.9,
+        "mode_of_bill": 0.9,
+        "part_shipment_allowed": 0.9,
+        "vendor_name": 0.9,
+        "net_amount": 0.9,
+        "total_amount": 0.9,
+        "vendor_po_no": 0.9
+      },
+      "field_evidence": {
+        "po_number": "1PTR2526000467",
+        "po_date": "30/01/2026",
+        "mode_of_bill": "ON FULL DELIVERY",
+        "part_shipment_allowed": "NOT ALLOWED",
+        "vendor_name": "SUPREME COMPUTERS INDIA P LTD",
+        "net_amount": "696200",
+        "total_amount": "696200",
+        "vendor_po_no": "1PTR2526000467"
+      },
+      "field_locations": {
+        "po_number": {
+          "page": 1,
+          "bbox": [
+            72,
+            160.18,
+            161.28,
+            175.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "1PTR2526000467",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "po_date": {
+          "page": 1,
+          "bbox": [
+            72,
+            142.18,
+            127.04,
+            157.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "30/01/2026",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "mode_of_bill": {
+          "page": 1,
+          "bbox": [
+            72,
+            196.18,
+            175.92,
+            211.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "ON FULL DELIVERY",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "part_shipment_allowed": {
+          "page": 1,
+          "bbox": [
+            72,
+            178.18,
+            152.07,
+            193.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "NOT ALLOWED",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "vendor_name": {
+          "page": 1,
+          "bbox": [
+            72,
+            88.18,
+            266.36,
+            103.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "SUPREME COMPUTERS INDIA P LTD",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "net_amount": {
+          "page": 1,
+          "bbox": [
+            72,
+            232.18,
+            108.7,
+            247.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "696200",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "total_amount": {
+          "page": 1,
+          "bbox": [
+            72,
+            232.18,
+            108.7,
+            247.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "696200",
+          "source": "digital_text",
+          "confidence": 0.9
+        },
+        "vendor_po_no": {
+          "page": 1,
+          "bbox": [
+            72,
+            160.18,
+            161.28,
+            175.29
+          ],
+          "page_width": 595,
+          "page_height": 842,
+          "evidence_text": "1PTR2526000467",
+          "source": "digital_text",
+          "confidence": 0.9
+        }
+      },
+      "primary_ref_no": "1PTR2526000467",
+      "po_ref_no": "1PTR2526000467",
+      "last_error": null
+    }
+  },
+  "vendor_bill": {
+    "id": "5c502775-3392-4630-bcdd-8f4a3f93a7f3",
+    "order_bundle_id": "6bc18e7a-c198-4d3f-bc16-c018c1e5ef2b",
+    "document_type": "VENDOR_INVOICE",
+    "filename": "Vendor Bill manual fallback.pdf",
+    "content_type": "application/pdf",
+    "status": "PENDING_REVIEW",
+    "last_error": null,
+    "created_at": "2026-06-05T01:45:29.472138+00:00",
+    "updated_at": "2026-06-05T01:45:29.472144+00:00",
+    "metadata": {
+      "id": "620a92b7-1546-4002-b2ad-55a678eeccf3",
+      "document_id": "5c502775-3392-4630-bcdd-8f4a3f93a7f3",
+      "status": "EXTRACTED",
+      "extracted_data": {
+        "vendor_invoice_no": "2526PSI25087738",
+        "vendor_invoice_date": "12-02-2026",
+        "vendor_name": "SUPREME COMPUTERS INDIA P LTD",
+        "po_reference": "1PTR2526000467",
+        "invoice_total": 554600,
+        "extraction_source": "manual_entry"
+      },
+      "diagnostics": {
+        "page_count": 1,
+        "field_metadata": {
+          "vendor_invoice_no": {
+            "field": "vendor_invoice_no",
+            "value": "2526PSI25087738",
+            "confidence": 1,
+            "source": "manual_entry",
+            "evidence_text": "Manual entry"
+          },
+          "vendor_invoice_date": {
+            "field": "vendor_invoice_date",
+            "value": "12-02-2026",
+            "confidence": 1,
+            "source": "manual_entry",
+            "evidence_text": "Manual entry"
+          },
+          "vendor_name": {
+            "field": "vendor_name",
+            "value": "SUPREME COMPUTERS INDIA P LTD",
+            "confidence": 1,
+            "source": "manual_entry",
+            "evidence_text": "Manual entry"
+          },
+          "po_reference": {
+            "field": "po_reference",
+            "value": "1PTR2526000467",
+            "confidence": 1,
+            "source": "manual_entry",
+            "evidence_text": "Manual entry"
+          },
+          "invoice_total": {
+            "field": "invoice_total",
+            "value": 554600,
+            "confidence": 1,
+            "source": "manual_entry",
+            "evidence_text": "Manual entry"
+          }
+        },
+        "field_locations": {
+          "vendor_invoice_no": {
+            "page": null,
+            "bbox": null,
+            "evidence_text": "Manual entry",
+            "source": "manual_entry",
+            "confidence": 1
+          },
+          "vendor_invoice_date": {
+            "page": null,
+            "bbox": null,
+            "evidence_text": "Manual entry",
+            "source": "manual_entry",
+            "confidence": 1
+          },
+          "vendor_name": {
+            "page": null,
+            "bbox": null,
+            "evidence_text": "Manual entry",
+            "source": "manual_entry",
+            "confidence": 1
+          },
+          "po_reference": {
+            "page": null,
+            "bbox": null,
+            "evidence_text": "Manual entry",
+            "source": "manual_entry",
+            "confidence": 1
+          },
+          "invoice_total": {
+            "page": null,
+            "bbox": null,
+            "evidence_text": "Manual entry",
+            "source": "manual_entry",
+            "confidence": 1
+          }
+        },
+        "failure_code": null,
+        "failure_reason": null
+      },
+      "field_confidences": {
+        "vendor_invoice_no": 1,
+        "vendor_invoice_date": 1,
+        "vendor_name": 1,
+        "po_reference": 1,
+        "invoice_total": 1
+      },
+      "field_evidence": {
+        "vendor_invoice_no": "Manual entry",
+        "vendor_invoice_date": "Manual entry",
+        "vendor_name": "Manual entry",
+        "po_reference": "Manual entry",
+        "invoice_total": "Manual entry"
+      },
+      "field_locations": {
+        "vendor_invoice_no": {
+          "page": null,
+          "bbox": null,
+          "evidence_text": "Manual entry",
+          "source": "manual_entry",
+          "confidence": 1
+        },
+        "vendor_invoice_date": {
+          "page": null,
+          "bbox": null,
+          "evidence_text": "Manual entry",
+          "source": "manual_entry",
+          "confidence": 1
+        },
+        "vendor_name": {
+          "page": null,
+          "bbox": null,
+          "evidence_text": "Manual entry",
+          "source": "manual_entry",
+          "confidence": 1
+        },
+        "po_reference": {
+          "page": null,
+          "bbox": null,
+          "evidence_text": "Manual entry",
+          "source": "manual_entry",
+          "confidence": 1
+        },
+        "invoice_total": {
+          "page": null,
+          "bbox": null,
+          "evidence_text": "Manual entry",
+          "source": "manual_entry",
+          "confidence": 1
+        }
+      },
+      "primary_ref_no": null,
+      "po_ref_no": null,
+      "last_error": null
+    }
+  },
+  "verification_summary": {
+    "bundle_status": "REVIEW_REQUIRED",
+    "customer_delivery_status": "PARTIAL_PASS",
+    "vendor_procurement_status": "REVIEW_REQUIRED",
+    "extracted_summary": {
+      "customer_po_no": null,
+      "so_no": "1OTM2526001611",
+      "customer_name": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+      "customer_invoice_numbers": [
+        "1ITR2526001878"
+      ],
+      "dc_numbers": [
+        "1DNT2526DC3100"
+      ],
+      "vendor_po_numbers": [
+        "1PTR2526000467"
+      ],
+      "vendor_invoice_numbers": [
+        "2526PSI25087738"
+      ],
+      "customer_total": 874439,
+      "vendor_total": 554600
+    },
+    "connections": [],
+    "checks": [
+      {
+        "check_id": "INVOICE_DC_CUSTOMER_ORDER_MATCH",
+        "check_name": "Customer order number matches between invoice and DC",
+        "result": "PASS",
+        "severity": "BLOCKER",
+        "left_document_type": "CUSTOMER_INVOICE",
+        "left_document_id": "ab8bb2c1-f7f7-43df-bc87-2c540317840e",
+        "left_value": "PMCH&RI/024/2025-2026",
+        "right_document_type": "DELIVERY_CHALLAN",
+        "right_document_id": "42d15a7e-4005-4dc8-b352-3dba03798a7d",
+        "right_value": "PMCH&RI/024/2025-2026",
+        "message": "Customer order number matches between invoice and DC."
+      },
+      {
+        "check_id": "INVOICE_DC_SO_MATCH",
+        "check_name": "SO number matches between invoice and DC",
+        "result": "PASS",
+        "severity": "BLOCKER",
+        "left_document_type": "CUSTOMER_INVOICE",
+        "left_document_id": "ab8bb2c1-f7f7-43df-bc87-2c540317840e",
+        "left_value": "1OTM2526001611",
+        "right_document_type": "DELIVERY_CHALLAN",
+        "right_document_id": "42d15a7e-4005-4dc8-b352-3dba03798a7d",
+        "right_value": "1OTM2526001611",
+        "message": "SO number matches between invoice and DC."
+      },
+      {
+        "check_id": "CUSTOMER_NAME_MATCH",
+        "check_name": "Customer name match",
+        "result": "PASS",
+        "severity": "WARNING",
+        "left_document_type": "CUSTOMER_INVOICE",
+        "left_document_id": "ab8bb2c1-f7f7-43df-bc87-2c540317840e",
+        "left_value": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+        "right_document_type": "DELIVERY_CHALLAN",
+        "right_document_id": "42d15a7e-4005-4dc8-b352-3dba03798a7d",
+        "right_value": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+        "message": "Customer names compared with normalized matching."
+      },
+      {
+        "check_id": "INVOICE_DC_AMOUNT_MATCH",
+        "check_name": "Amount comparison",
+        "result": "PASS",
+        "severity": "WARNING",
+        "left_document_type": "CUSTOMER_INVOICE",
+        "left_document_id": "ab8bb2c1-f7f7-43df-bc87-2c540317840e",
+        "left_value": 741050,
+        "right_document_type": "DELIVERY_CHALLAN",
+        "right_document_id": "42d15a7e-4005-4dc8-b352-3dba03798a7d",
+        "right_value": 741050,
+        "message": "Amounts match within rounding tolerance."
+      },
+      {
+        "check_id": "VENDOR_PO_INVOICE_REFERENCE_MATCH",
+        "check_name": "Vendor PO reference matches vendor invoice",
+        "result": "PASS",
+        "severity": "BLOCKER",
+        "left_document_type": "VENDOR_PO",
+        "left_document_id": "c00e2435-7f6b-4d48-95b1-5257064b1bd4",
+        "left_value": "1PTR2526000467",
+        "right_document_type": "VENDOR_INVOICE",
+        "right_document_id": "5c502775-3392-4630-bcdd-8f4a3f93a7f3",
+        "right_value": "1PTR2526000467",
+        "message": "Vendor PO reference matches vendor invoice."
+      },
+      {
+        "check_id": "VENDOR_NAME_MATCH",
+        "check_name": "Vendor name match",
+        "result": "PASS",
+        "severity": "WARNING",
+        "left_document_type": "VENDOR_PO",
+        "left_document_id": "c00e2435-7f6b-4d48-95b1-5257064b1bd4",
+        "left_value": "SUPREME COMPUTERS INDIA P LTD",
+        "right_document_type": "VENDOR_INVOICE",
+        "right_document_id": "5c502775-3392-4630-bcdd-8f4a3f93a7f3",
+        "right_value": "SUPREME COMPUTERS INDIA P LTD",
+        "message": "Vendor names compared with normalized matching."
+      },
+      {
+        "check_id": "VENDOR_BILLING_COVERAGE",
+        "check_name": "Vendor invoice total covers Vendor PO total",
+        "result": "REVIEW_REQUIRED",
+        "severity": "BLOCKER",
+        "left_document_type": "VENDOR_PO",
+        "left_document_id": "c00e2435-7f6b-4d48-95b1-5257064b1bd4",
+        "left_value": 696200,
+        "right_document_type": "VENDOR_INVOICE",
+        "right_document_id": "5c502775-3392-4630-bcdd-8f4a3f93a7f3",
+        "right_value": 554600,
+        "message": "Vendor billing coverage evaluated against matching invoice references."
+      }
+    ],
+    "issues": [
+      {
+        "code": "CUSTOMER_PO_MISSING",
+        "message": "Customer PO is absent or unreadable; invoice and DC checks were evaluated independently.",
+        "document_type": "CUSTOMER_PO",
+        "document_id": null
+      },
+      {
+        "code": "VENDOR_PARTIAL_BILLING_REVIEW_REQUIRED",
+        "message": "Vendor invoice total 554600 does not fully cover Vendor PO 696200.",
+        "document_type": "COMPANY_PO",
+        "document_id": "c00e2435-7f6b-4d48-95b1-5257064b1bd4",
+        "vendor_po_no": "1PTR2526000467",
+        "vendor_invoice_total": 554600,
+        "vendor_po_total": 696200,
+        "difference": 141600
+      }
+    ],
+    "recommendation": "Review vendor-side partial billing before closure."
+  }
+}

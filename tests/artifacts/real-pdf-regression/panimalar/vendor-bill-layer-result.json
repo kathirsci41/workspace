@@ -1,0 +1,7 @@
+{
+  "run_status": "SKIPPED",
+  "document_type": "VENDOR_INVOICE",
+  "reason": "vendor-bill.pdf is not present in the approved real/redacted fixture pack.",
+  "manual_fallback_available": true,
+  "safety_rule": "Invoice amount is not counted as Vendor PO coverage without an evidenced reference or manual confirmation."
+}

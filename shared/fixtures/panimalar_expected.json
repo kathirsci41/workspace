@@ -1,0 +1,43 @@
+{
+  "bundle": "panimalar",
+  "expected": {
+    "customer_invoice": {
+      "invoice_no": "1ITR2526001878",
+      "invoice_date": "13/02/2026",
+      "customer_order_no": "PMCH&RI/024/2025-2026",
+      "so_no": "1OTM2526001611",
+      "customer_name": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+      "taxable_amount": 741050,
+      "tax_amount": 133389,
+      "net_amount": 874439
+    },
+    "delivery_challan": {
+      "dc_no": "1DNT2526DC3100",
+      "dc_date": "13/02/2026",
+      "customer_order_no": "PMCH&RI/024/2025-2026",
+      "so_no": "1OTM2526001611",
+      "customer_name": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+      "total_quantity": 9,
+      "estimated_amount": 741050
+    },
+    "vendor_po": {
+      "vendor_po_no": "1PTR2526000467",
+      "vendor_po_date": "30/01/2026",
+      "vendor_name": "SUPREME COMPUTERS INDIA P LTD",
+      "part_shipment_allowed": "NOT ALLOWED",
+      "mode_of_bill": "ON FULL DELIVERY",
+      "net_amount": 696200
+    },
+    "vendor_bill_manual_expected": {
+      "vendor_invoice_no": "2526PSI25087738",
+      "vendor_invoice_date": "12-02-2026",
+      "po_reference": "1PTR2526000467",
+      "invoice_total": 554600
+    },
+    "verification": {
+      "vendor_billing_difference": 141600,
+      "bundle_status": "REVIEW_REQUIRED",
+      "vendor_procurement_status": "REVIEW_REQUIRED"
+    }
+  }
+}

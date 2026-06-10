@@ -1,0 +1,19 @@
+[project]
+name = "order-assurance-backend"
+version = "0.1.0"
+description = "Independent Order Assurance backend extracted from ODMP proven MVP modules."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi",
+  "uvicorn",
+  "sqlalchemy",
+  "python-multipart",
+  "pymupdf",
+  "openpyxl",
+  "psycopg[binary]",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"

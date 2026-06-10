@@ -1,0 +1,278 @@
+{
+  "summary": {
+    "total_scanned_docs": 10,
+    "clean": 1,
+    "partial": 9,
+    "garbled": 0,
+    "ocr_fail": 0,
+    "ocr_service_reachable": true,
+    "average_latency_seconds": 42.509,
+    "before_normalization": {
+      "total_scanned_docs": 10,
+      "clean": 1,
+      "partial": 9,
+      "garbled": 0,
+      "ocr_fail": 0
+    },
+    "after_normalization": {
+      "total_scanned_docs": 10,
+      "clean": 1,
+      "partial": 9,
+      "garbled": 0,
+      "ocr_fail": 0
+    },
+    "normalization_note": "Phase 13D applies normalize_ocr_text only to OCR-routed text before parsing; digital text remains unnormalized."
+  },
+  "service_check": {
+    "enabled": true,
+    "provider": "glm_ocr",
+    "model": "glm-ocr:latest",
+    "reachable": true,
+    "enabled_normalization": true,
+    "normalization_function": "app.services.extraction.digital_text_extractor.normalize_ocr_text",
+    "endpoint": "http://localhost:11434",
+    "health_endpoint": "http://localhost:11434/api/tags",
+    "generate_endpoint": "http://localhost:11434/api/generate",
+    "chat_fallback_endpoint": "http://localhost:11434/api/chat"
+  },
+  "documents": [
+    {
+      "filename": "../sample/extracted/Panimalar/Customer PO_.pdf",
+      "document_type": "CUSTOMER_PO",
+      "ocr_ran": true,
+      "ocr_latency_seconds": 42.475,
+      "ocr_text_length": 2755,
+      "ocr_text_preview": "REF: PMCH&RI/024/2025-2026\nDATE: 29.01.2026\n\nTo\nM/S. SKYLARK INFORMATION TECHNOLOGIES PVT LTD\n1, CHARI STREET T-NAGAR,\nCHENNAI-600017.\n\nDear Sir,\nSub: Order Placement for HPE PROLIANT DL 380 GEN 11 SERVER-Panimalar Medical College Hospital And Research Institute.\n\nRef: SKY2510-19821-R2 Dated: 21.01.2026\n\nWith reference to your above mentioned quotation, we are placing our Order for HPE PROLIANT DL 380 GEN 11 SERVER amounting to Rs.9,20,459./-(Rupees NINE LAKHS TWENTY THOUSAND FOUR HUNDRED AND FI",
+      "extracted_fields": {
+        "customer_po_date": "29.01.2026",
+        "grand_total": 920459,
+        "tax_amount": 18,
+        "total_amount": 920459
+      },
+      "missing_key_fields": [
+        "customer_po_no"
+      ],
+      "wrong_fields": [],
+      "classification": "PARTIAL",
+      "notes": "OCR returned readable text, but key fields are missing or wrong. | embedded_text_length=0 | pipeline_status=MANUAL_ENTRY | ocr_status=text_acquired | failure_code=FailureCode.REQUIRED_FIELDS_MISSING | failure_reason=Document text was acquired but required fields are missing: customer_po_no, customer_name, billing_address, delivery_address, subtotal_amount, total_quantity"
+    },
+    {
+      "filename": "../sample/extracted/Panimalar/Vendor Bill 2526PSI25087738.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "ocr_ran": true,
+      "ocr_latency_seconds": 15.371,
+      "ocr_text_length": 1173,
+      "ocr_text_preview": "TAX INVOICE\nIRN No.: 1a795d8d41301807788b3d0b9ce6b71755abeb9d9f1c8bb126a648a2f80fa0a3\nAck. No.: 152624695707174\nDate: 12-02-2026\nDue Date: 13-03-2026\nSales Person Code SALES1\nPayment Terms 30DAYS\nPayment Method OPEN\nExternal doc. No.\nCredit Card No.: PO 1PTR2526000467\nShipment Method: Door Delivery\nGSTIN No.: 33AACCS3213Q1ZB\nP.A.N No.: AACCS3213Q\nPlace of Supply state: Tamil Nadu\n\nTotal Invoice Value: Rs 554600 Total Invoice Value: ***FIVE LAKH FIFTY FOUR THOUSAND SIX HUNDRED RUPEES AND ZERO PAI",
+      "extracted_fields": {
+        "gstin": "33AACCS3213Q1ZB",
+        "invoice_date": "12-02-2026",
+        "invoice_total": 554600,
+        "total_amount": 554600,
+        "vendor_gstin": "33AACCS3213Q1ZB",
+        "vendor_invoice_date": "12-02-2026",
+        "vendor_name": "Due Date: 13-03-2026"
+      },
+      "missing_key_fields": [
+        "vendor_invoice_no",
+        "po_reference"
+      ],
+      "wrong_fields": [
+        {
+          "field": "vendor_name",
+          "expected": "SUPREME COMPUTERS INDIA P LTD",
+          "actual": "Due Date: 13-03-2026"
+        }
+      ],
+      "classification": "PARTIAL",
+      "notes": "OCR returned readable text, but key fields are missing or wrong. | embedded_text_length=0 | pipeline_status=MANUAL_ENTRY | ocr_status=text_acquired | failure_code=FailureCode.REQUIRED_FIELDS_MISSING | failure_reason=Document text was acquired but required fields are missing: vendor_invoice_no, po_reference"
+    },
+    {
+      "filename": "../sample/extracted/Sriram fin/PO AMC corro health.pdf",
+      "document_type": "CUSTOMER_PO",
+      "ocr_ran": true,
+      "ocr_latency_seconds": 48.9,
+      "ocr_text_length": 3995,
+      "ocr_text_preview": "PURCHASE ORDER\nCorroHealth\n\nOrder No. CHIPL/2025-26/682\nDated 01-12-2025\nDelivery Note\nMode/Terms of Payment NEFT\n\nInvoice To Corrohealth Infotech Private Limited\n14th Floor, Tower 4, Survey No 107\nLaxmi Infobhan Private Limited SEZ, Kokapet\nGandipet Mandal, Ranga Reddy District, Telangana-500075\nMobile: 8608872774\nE-mail: ramesh.k@corrohealth.com\n\nSupplier M/s. Skylark Information Technologies Pvt Ltd\nNo.1, Chari Street\nT.Nagar, India-600017\n\nTerms of Delivery\nShip To:\n12th Floor\nTower 1\nSurvey",
+      "extracted_fields": {
+        "customer_name": "Corrohealth Infotech Private Limited",
+        "customer_order_no": "CHIPL/2025-26/682",
+        "customer_po_no": "CHIPL/2025-26/682",
+        "delivery_address": "12th Floor Tower 1 Survey No 107 Laxmi Infobhan Private Limited SEZ Kokapet Gandipet Mandal",
+        "grand_total": 2496000,
+        "po_number": "CHIPL/2025-26/682",
+        "primary_ref_no": "CHIPL/2025-26/682",
+        "total_amount": 2496000
+      },
+      "missing_key_fields": [
+        "customer_po_date"
+      ],
+      "wrong_fields": [],
+      "classification": "PARTIAL",
+      "notes": "OCR returned readable text, but key fields are missing or wrong. | embedded_text_length=0 | pipeline_status=MANUAL_ENTRY | ocr_status=text_acquired | failure_code=FailureCode.REQUIRED_FIELDS_MISSING | failure_reason=Document text was acquired but required fields are missing: customer_po_date, billing_address, subtotal_amount, tax_amount, total_quantity | Sriram correctness judged from OCR readability and extracted key presence; no supplied ground-truth values."
+    },
+    {
+      "filename": "../sample/extracted/Sriram fin/Purchase order Inflow.pdf",
+      "document_type": "COMPANY_PO",
+      "ocr_ran": true,
+      "ocr_latency_seconds": 43.98,
+      "ocr_text_length": 2556,
+      "ocr_text_preview": "SKYLARK INFORMATION TECHNOLOGIES PRIVATE LIMITED\nNo. 1, Chari Street T.Nagar\n, Chennai-600017\n+914443480000 | Info@skylarkinfo.com\n+914443480000\n\nGSTIN No. : 33AACCS3213Q1ZB\nPAN No. : AACCS3213Q\nCIN No. : U74999TN1997PTC039039\n\nOrder No. : 1POC2526000408\nQuote Reference :\nPart Shipment : NOT ALLOWED\nMode of Bill : STAGEWISE/CONTRACT\n\nVendor Name&Address\nINFLOW TECHNOLOGIES PVT LTD\nGUINDY CHENNAI\nCHENNAI 600032\n\nSNo. 1\nProduct Description\nR1B26A-AMC\nHSN Code 998719\nQty. 1\nUOM NM\nUnit Rate 392682.",
+      "extracted_fields": {
+        "part_shipment_allowed": "NOT ALLOWED",
+        "po_date": "09/12/2025",
+        "po_number": "1POC2526000408",
+        "vendor_po_no": "1POC2526000408"
+      },
+      "missing_key_fields": [
+        "net_amount"
+      ],
+      "wrong_fields": [],
+      "classification": "PARTIAL",
+      "notes": "OCR returned readable text, but key fields are missing or wrong. | embedded_text_length=0 | pipeline_status=EXTRACTED | ocr_status=text_acquired | Sriram correctness judged from OCR readability and extracted key presence; no supplied ground-truth values."
+    },
+    {
+      "filename": "../sample/extracted/Sriram fin/purchase order reddington.pdf",
+      "document_type": "COMPANY_PO",
+      "ocr_ran": true,
+      "ocr_latency_seconds": 30.605,
+      "ocr_text_length": 2209,
+      "ocr_text_preview": "PURCHASE ORDER\nSKYLARK INFORMATION TECHNOLOGIES PRIVATE LIMITED\nNo. 1, Chari Street T.Nagar\n, Chennai-600017\n+914443480000 | Info@skylarkinfo.com\n+914443480000\n\nGSTIN No. : 33AACCS3213Q1ZB\nPAN No. : AACCS3213Q\nCIN No. : U74999TN1997PTC039039\n\nOrder No. : 1PTR2526000400\nQuote Reference :\nPart Shipment : NOT ALLOWED\nMode of Bill : ON FULL DELIVERY\n\nVendor Name&Address\nREDINGTON LIMITED.\nA3,BT INDUSTRIAL PARK, SATHYAVEDU ROAD, SIRUPUZHALPET P\nTHIRUVALLUR DIST\nCHENNAI 601201\n\nSNo. Product Descriptio",
+      "extracted_fields": {
+        "mode_of_bill": "ON FULL DELIVERY",
+        "part_shipment_allowed": "NOT ALLOWED",
+        "po_date": "17/12/2025",
+        "po_number": "1PTR2526000400",
+        "vendor_po_no": "1PTR2526000400"
+      },
+      "missing_key_fields": [
+        "net_amount"
+      ],
+      "wrong_fields": [],
+      "classification": "PARTIAL",
+      "notes": "OCR returned readable text, but key fields are missing or wrong. | embedded_text_length=0 | pipeline_status=EXTRACTED | ocr_status=text_acquired | Sriram correctness judged from OCR readability and extracted key presence; no supplied ground-truth values."
+    },
+    {
+      "filename": "../sample/extracted/Sriram fin/Purchase order shriram fin.pdf",
+      "document_type": "COMPANY_PO",
+      "ocr_ran": true,
+      "ocr_latency_seconds": 53.193,
+      "ocr_text_length": 4224,
+      "ocr_text_preview": "PWFA251127016\n27 November 2025\n\nPurchase Order\n\nSKYLARK INFORMATION TECHNOLOGIES PRIVATE LIMITED\nNO CHARI STREET\nT NAGAR CHENNAI\nTHYGARAYA NAGAR SOUTH,\nCHENNAI-600017\nTAMIL NADU\nINDIA\nCell: 4443480000\nFax: 0\nE-Mail: santhosh.v@skylarkinfo.com\nKind Attn: Santhosh\nDear Sir/Madam\nAs per your quotation no SKY2502-7373 dated 20.03.2025, we are pleased to place order for the following:\n\nSR NO 1\nDescription FG-120GAPAC Fortigate-120G 18 x GE RJ45 ports (including 1 x MGMT port, 1 x HA port, 16 x switch",
+      "extracted_fields": {},
+      "missing_key_fields": [
+        "po_number",
+        "net_amount"
+      ],
+      "wrong_fields": [],
+      "classification": "PARTIAL",
+      "notes": "OCR returned readable text, but key fields are missing or wrong. | embedded_text_length=0 | pipeline_status=EXTRACTED | ocr_status=text_acquired | Sriram correctness judged from OCR readability and extracted key presence; no supplied ground-truth values."
+    },
+    {
+      "filename": "../sample/extracted/Sriram fin/Tax invoice corro health.pdf",
+      "document_type": "COMPANY_INVOICE",
+      "ocr_ran": true,
+      "ocr_latency_seconds": 95.7,
+      "ocr_text_length": 7699,
+      "ocr_text_preview": "SKYLARK INFORMATION TECHNOLOGIES PRIVATE LIMITED\nNo. 1, Chari Street, T.Nagar,\nChennai-600017\n+914443480000 | info@skylarkinfo.com\nHelp line: +914443480030 | support@skylarkinfo.com\nISO 9001: 2015 CERTIFIED&ISO 27001: 2013 CERTIFIED\nGSTIN : 33AACCS3213Q1ZB\nPAN No. : AACCS3213Q\nCIN No. : U74999TN1997PTC039039\nwww.skylarkinfo.com\n\nInvoice No. : 1IAM2526000527\nCustomer Order No.&Date : CHIPL/2025-26/682&SO No. : SOSC2526000429\nInvoice Date : 03/01/2026\nInvoice Due Date : 02/02/2026\nAcct Manager : S",
+      "extracted_fields": {
+        "customer_order_no": "CHIPL/2025-26/682",
+        "invoice_date": "02/02/2026",
+        "invoice_no": "1IAM2526000527",
+        "invoice_number": "1IAM2526000527",
+        "po_reference": "CHIPL/2025-26/682",
+        "so_no": "SOSC2526000429",
+        "so_number": "SOSC2526000429"
+      },
+      "missing_key_fields": [
+        "total_amount"
+      ],
+      "wrong_fields": [],
+      "classification": "PARTIAL",
+      "notes": "OCR returned readable text, but key fields are missing or wrong. | embedded_text_length=0 | pipeline_status=EXTRACTED | ocr_status=text_acquired | Sriram correctness judged from OCR readability and extracted key presence; no supplied ground-truth values."
+    },
+    {
+      "filename": "../sample/extracted/Sriram fin/Tax invoice inflow AMC.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "ocr_ran": true,
+      "ocr_latency_seconds": 33.071,
+      "ocr_text_length": 3258,
+      "ocr_text_preview": "TAX INVOICE\nOriginal copy for Recipient\nInflow Technologies Private Limited\nNew no.65, Old No.31, T.Nagar,A3, 1 Floor, Venkatharayana Road,Palani\nTowers,Chennai,Tamilnadu,600017,India\nGSTN No:33AAACW8310Q1Z1\nState: Tamilnadu/33\nGSTN Type:Regular/TDS/ISD\nPAN No.:AAACW8310Q\nCIN: U72200KA2008PTC048560\n\nBilling Address:\nSKYLARK INFORMATION TECHNOLOGIES PRIVATE LIMITED\nT.Nagar,\nNo. 1, Chari Street,\nChennai\nTamilnadu\n600017\n\nGST Registration Number : 33AACCS3213Q1ZB\nGST Registration Type : Regular/TDS",
+      "extracted_fields": {
+        "customer_ref_no": "1POC2526000408",
+        "gstin": "33AAACW8310Q1Z1",
+        "invoice_date": "02-01-2026",
+        "invoice_number": "333335674",
+        "invoice_total": 463365.55,
+        "irn": "d35a3d434a45e27eddb36ec1491aa4a34f150883275073fa96125edb5818f51",
+        "po_reference": "1POC2526000408",
+        "total_amount": 463365.55,
+        "vendor_gstin": "33AAACW8310Q1Z1",
+        "vendor_invoice_date": "02-01-2026",
+        "vendor_invoice_no": "333335674",
+        "vendor_name": "Inflow Technologies Private Limited"
+      },
+      "missing_key_fields": [],
+      "wrong_fields": [],
+      "classification": "CLEAN",
+      "notes": "Key fields were extracted from readable OCR text; no independent ground truth was available for this Sriram file. | embedded_text_length=0 | pipeline_status=EXTRACTED | ocr_status=text_acquired | Sriram correctness judged from OCR readability and extracted key presence; no supplied ground-truth values."
+    },
+    {
+      "filename": "../sample/extracted/Sriram fin/Tax invoice reddington.pdf",
+      "document_type": "VENDOR_INVOICE",
+      "ocr_ran": true,
+      "ocr_latency_seconds": 29.861,
+      "ocr_text_length": 2410,
+      "ocr_text_preview": "TAX INVOICE\nInvoice\nOur Order\nInvoice date\nYour Ref.\nCustomer\nGST NO\nDef. Pmnt.\nCurrency\nPlace of Supply\nIRN Number\nSHIP-TO:\nSKYLARK INFORMATION TECHNOLOGIES PVT LTD\nNO.1, CHARI STREET, T.NAGAR\nCHENNAI-600017, Tamil Nadu\n33AACCS3213Q1ZB\n\nITEM CODE/ITEM DESCRIPTION\nFORTSH7047\nFG-120G-HW-APP\nFG-120G\n\nFORTSD0935\nFC-10-F120G-284-02-60-SUPPORT\nFC-10-F120G-284-02-60\n\nFreight Charge\n(SAC996749)\n\nNOTE: Interest rate against overdue payments mentioned in Clause.14 of this invoice.14 of this invoice stand",
+      "extracted_fields": {
+        "customer_ref_no": "Customer",
+        "gstin": "33AACCS3213Q1ZB",
+        "invoice_date": "12.01.2026",
+        "invoice_total": 502430.78,
+        "po_reference": "Customer",
+        "total_amount": 502430.78,
+        "vendor_gstin": "33AACCS3213Q1ZB",
+        "vendor_invoice_date": "12.01.2026",
+        "vendor_name": "Our Order"
+      },
+      "missing_key_fields": [
+        "vendor_invoice_no"
+      ],
+      "wrong_fields": [
+        {
+          "field": "vendor_name",
+          "expected": "actual vendor name from invoice header",
+          "actual": "Our Order"
+        }
+      ],
+      "classification": "PARTIAL",
+      "notes": "OCR returned readable text, but key fields are missing or wrong. | embedded_text_length=0 | pipeline_status=MANUAL_ENTRY | ocr_status=text_acquired | failure_code=FailureCode.REQUIRED_FIELDS_MISSING | failure_reason=Document text was acquired but required fields are missing: vendor_invoice_no | Sriram correctness judged from OCR readability and extracted key presence; no supplied ground-truth values."
+    },
+    {
+      "filename": "../sample/extracted/Sriram fin/Tax Invoice Shriram fin.pdf",
+      "document_type": "COMPANY_INVOICE",
+      "ocr_ran": true,
+      "ocr_latency_seconds": 31.932,
+      "ocr_text_length": 2478,
+      "ocr_text_preview": "SKYLARK INFORMATION TECHNOLOGIES PRIVATE LIMITED\nNo. 1, Chari Street, T. Nagar,\nChennai-600017\n+914443480000 | info@skylarkinfo.com\nHelp line: +914443480030 | support@skylarkinfo.com\nISO 9001 : 2015 CERTIFIED&ISO 27001 : 2013 CERTIFIED\n\nGSTIN     : 33AACCS3213Q1ZB\nPAN No.     : AACCS3213Q\nCIN No.     : U74999TN1997PTC039039\nSO No.     : 1OTM2526001429\nInvoice Date   : 17/01/2026\nInvoice Due Date : 16/02/2026\nIRN No.     : fbe3c3a2d4419cea8556b7853df61af29917217a4d4ab5addbf6755aede6540c\n\nCustomer",
+      "extracted_fields": {
+        "invoice_date": "16/02/2026",
+        "invoice_no": "1OTM2526001429",
+        "invoice_number": "1OTM2526001429",
+        "so_no": "1OTM2526001429",
+        "so_number": "1OTM2526001429"
+      },
+      "missing_key_fields": [
+        "total_amount"
+      ],
+      "wrong_fields": [
+        {
+          "field": "so_number",
+          "expected": "sales order number from SO No label",
+          "actual": "1OTM2526001429"
+        }
+      ],
+      "classification": "PARTIAL",
+      "notes": "OCR returned readable text, but key fields are missing or wrong. | embedded_text_length=0 | pipeline_status=EXTRACTED | ocr_status=text_acquired | Sriram correctness judged from OCR readability and extracted key presence; no supplied ground-truth values."
+    }
+  ]
+}

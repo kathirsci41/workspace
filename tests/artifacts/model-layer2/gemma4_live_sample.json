@@ -1,0 +1,23 @@
+{
+  "document_type": "VENDOR_INVOICE",
+  "fields": {
+    "vendor_invoice_no": "2526PSI25087738",
+    "vendor_invoice_date": "12-02-2026",
+    "po_reference": "1PTR2526000467",
+    "invoice_total": "554600"
+  },
+  "missing_required_fields": [],
+  "diagnostics": {
+    "model_layer2_provider": "ollama",
+    "model_layer2_model": "gemma4:31b-cloud",
+    "model_response_format": "raw_json",
+    "model_response_warning": null,
+    "model_validation_errors": [],
+    "model_extracted_keys": [
+      "invoice_total",
+      "po_reference",
+      "vendor_invoice_date",
+      "vendor_invoice_no"
+    ]
+  }
+}

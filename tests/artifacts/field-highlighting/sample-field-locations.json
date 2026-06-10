@@ -1,0 +1,218 @@
+{
+  "document_type": "COMPANY_INVOICE",
+  "filename": "Customer Invoice 1ITR2526001878.pdf",
+  "field_locations": {
+    "invoice_number": {
+      "page": 1,
+      "bbox": [
+        58.24,
+        52.73,
+        135.51,
+        66.47
+      ],
+      "page_width": 595.0,
+      "page_height": 842.0,
+      "evidence_text": "1ITR2526001878",
+      "source": "digital_text",
+      "confidence": 0.9
+    },
+    "so_number": {
+      "page": 1,
+      "bbox": [
+        58.24,
+        66.47,
+        141.62,
+        80.21
+      ],
+      "page_width": 595.0,
+      "page_height": 842.0,
+      "evidence_text": "1OTM2526001611",
+      "source": "digital_text",
+      "confidence": 0.9
+    },
+    "po_reference": {
+      "page": 1,
+      "bbox": [
+        58.24,
+        80.21,
+        174.4,
+        93.95
+      ],
+      "page_width": 595.0,
+      "page_height": 842.0,
+      "evidence_text": "PMCH&RI/024/2025-2026",
+      "source": "digital_text",
+      "confidence": 0.9
+    },
+    "invoice_date": {
+      "page": 1,
+      "bbox": [
+        58.24,
+        107.69,
+        108.28,
+        121.43
+      ],
+      "page_width": 595.0,
+      "page_height": 842.0,
+      "evidence_text": "13/02/2026",
+      "source": "digital_text",
+      "confidence": 0.9
+    },
+    "customer_name": {
+      "page": 1,
+      "bbox": [
+        58.24,
+        135.17,
+        337.74,
+        148.91
+      ],
+      "page_width": 595.0,
+      "page_height": 842.0,
+      "evidence_text": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+      "source": "digital_text",
+      "confidence": 0.9
+    },
+    "customer_address": {
+      "page": 1,
+      "bbox": [
+        58.24,
+        148.91,
+        113.82,
+        162.65
+      ],
+      "page_width": 595.0,
+      "page_height": 842.0,
+      "evidence_text": "Nett Amount 874439 133389 741050",
+      "source": "digital_text",
+      "confidence": 0.9
+    },
+    "total_amount": {
+      "page": 1,
+      "bbox": [
+        58.24,
+        162.65,
+        91.6,
+        176.39
+      ],
+      "page_width": 595.0,
+      "page_height": 842.0,
+      "evidence_text": "874439",
+      "source": "digital_text",
+      "confidence": 0.9
+    },
+    "net_amount": {
+      "page": 1,
+      "bbox": [
+        58.24,
+        162.65,
+        91.6,
+        176.39
+      ],
+      "page_width": 595.0,
+      "page_height": 842.0,
+      "evidence_text": "874439",
+      "source": "digital_text",
+      "confidence": 0.9
+    },
+    "taxable_amount": {
+      "page": 1,
+      "bbox": [
+        58.24,
+        190.13,
+        91.6,
+        203.87
+      ],
+      "page_width": 595.0,
+      "page_height": 842.0,
+      "evidence_text": "741050",
+      "source": "digital_text",
+      "confidence": 0.9
+    },
+    "tax_amount": {
+      "page": 1,
+      "bbox": [
+        58.24,
+        176.39,
+        91.6,
+        190.13
+      ],
+      "page_width": 595.0,
+      "page_height": 842.0,
+      "evidence_text": "133389",
+      "source": "digital_text",
+      "confidence": 0.9
+    },
+    "invoice_no": {
+      "page": 1,
+      "bbox": [
+        58.24,
+        52.73,
+        135.51,
+        66.47
+      ],
+      "page_width": 595.0,
+      "page_height": 842.0,
+      "evidence_text": "1ITR2526001878",
+      "source": "digital_text",
+      "confidence": 0.9
+    },
+    "customer_order_no": {
+      "page": 1,
+      "bbox": [
+        58.24,
+        80.21,
+        174.4,
+        93.95
+      ],
+      "page_width": 595.0,
+      "page_height": 842.0,
+      "evidence_text": "PMCH&RI/024/2025-2026",
+      "source": "digital_text",
+      "confidence": 0.9
+    },
+    "so_no": {
+      "page": 1,
+      "bbox": [
+        58.24,
+        66.47,
+        141.62,
+        80.21
+      ],
+      "page_width": 595.0,
+      "page_height": 842.0,
+      "evidence_text": "1OTM2526001611",
+      "source": "digital_text",
+      "confidence": 0.9
+    }
+  },
+  "field_confidences": {
+    "invoice_number": 0.9,
+    "so_number": 0.9,
+    "po_reference": 0.9,
+    "invoice_date": 0.9,
+    "customer_name": 0.9,
+    "customer_address": 0.9,
+    "total_amount": 0.9,
+    "net_amount": 0.9,
+    "taxable_amount": 0.9,
+    "tax_amount": 0.9,
+    "invoice_no": 0.9,
+    "customer_order_no": 0.9,
+    "so_no": 0.9
+  },
+  "field_evidence": {
+    "invoice_number": "1ITR2526001878",
+    "so_number": "1OTM2526001611",
+    "po_reference": "PMCH&RI/024/2025-2026",
+    "invoice_date": "13/02/2026",
+    "customer_name": "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE",
+    "customer_address": "Nett Amount 874439 133389 741050",
+    "total_amount": "874439",
+    "net_amount": "874439",
+    "taxable_amount": "741050",
+    "tax_amount": "133389",
+    "invoice_no": "1ITR2526001878",
+    "customer_order_no": "PMCH&RI/024/2025-2026",
+    "so_no": "1OTM2526001611"
+  }
+}
