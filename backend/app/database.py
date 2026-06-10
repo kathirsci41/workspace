@@ -31,13 +31,8 @@ def configure_database(database_url: str) -> None:
 
 
 def init_db(*, drop_existing: bool = False) -> None:
-    from app.models.audit_event import AuditEventRecord
-    from app.models.document import DocumentRecord
-    from app.models.document_metadata import DocumentMetadataRecord
-    from app.models.order_bundle import OrderBundleRecord
-    from app.models.reference_index import ReferenceIndexRecord
+    import app.models  # noqa: F401 — registers all ORM models in Base.metadata
 
-    _ = (AuditEventRecord, DocumentRecord, DocumentMetadataRecord, OrderBundleRecord, ReferenceIndexRecord)
     if drop_existing:
         Base.metadata.drop_all(bind=_engine)
     Base.metadata.create_all(bind=_engine)

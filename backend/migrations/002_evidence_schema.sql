@@ -1,9 +1,9 @@
 -- Phase 1b: Evidence-layer tables.
 --
 -- These tables store page-level evidence, cached OCR/text-source output, and
--- field candidates ahead of resolver selection.  They are append-only
--- infrastructure that the extraction pipeline will write to in later phases;
--- no existing extraction, parser, verification, or export logic is changed by
+-- field candidates ahead of resolver selection. They are append-only
+-- infrastructure that the extraction pipeline will write to in later phases.
+-- No existing extraction, parser, verification, or export logic is changed by
 -- this migration.
 --
 -- All types are SQLite-compatible (TEXT, INTEGER, REAL, BOOLEAN).
@@ -45,14 +45,16 @@ CREATE TABLE IF NOT EXISTS text_sources (
     source_type       TEXT NOT NULL,   -- digital_pdf | glm_ocr | pp_ocr_v5 | ...
     provider          TEXT NOT NULL,
     provider_version  TEXT,
-    settings_hash     TEXT,
+    -- NOT NULL: cache identity must be deterministic (use a synthetic hash for digital text)
+    settings_hash     TEXT NOT NULL,
     settings_json     TEXT,
     raw_text          TEXT,
     normalized_text   TEXT,
     success           BOOLEAN NOT NULL,
     error             TEXT,
     duration_ms       INTEGER,
-    image_hash        TEXT,
+    -- NOT NULL: hash of the page image, or a synthetic hash for digital-text pages
+    image_hash        TEXT NOT NULL,
     created_at        TEXT NOT NULL,
     UNIQUE (document_id, page_number, provider, settings_hash, image_hash)
 );
@@ -93,3 +95,6 @@ CREATE INDEX IF NOT EXISTS ix_field_candidates_field_key
 
 CREATE INDEX IF NOT EXISTS ix_field_candidates_selection_status
     ON field_candidates (selection_status);
+
+CREATE INDEX IF NOT EXISTS ix_field_candidates_text_source_id
+    ON field_candidates (text_source_id);
