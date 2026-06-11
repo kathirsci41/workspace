@@ -241,7 +241,7 @@ def _parse_vendor_invoice(text: str, *, filename: str | None = None) -> tuple[di
         taxable_amount = component_gst_taxable
         taxable_amount_source = "invoice_total_minus_split_gst_components"
     vendor_invoice_no_source = None
-    vendor_invoice_no = _label_code_value(text, ("Tax Invoice No", "Invoice No", "Invoice", "Bill No", "Invoice Number"), value_pattern=r"[A-Z0-9/-]{5,80}")
+    vendor_invoice_no = _label_code_value(text, ("Tax Invoice No", "Tax Invoice Number", "Invoice No", "Inv No", "Invoice", "Bill No", "Bill Number", "Invoice Number", "Voucher No"), value_pattern=r"[A-Z0-9/-]{5,80}")
     if vendor_invoice_no is None:
         vendor_invoice_no = _vendor_invoice_no_from_filename(filename)
         if vendor_invoice_no is not None:
@@ -255,13 +255,13 @@ def _parse_vendor_invoice(text: str, *, filename: str | None = None) -> tuple[di
 
     fields = {
         "vendor_invoice_no": vendor_invoice_no,
-        "vendor_invoice_date": _label_value(text, ("Invoice Date", "Bill Date", "Date"), value_pattern=_DATE_PATTERN),
+        "vendor_invoice_date": _label_value(text, ("Invoice Date", "Tax Invoice Date", "Invoice Dt", "Inv Date", "Bill Date", "Bill Dt", "Date of Invoice", "Date"), value_pattern=_DATE_PATTERN),
         "vendor_name": vendor_name,
         "po_reference": _looks_like_code(
             _extract_po_from_other_references(text)
             or _label_code_value(
                 text,
-                ("Your Ref.", "Your Ref", "Your Order", "Buyer's Order No", "Customer Order No", "Customer PO No", "Customer Ref No", "External Doc No", "Order Ref", "Purchase Order", "PO No", "PO Reference"),
+                ("Your Ref.", "Your Ref", "Your Order", "Buyer's Order No", "Buyer Order No", "Buyer PO No", "Customer Order No", "Customer PO No", "Customer Ref No", "External Doc No", "Order Ref", "Purchase Order", "PO No", "PO Number", "PO Reference"),
                 value_pattern=r"[A-Z0-9&/._-]{4,80}",
             )
         ),
@@ -473,6 +473,7 @@ def _label_code_value(text: str, labels: tuple[str, ...], *, value_pattern: str)
         for pattern in (
             rf"{escaped}\.?\s*[:#-]?\s*({value_pattern})",
             rf"{escaped}\.?\s*(?:\n|\r\n)\s*[:#-]?\s*({value_pattern})",
+            rf"{escaped}\.?[ \t]+\S[^\n]*\n({value_pattern})",
         ):
             for match in re.finditer(pattern, text, flags=re.I):
                 value = _looks_like_code(_clean_scalar(match.group(1)))

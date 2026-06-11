@@ -465,3 +465,92 @@ def test_vendor_invoice_generic_filename_does_not_fire_fallback():
         filename="Vendor Invoice.pdf",
     )
     assert result["fields"].get("vendor_invoice_no") is None
+
+
+# ---------------------------------------------------------------------------
+# Phase 1j: Improved vendor invoice header-field extraction
+# ---------------------------------------------------------------------------
+
+
+def test_vendor_invoice_extracts_invoice_no_from_inv_no_label():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nInv No: 2526PSI25087738\nInvoice Date: 12-02-2026\nTotal: 554600\n",
+        extraction_route="scanned",
+        filename="scan.pdf",
+    )
+    assert result["fields"].get("vendor_invoice_no") == "2526PSI25087738"
+    assert result["field_metadata"]["vendor_invoice_no"]["source"] == "rules"
+
+
+def test_vendor_invoice_extracts_invoice_no_from_nearby_line():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nInvoice No\n2526PSI25087738\nInvoice Date: 12-02-2026\nTotal: 554600\n",
+        extraction_route="scanned",
+        filename="scan.pdf",
+    )
+    assert result["fields"].get("vendor_invoice_no") == "2526PSI25087738"
+    assert result["field_metadata"]["vendor_invoice_no"]["source"] == "rules"
+
+
+def test_vendor_invoice_extracts_invoice_no_from_two_column_header():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "Invoice No.        Invoice Date\n2526PSI25087738    12-02-2026\nTotal Invoice Value: Rs 554600\n",
+        extraction_route="scanned",
+        filename="scan.pdf",
+    )
+    assert result["fields"].get("vendor_invoice_no") == "2526PSI25087738"
+    assert result["field_metadata"]["vendor_invoice_no"]["source"] == "rules"
+
+
+def test_vendor_invoice_extracts_date_from_invoice_dt_label():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nInvoice No: RED/001\nInvoice Dt: 12-02-2026\nTotal: 554600\n",
+        extraction_route="scanned",
+        filename="scan.pdf",
+    )
+    assert result["fields"].get("vendor_invoice_date") == "12-02-2026"
+
+
+def test_vendor_invoice_extracts_po_from_buyer_order_no_label():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nInvoice No: RED/001\nBuyer Order No: 1PTR2526000467\nTotal: 554600\n",
+        extraction_route="scanned",
+        filename="scan.pdf",
+    )
+    assert result["fields"].get("po_reference") == "1PTR2526000467"
+
+
+def test_vendor_invoice_extracts_po_from_po_number_label():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nInvoice No: RED/001\nPO Number: 1PTR2526000467\nTotal: 554600\n",
+        extraction_route="scanned",
+        filename="scan.pdf",
+    )
+    assert result["fields"].get("po_reference") == "1PTR2526000467"
+
+
+def test_vendor_invoice_inv_no_label_beats_filename_fallback():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nInv No: RED/2025/12345\nTotal Invoice Value: Rs 100000\n",
+        extraction_route="scanned",
+        filename="Vendor Bill FALLBACK00001.pdf",
+    )
+    assert result["fields"].get("vendor_invoice_no") == "RED/2025/12345"
+    assert result["field_metadata"]["vendor_invoice_no"]["source"] == "rules"
+
+
+def test_vendor_invoice_missing_inv_no_with_generic_filename_remains_missing():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nTotal Invoice Value: Rs 100000\n",
+        extraction_route="scanned",
+        filename="Vendor Invoice Document.pdf",
+    )
+    assert result["fields"].get("vendor_invoice_no") is None
