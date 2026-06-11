@@ -4,10 +4,16 @@ Re-extracts the 5 Panimalar documents from the accepted validation run
 (real-doc-001-tradefix-final8) using the current codebase and confirms
 all baseline fields are preserved.
 
-Skips automatically if the validation run storage is not present.
+Skips automatically if:
+  - RUN_PANIMALAR_OCR_REGRESSION env var is not set to "1", or
+  - the validation run storage is not present on disk.
+
+To run manually:
+  RUN_PANIMALAR_OCR_REGRESSION=1 python -m pytest tests/integration/test_panimalar_regression_phase1e.py -q
 """
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -15,6 +21,12 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+if not os.getenv("RUN_PANIMALAR_OCR_REGRESSION"):
+    pytest.skip(
+        "Skipped: set RUN_PANIMALAR_OCR_REGRESSION=1 to run OCR-dependent Panimalar regression.",
+        allow_module_level=True,
+    )
 
 from app.config import Settings, replace_settings
 from app.migrations.runner import run
