@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time
 from typing import Any
 
@@ -12,13 +13,41 @@ from app.models.document_metadata import DocumentMetadataRecord
 from app.repositories.reference_index import ReferenceIndexRepository
 from app.services.evidence_service import EvidenceService
 from app.services.extraction.digital_text_extractor import extract_pdf_text_pages, normalize_ocr_text
-from app.services.extraction.glm_ocr_client import extract_text_with_ocr
+from app.services.extraction.glm_ocr_client import (
+    HEADER_CROP_FRACTION,
+    HEADER_OCR_MAX_OUTPUT_TOKENS,
+    extract_header_text_with_ocr,
+    extract_text_with_ocr,
+)
 from app.services.extraction.model_layer2 import extract_structured_fields_with_model
 from app.services.extraction.pdf_field_locator import build_field_locations
 from app.services.extraction.structured_text_parser import FailureCode, parse_structured_text
 
 
 MIN_DIGITAL_TEXT_LENGTH = 25
+VENDOR_INVOICE_HEADER_FIELDS = (
+    "vendor_invoice_no",
+    "vendor_invoice_date",
+    "po_reference",
+)
+VENDOR_INVOICE_REQUIRED_FIELDS = (
+    "vendor_invoice_no",
+    "vendor_invoice_date",
+    "po_reference",
+    "invoice_total",
+)
+HEADER_FIELD_ALIASES = {
+    "vendor_invoice_no": ("invoice_number",),
+    "vendor_invoice_date": ("invoice_date",),
+    "po_reference": ("customer_ref_no",),
+}
+WEAK_HEADER_FIELD_SOURCES = {"filename_fallback"}
+MIN_STRONG_HEADER_CONFIDENCE = 0.8
+HEADER_OCR_TARGET_LABELS = (
+    ("Invoice No", ("Invoice No", "Tax Invoice No", "Invoice Number")),
+    ("Invoice Date", ("Invoice Date", "Tax Invoice Date", "Invoice Dt")),
+    ("PO Reference", ("PO Reference", "PO No", "PO Number", "Buyer PO No")),
+)
 
 
 def extract_document(db: Session, document: DocumentRecord, *, force: bool = False) -> dict[str, Any]:
@@ -221,6 +250,17 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
                 initial_parsed=parsed,
             )
             diagnostics.update(retry_diagnostics)
+        if _should_attempt_vendor_invoice_header_ocr(
+            document=document,
+            parsed=parsed,
+            text_for_parse=text_for_parse,
+        ):
+            parsed, header_diagnostics = _apply_vendor_invoice_header_ocr(
+                db=db,
+                document=document,
+                parsed=parsed,
+            )
+            diagnostics.update(header_diagnostics)
     else:
         parsed = {
             "fields": {},
@@ -392,6 +432,252 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
     return {"document": document, "metadata": metadata, "references": references}
 
 
+def _should_attempt_vendor_invoice_header_ocr(
+    *,
+    document: DocumentRecord,
+    parsed: dict[str, Any],
+    text_for_parse: str,
+) -> bool:
+    if str(document.document_type).upper() != "VENDOR_INVOICE":
+        return False
+    if not text_for_parse.strip() or not document.storage_path:
+        return False
+    if not settings.ocr_enabled or settings.ocr_provider != "glm_ocr":
+        return False
+    return any(
+        _header_field_is_missing_or_weak(parsed, field)
+        for field in VENDOR_INVOICE_HEADER_FIELDS
+    )
+
+
+def _header_field_is_missing_or_weak(
+    parsed: dict[str, Any],
+    field: str,
+) -> bool:
+    value = (parsed.get("fields") or {}).get(field)
+    if value in (None, ""):
+        return True
+    metadata = (parsed.get("field_metadata") or {}).get(field) or {}
+    if metadata.get("source") in WEAK_HEADER_FIELD_SOURCES:
+        return True
+    confidence = metadata.get("confidence")
+    return confidence is not None and float(confidence) < MIN_STRONG_HEADER_CONFIDENCE
+
+
+def _apply_vendor_invoice_header_ocr(
+    *,
+    db: Session,
+    document: DocumentRecord,
+    parsed: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    started = time.perf_counter()
+    needed_fields = [
+        field
+        for field in VENDOR_INVOICE_HEADER_FIELDS
+        if _header_field_is_missing_or_weak(parsed, field)
+    ]
+    diagnostics: dict[str, Any] = {
+        "ocr_header_attempted": True,
+        "ocr_header_status": "not_attempted",
+        "ocr_header_requested_fields": needed_fields,
+        "ocr_header_recovered_fields": [],
+    }
+
+    try:
+        result = extract_header_text_with_ocr(
+            str(document.storage_path),
+            dpi=settings.ocr_dpi,
+            timeout_seconds=settings.ocr_timeout_seconds,
+        )
+        diagnostics.update(result.diagnostics)
+        if result.error:
+            diagnostics["ocr_header_status"] = "provider_error"
+            diagnostics["ocr_header_error"] = result.error[:500]
+            _capture_header_ocr_text_evidence(
+                db,
+                document,
+                ocr_text=result.text or None,
+                image_data=result.image_data,
+                success=False,
+                provider=result.provider,
+                provider_version=result.model,
+                duration_ms=result.diagnostics.get("ocr_header_duration_ms"),
+                error=result.error[:500],
+            )
+            return parsed, diagnostics
+
+        header_text = _normalize_vendor_invoice_header_ocr_text(result.text)
+        if not header_text.strip():
+            error = "Header OCR returned no usable text."
+            diagnostics["ocr_header_status"] = "empty"
+            diagnostics["ocr_header_error"] = error
+            _capture_header_ocr_text_evidence(
+                db,
+                document,
+                ocr_text=result.text or None,
+                image_data=result.image_data,
+                success=False,
+                provider=result.provider,
+                provider_version=result.model,
+                duration_ms=result.diagnostics.get("ocr_header_duration_ms"),
+                error=error,
+            )
+            return parsed, diagnostics
+
+        _capture_header_ocr_text_evidence(
+            db,
+            document,
+            ocr_text=result.text,
+            image_data=result.image_data,
+            success=True,
+            provider=result.provider,
+            provider_version=result.model,
+            duration_ms=result.diagnostics.get("ocr_header_duration_ms"),
+        )
+        header_parsed = parse_structured_text(
+            "VENDOR_INVOICE",
+            header_text,
+            extraction_route="ocr_glm",
+            filename=None,
+            context={"document_id": document.id, "region": "header"},
+        )
+        recovered = _merge_header_fields(
+            parsed=parsed,
+            header_parsed=header_parsed,
+            needed_fields=needed_fields,
+            provider=result.provider,
+        )
+        diagnostics["ocr_header_status"] = "text_acquired"
+        diagnostics["ocr_header_recovered_fields"] = recovered
+        return parsed, diagnostics
+    except Exception as exc:
+        duration_ms = round((time.perf_counter() - started) * 1000)
+        diagnostics.update(
+            {
+                "ocr_header_status": "provider_error",
+                "ocr_header_error": str(exc)[:500],
+                "ocr_header_duration_ms": duration_ms,
+            }
+        )
+        _capture_header_ocr_text_evidence(
+            db,
+            document,
+            ocr_text=None,
+            image_data=None,
+            success=False,
+            provider=settings.ocr_provider,
+            provider_version=settings.ocr_model,
+            duration_ms=duration_ms,
+            error=str(exc)[:500],
+        )
+        return parsed, diagnostics
+
+
+def _normalize_vendor_invoice_header_ocr_text(raw_text: str) -> str:
+    text = normalize_ocr_text(raw_text)
+    parser_lines: list[str] = []
+    for canonical_label, label_variants in HEADER_OCR_TARGET_LABELS:
+        labels = "|".join(re.escape(label) for label in label_variants)
+        match = re.search(
+            rf"""["']?(?:{labels})["']?\s*:\s*["']?([^"',}}\r\n]+)""",
+            text,
+            flags=re.I,
+        )
+        if not match:
+            continue
+        value = match.group(1).strip(" .,:")
+        if canonical_label == "PO Reference":
+            value = re.sub(
+                r"^PO\s+(?=\S*\d)",
+                "",
+                value,
+                flags=re.I,
+            )
+        if value:
+            parser_lines.append(f"{canonical_label}: {value}")
+    if not parser_lines:
+        return text
+    return "\n".join((text, *parser_lines))
+
+
+def _merge_header_fields(
+    *,
+    parsed: dict[str, Any],
+    header_parsed: dict[str, Any],
+    needed_fields: list[str],
+    provider: str,
+) -> list[str]:
+    fields = parsed.setdefault("fields", {})
+    metadata = parsed.setdefault("field_metadata", {})
+    header_fields = header_parsed.get("fields") or {}
+    header_metadata = header_parsed.get("field_metadata") or {}
+    recovered: list[str] = []
+
+    for field in needed_fields:
+        value = header_fields.get(field)
+        if value in (None, "") or not _header_field_is_missing_or_weak(parsed, field):
+            continue
+        candidate_metadata = dict(header_metadata.get(field) or {})
+        if candidate_metadata.get("source") != "rules":
+            continue
+        fields[field] = value
+        field_metadata = {
+            **candidate_metadata,
+            "field": field,
+            "value": value,
+            "source": "ocr_header",
+            "provider": provider,
+            "evidence_text": f"header OCR; {candidate_metadata.get('evidence_text', '').strip()}".rstrip("; "),
+        }
+        metadata[field] = field_metadata
+        for alias in HEADER_FIELD_ALIASES.get(field, ()):
+            fields[alias] = value
+            metadata[alias] = {
+                **field_metadata,
+                "field": alias,
+            }
+        recovered.append(field)
+
+    if recovered:
+        parser_diagnostics = parsed.setdefault("diagnostics", {})
+        if "vendor_invoice_no" in recovered:
+            parser_diagnostics["vendor_invoice_no_source"] = "ocr_header"
+        _refresh_vendor_invoice_parse_result(parsed)
+    return recovered
+
+
+def _refresh_vendor_invoice_parse_result(parsed: dict[str, Any]) -> None:
+    fields = parsed.get("fields") or {}
+    missing = [
+        field
+        for field in VENDOR_INVOICE_REQUIRED_FIELDS
+        if fields.get(field) in (None, "")
+    ]
+    diagnostics = parsed.setdefault("diagnostics", {})
+    diagnostics["extracted_field_keys"] = sorted(
+        field for field, value in fields.items() if value not in (None, "")
+    )
+    diagnostics["missing_required_fields"] = missing
+    if missing:
+        diagnostics["failure_code"] = FailureCode.REQUIRED_FIELDS_MISSING
+        diagnostics["failure_reason"] = (
+            "OCR text was acquired but required fields are missing: "
+            + ", ".join(missing)
+        )
+    else:
+        diagnostics["failure_code"] = None
+        diagnostics["failure_reason"] = None
+    parsed["missing_required_fields"] = missing
+    parsed["confidence"] = round(
+        (
+            (len(VENDOR_INVOICE_REQUIRED_FIELDS) - len(missing))
+            / len(VENDOR_INVOICE_REQUIRED_FIELDS)
+        )
+        * 100,
+        1,
+    )
+
+
 def _retry_sideways_vendor_invoice_ocr(
     *,
     document: DocumentRecord,
@@ -495,6 +781,9 @@ def _mode_diagnostics() -> dict[str, Any]:
         "ocr_min_text_length": settings.ocr_min_text_length,
         "ocr_available": settings.ocr_enabled and settings.ocr_provider == "glm_ocr",
         "ocr_status": "not_attempted",
+        "ocr_header_attempted": False,
+        "ocr_header_status": "not_attempted",
+        "ocr_header_recovered_fields": [],
         "structured_rules_enabled": settings.structured_rules_enabled,
         "model_layer2_enabled": settings.model_layer2_enabled,
         "model_layer2_provider": settings.model_layer2_provider,
@@ -641,6 +930,49 @@ def _capture_ocr_text_evidence(
             image_data=None,
             success=ocr_success,
             raw_text=ocr_text,
+            error=error,
+            duration_ms=int(duration_ms) if duration_ms is not None else None,
+        )
+    except Exception as exc:
+        log_event("evidence_capture_failed", document_id=document.id, error=str(exc)[:200])
+
+
+def _capture_header_ocr_text_evidence(
+    db: Session,
+    document: DocumentRecord,
+    *,
+    ocr_text: str | None,
+    image_data: bytes | None,
+    success: bool,
+    provider: str,
+    provider_version: str | None,
+    duration_ms: int | float | None = None,
+    error: str | None = None,
+) -> None:
+    import app.config as _cfg
+
+    cur = _cfg.settings
+    if not cur.evidence_capture_enabled:
+        return
+    try:
+        EvidenceService(db).record_text_source(
+            document_id=document.id,
+            page_number=1,
+            source_type="ocr_header",
+            provider=provider,
+            provider_version=provider_version or cur.ocr_model,
+            settings={
+                "provider": provider,
+                "model": provider_version or cur.ocr_model,
+                "page_number": 1,
+                "crop_fraction": HEADER_CROP_FRACTION,
+                "max_output_tokens": HEADER_OCR_MAX_OUTPUT_TOKENS,
+                "dpi": cur.ocr_dpi,
+            },
+            image_data=image_data,
+            success=success,
+            raw_text=ocr_text,
+            normalized_text=_normalize_vendor_invoice_header_ocr_text(ocr_text) if ocr_text else None,
             error=error,
             duration_ms=int(duration_ms) if duration_ms is not None else None,
         )

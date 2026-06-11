@@ -127,6 +127,7 @@ def _extraction_results(tmp_path_factory):
         results[doc_type] = {
             "status": result["metadata"].status,
             "extracted_data": dict(result["metadata"].extracted_data or {}),
+            "diagnostics": dict(result["metadata"].diagnostics or {}),
         }
         db.expire(doc)
 
@@ -151,3 +152,13 @@ def test_panimalar_field_regression_phase1e(doc_type, _extraction_results):
         f"{doc_type}: field mismatches vs accepted baseline:\n"
         + "\n".join(f"  {f}: expected={v['expected']!r}, got={v['actual']!r}" for f, v in mismatches.items())
     )
+
+
+def test_panimalar_vendor_invoice_number_uses_header_ocr_phase1k(_extraction_results):
+    diagnostics = _extraction_results["VENDOR_INVOICE"]["diagnostics"]
+    source = (
+        diagnostics.get("field_metadata", {})
+        .get("vendor_invoice_no", {})
+        .get("source")
+    )
+    assert source == "ocr_header"

@@ -13,6 +13,22 @@ If text is unreadable, return an empty string.
 """
 
 
+VENDOR_INVOICE_HEADER_OCR_PROMPT = """You are an OCR engine reading the top/header region of a vendor invoice.
+Transcribe only text that is visibly present in the image.
+Focus on the invoice number, invoice date, and purchase-order reference.
+Preserve each visible label with its value.
+When visible, format those lines as:
+Invoice No: <visible value>
+Invoice Date: <visible value>
+PO Reference: <visible value>
+Do not infer, guess, or complete missing labels or values.
+Do not summarize.
+Do not translate.
+Do not output JSON or Markdown.
+Return an empty string when none of those header fields is readable.
+"""
+
+
 GLOBAL_STRUCTURED_EXTRACTION_PROMPT = """You are a strict business document field extraction engine.
 
 Your job is to convert OCR/raw document text into structured JSON.

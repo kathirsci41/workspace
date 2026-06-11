@@ -12,7 +12,7 @@ from app.database import SessionLocal, configure_database, init_db
 from app.main import app
 from app.models.order_bundle import OrderBundleRecord
 from app.models.reference_index import ReferenceIndexRecord
-from app.services.extraction.glm_ocr_client import OcrResult
+from app.services.extraction.glm_ocr_client import HeaderOcrResult, OcrResult
 from app.services.verification_summary_service import build_verification_summary
 
 
@@ -432,6 +432,18 @@ def test_model_layer2_fills_missing_field_without_overwriting_rule_value(client:
             provider="glm_ocr",
             model="glm-ocr:latest",
             diagnostics={"ocr_provider": "glm_ocr", "ocr_model": "glm-ocr:latest", "ocr_text_length": 100},
+        ),
+    )
+    monkeypatch.setattr(
+        extraction_service,
+        "extract_header_text_with_ocr",
+        lambda *args, **kwargs: HeaderOcrResult(
+            text="",
+            provider="glm_ocr",
+            model="glm-ocr:latest",
+            image_data=None,
+            diagnostics={"ocr_header_duration_ms": 1},
+            error="header OCR unavailable in model-layer isolation test",
         ),
     )
 
