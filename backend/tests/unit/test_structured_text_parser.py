@@ -387,3 +387,81 @@ def test_vendor_invoice_keeps_inflow_reference_and_vendor_fields():
     assert result["fields"]["po_reference"] == "1POC2526000408"
     assert result["fields"]["vendor_name"] == "Inflow Technologies Private Limited"
     assert result["fields"]["invoice_total"] == 463365.55
+
+
+# ---------------------------------------------------------------------------
+# Phase 1i: Fallback extraction safety and provenance
+# ---------------------------------------------------------------------------
+
+def test_vendor_invoice_uuid_prefixed_storage_filename_does_not_contaminate():
+    uuid_prefixed = "c5638bf9-161e-4cf7-88ac-47f11cf258bb_Vendor Bill 2526PSI25087738.pdf"
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        """
+        TAX INVOICE
+        Total Invoice Value: Rs 554600
+        Taxable Value 4,70,000.00
+        """,
+        extraction_route="scanned",
+        filename=uuid_prefixed,
+    )
+    inv_no = result["fields"].get("vendor_invoice_no")
+    assert inv_no == "2526PSI25087738", (
+        f"UUID prefix contaminated invoice number: got {inv_no!r}"
+    )
+
+
+def test_vendor_invoice_ocr_value_beats_filename_fallback_when_both_present():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        """
+        TAX INVOICE
+        Invoice No.: 9999XYZ12345
+        Total Invoice Value: Rs 554600
+        """,
+        extraction_route="scanned",
+        filename="Vendor Bill DIFFERENT99999.pdf",
+    )
+    assert result["fields"]["vendor_invoice_no"] == "9999XYZ12345"
+    assert result["field_metadata"]["vendor_invoice_no"]["source"] == "rules"
+
+
+def test_vendor_invoice_po_reference_not_extracted_from_filename():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        """
+        TAX INVOICE
+        Invoice No.: 2526PSI25087738
+        Total Invoice Value: Rs 554600
+        """,
+        extraction_route="scanned",
+        filename="Vendor Bill 1PTR2526000467.pdf",
+    )
+    assert result["fields"].get("po_reference") is None
+
+
+def test_vendor_invoice_po_reference_not_injected_from_context():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        """
+        TAX INVOICE
+        Invoice No.: 2526PSI25087738
+        Total Invoice Value: Rs 554600
+        """,
+        extraction_route="scanned",
+        context={"po_reference": "1PTR2526999999"},
+    )
+    assert result["fields"].get("po_reference") is None
+
+
+def test_vendor_invoice_generic_filename_does_not_fire_fallback():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        """
+        TAX INVOICE
+        Total Invoice Value: Rs 554600
+        """,
+        extraction_route="scanned",
+        filename="Vendor Invoice.pdf",
+    )
+    assert result["fields"].get("vendor_invoice_no") is None

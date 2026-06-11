@@ -485,6 +485,7 @@ def _vendor_invoice_no_from_filename(filename: str | None) -> str | None:
     if not filename:
         return None
     stem = re.sub(r"\.[A-Za-z0-9]{1,8}$", "", filename)
+    stem = re.sub(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[_\s]*", "", stem, flags=re.I)
     ignored = {
         "VENDOR",
         "BILL",
