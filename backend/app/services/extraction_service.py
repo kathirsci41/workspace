@@ -136,6 +136,14 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
                     failure_reason=diagnostics.get("failure_reason"),
                     duration_ms=round((time.perf_counter() - ocr_started) * 1000, 2),
                 )
+                _capture_ocr_text_evidence(
+                    db, document,
+                    ocr_text=raw_ocr_text,
+                    ocr_success=(diagnostics.get("ocr_status") == "text_acquired"),
+                    provider_version=ocr_result.model,
+                    duration_ms=ocr_result.diagnostics.get("ocr_duration_ms"),
+                    error=diagnostics.get("failure_reason") if diagnostics.get("ocr_status") != "text_acquired" else None,
+                )
                 text_for_parse = normalize_ocr_text(raw_ocr_text)
             except Exception as exc:
                 diagnostics.update(
@@ -155,6 +163,13 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
                     document_type=document.document_type,
                     failure_code=FailureCode.OCR_FAILED.value,
                     failure_reason=str(exc),
+                    duration_ms=round((time.perf_counter() - ocr_started) * 1000, 2) if "ocr_started" in locals() else None,
+                )
+                _capture_ocr_text_evidence(
+                    db, document,
+                    ocr_text=None,
+                    ocr_success=False,
+                    error=str(exc)[:500],
                     duration_ms=round((time.perf_counter() - ocr_started) * 1000, 2) if "ocr_started" in locals() else None,
                 )
                 text_for_parse = ""
@@ -584,6 +599,51 @@ def _capture_digital_text_evidence(
                 success=True,
                 raw_text=page_text,
             )
+    except Exception as exc:
+        log_event("evidence_capture_failed", document_id=document.id, error=str(exc)[:200])
+
+
+def _capture_ocr_text_evidence(
+    db: Session,
+    document: DocumentRecord,
+    *,
+    ocr_text: str | None,
+    ocr_success: bool,
+    provider_version: str | None = None,
+    duration_ms: int | float | None = None,
+    error: str | None = None,
+) -> None:
+    """Record the combined OCR text output as a single text_sources row at page_number=1.
+
+    Uses a fresh module attribute access for settings so replace_settings() in tests
+    is reflected correctly. Silently logs and returns on any error so extraction is
+    never disrupted.
+    """
+    import app.config as _cfg  # module reference tracks replace_settings() rebinds
+    cur = _cfg.settings
+    if not cur.evidence_capture_enabled:
+        return
+    try:
+        svc = EvidenceService(db)
+        svc_settings = {
+            "provider": cur.ocr_provider,
+            "model": cur.ocr_model,
+            "max_pages": cur.ocr_max_pages,
+            "dpi": cur.ocr_dpi,
+        }
+        svc.record_text_source(
+            document_id=document.id,
+            page_number=1,
+            source_type="ocr",
+            provider=cur.ocr_provider,
+            provider_version=provider_version or cur.ocr_model,
+            settings=svc_settings,
+            image_data=None,
+            success=ocr_success,
+            raw_text=ocr_text,
+            error=error,
+            duration_ms=int(duration_ms) if duration_ms is not None else None,
+        )
     except Exception as exc:
         log_event("evidence_capture_failed", document_id=document.id, error=str(exc)[:200])
 
