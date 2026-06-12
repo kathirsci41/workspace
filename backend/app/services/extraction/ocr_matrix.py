@@ -1,13 +1,15 @@
-"""OCR DPI x mode matrix evaluation harness — Phase 1n.
+"""OCR DPI x mode matrix evaluation harness.
 
 Evaluation-only module. Never writes production database records.
 Never changes extraction behavior. Builds on Phase 1m ocr_evaluation.py.
+
+Phase 1o adds: classify_field, normalized_text_preview, field_classifications.
 """
 from __future__ import annotations
 
 import dataclasses
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.services.extraction.ocr_evaluation import (
     run_glm_full_page_evaluation,
@@ -19,15 +21,17 @@ from app.services.extraction.ocr_evaluation import (
 class MatrixEntry:
     """One cell in the DPI x provider evaluation matrix."""
 
-    provider: str                         # "glm_full_page" | "glm_header"
+    provider: str                              # "glm_full_page" | "glm_header"
     dpi: int
     duration_ms: int
     success: bool
     error: str | None
     raw_text_length: int
-    extracted_fields: dict[str, str | None]   # field name -> extracted value
-    match_flags: dict[str, bool]              # field name -> exact match against expected
+    extracted_fields: dict[str, str | None]    # field name -> extracted value
+    match_flags: dict[str, bool]               # field name -> exact match against expected
     score: int                                 # count of exact matches (0-3)
+    normalized_text_preview: str = ""          # first 300 chars of OCR text
+    field_classifications: dict[str, str] = field(default_factory=dict)  # per-field diagnosis
 
 
 # ---------------------------------------------------------------------------
@@ -45,6 +49,32 @@ def score_fields(extracted: dict, expected: dict) -> int:
         if got is not None and str(got).strip() == str(exp_val).strip():
             count += 1
     return count
+
+
+# ---------------------------------------------------------------------------
+# Field classification
+# ---------------------------------------------------------------------------
+
+def classify_field(
+    *,
+    success: bool,
+    raw_text_length: int,
+    extracted_value: str | None,
+    expected_value: str,
+) -> str:
+    """Classify the extraction outcome for one field in one cell.
+
+    Priority: ocr_error > no_text > exact_match / value_mismatch > parser_no_match
+    """
+    if not success:
+        return "ocr_error"
+    if raw_text_length == 0:
+        return "no_text"
+    if extracted_value is not None:
+        if str(extracted_value).strip() == str(expected_value).strip():
+            return "exact_match"
+        return "value_mismatch"
+    return "parser_no_match"
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +110,15 @@ def _run_cell(
             for k, v in extracted.items()
         }
         sc = sum(1 for v in flags.values() if v)
+        classifications = {
+            k: classify_field(
+                success=result.success,
+                raw_text_length=result.raw_text_length,
+                extracted_value=extracted.get(k),
+                expected_value=expected[k],
+            )
+            for k in expected
+        }
         return MatrixEntry(
             provider=provider,
             dpi=dpi,
@@ -90,6 +129,8 @@ def _run_cell(
             extracted_fields=extracted,
             match_flags=flags,
             score=sc,
+            normalized_text_preview=result.normalized_text_preview,
+            field_classifications=classifications,
         )
     except Exception as exc:
         return MatrixEntry(
@@ -102,6 +143,8 @@ def _run_cell(
             extracted_fields={k: None for k in expected},
             match_flags={k: False for k in expected},
             score=0,
+            normalized_text_preview="",
+            field_classifications={k: "ocr_error" for k in expected},
         )
 
 
@@ -194,11 +237,11 @@ def _render_markdown(entries: list[MatrixEntry]) -> str:
         best = summary["best_entry"]
         lines += [
             f"**Best:** `{best.provider}` @ DPI {best.dpi} "
-            f"— score {best.score} — {best.duration_ms} ms",
+            f"-- score {best.score} -- {best.duration_ms} ms",
             "",
         ]
 
-    # Table header
+    # Main table
     lines.append(
         "| Provider | DPI | Score | Duration ms | text_len | "
         "inv_no | inv_date | po_ref | Success | Error |"
@@ -215,6 +258,7 @@ def _render_markdown(entries: list[MatrixEntry]) -> str:
             f"{inv_no} | {inv_date} | {po_ref} | {e.success} | {err} |"
         )
 
+    # Extracted field values table
     lines.append("")
     lines.append("### Extracted field values")
     lines.append("")
@@ -225,6 +269,32 @@ def _render_markdown(entries: list[MatrixEntry]) -> str:
         inv_date = e.extracted_fields.get("vendor_invoice_date") or ""
         po_ref = e.extracted_fields.get("po_reference") or ""
         lines.append(f"| {e.provider} | {e.dpi} | {inv_no} | {inv_date} | {po_ref} |")
+
+    # Field classification table
+    lines.append("")
+    lines.append("### Field classifications")
+    lines.append("")
+    lines.append("| Provider | DPI | vendor_invoice_no | vendor_invoice_date | po_reference |")
+    lines.append("|---|---|---|---|---|")
+    for e in entries:
+        cls = e.field_classifications
+        inv_no_cls = cls.get("vendor_invoice_no", "")
+        inv_date_cls = cls.get("vendor_invoice_date", "")
+        po_ref_cls = cls.get("po_reference", "")
+        lines.append(f"| {e.provider} | {e.dpi} | {inv_no_cls} | {inv_date_cls} | {po_ref_cls} |")
+
+    # OCR text preview section
+    lines.append("")
+    lines.append("### OCR text preview")
+    lines.append("")
+    for e in entries:
+        preview = e.normalized_text_preview or "(empty)"
+        lines.append(f"**{e.provider} @ DPI {e.dpi}** ({e.raw_text_length} chars)")
+        lines.append("")
+        lines.append("```")
+        lines.append(preview)
+        lines.append("```")
+        lines.append("")
 
     return "\n".join(lines)
 

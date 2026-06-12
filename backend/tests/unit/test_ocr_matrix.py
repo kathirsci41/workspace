@@ -1,15 +1,21 @@
-"""TDD tests for Phase 1n: OCR DPI × mode matrix evaluation harness.
+"""TDD tests for OCR DPI × mode matrix evaluation harness.
 
-Covers:
+Phase 1n covers:
   - Matrix builds expected combinations (providers × DPI values)
   - MatrixEntry contains required fields (provider, dpi, score, extracted_fields, match_flags, duration_ms)
-  - score_fields returns 0–3 based on exact matches against expected dict
+  - score_fields returns 0-3 based on exact matches against expected dict
   - Provider errors are recorded without crashing the matrix
   - render_matrix_report includes score and exact-match fields in output
   - summarize_matrix returns best entry and any_perfect flag
   - No PaddleOCR dependency required
   - No production extraction mutation
   - No Panimalar-specific hardcoding in ocr_matrix module
+
+Phase 1o adds:
+  - classify_field returns failure classification per field
+  - MatrixEntry has normalized_text_preview and field_classifications fields
+  - Markdown report contains field classification table and text preview section
+  - JSON report contains field_classifications and normalized_text_preview keys
 """
 from __future__ import annotations
 
@@ -23,6 +29,7 @@ import pytest
 import app.services.extraction.ocr_matrix as ocr_matrix
 from app.services.extraction.ocr_matrix import (
     MatrixEntry,
+    classify_field,
     render_matrix_report,
     run_matrix,
     score_fields,
@@ -53,6 +60,7 @@ def _make_ocr_result(
     duration_ms: int = 100,
     raw_text_length: int = 500,
     error: str | None = None,
+    normalized_text_preview: str = "Invoice No: INV001\nInvoice Date: 01-01-2026",
 ) -> SimpleNamespace:
     """Minimal fake OcrProviderResult for patching run_glm_*_evaluation."""
     return SimpleNamespace(
@@ -62,6 +70,7 @@ def _make_ocr_result(
         duration_ms=duration_ms,
         raw_text_length=raw_text_length,
         error=error,
+        normalized_text_preview=normalized_text_preview,
     )
 
 
@@ -594,3 +603,275 @@ def test_ocr_matrix_module_has_no_hardcoded_expected_values():
     assert "2526PSI25087738" not in source
     assert "1PTR2526000467" not in source
     assert "12-02-2026" not in source
+
+
+# ---------------------------------------------------------------------------
+# classify_field — Phase 1o
+# ---------------------------------------------------------------------------
+
+class TestClassifyField:
+    def test_ocr_error_when_not_success(self):
+        result = classify_field(
+            success=False,
+            raw_text_length=400,
+            extracted_value=None,
+            expected_value="INV001",
+        )
+        assert result == "ocr_error"
+
+    def test_no_text_when_raw_text_length_zero_and_success(self):
+        result = classify_field(
+            success=True,
+            raw_text_length=0,
+            extracted_value=None,
+            expected_value="INV001",
+        )
+        assert result == "no_text"
+
+    def test_exact_match_when_values_equal(self):
+        result = classify_field(
+            success=True,
+            raw_text_length=400,
+            extracted_value="INV001",
+            expected_value="INV001",
+        )
+        assert result == "exact_match"
+
+    def test_exact_match_strips_whitespace(self):
+        result = classify_field(
+            success=True,
+            raw_text_length=400,
+            extracted_value="  INV001  ",
+            expected_value="INV001",
+        )
+        assert result == "exact_match"
+
+    def test_value_mismatch_when_extracted_exists_but_differs(self):
+        result = classify_field(
+            success=True,
+            raw_text_length=400,
+            extracted_value="WRONG999",
+            expected_value="INV001",
+        )
+        assert result == "value_mismatch"
+
+    def test_parser_no_match_when_extracted_none_and_text_exists(self):
+        result = classify_field(
+            success=True,
+            raw_text_length=400,
+            extracted_value=None,
+            expected_value="INV001",
+        )
+        assert result == "parser_no_match"
+
+    def test_ocr_error_priority_over_no_text(self):
+        """success=False takes priority even when raw_text_length is 0."""
+        result = classify_field(
+            success=False,
+            raw_text_length=0,
+            extracted_value=None,
+            expected_value="INV001",
+        )
+        assert result == "ocr_error"
+
+    def test_no_text_priority_over_parser_no_match(self):
+        """raw_text_length=0 with success=True yields no_text, not parser_no_match."""
+        result = classify_field(
+            success=True,
+            raw_text_length=0,
+            extracted_value=None,
+            expected_value="INV001",
+        )
+        assert result == "no_text"
+
+    def test_returns_string(self):
+        result = classify_field(
+            success=True,
+            raw_text_length=400,
+            extracted_value="INV001",
+            expected_value="INV001",
+        )
+        assert isinstance(result, str)
+
+
+# ---------------------------------------------------------------------------
+# MatrixEntry new fields — Phase 1o
+# ---------------------------------------------------------------------------
+
+class TestMatrixEntryNewFields:
+    def _get_entry(self, tmp_path: Path, preview: str = "Sample preview") -> MatrixEntry:
+        pdf = str(tmp_path / "new_fields.pdf")
+        full_page = lambda *a, **kw: _make_ocr_result(
+            provider_name="glm_full_page",
+            normalized_text_preview=preview,
+            extracted_fields={"vendor_invoice_no": "INV001", "vendor_invoice_date": "01-01-2026", "po_reference": "PO001"},
+        )
+        with patch.object(ocr_matrix, "run_glm_full_page_evaluation", side_effect=full_page):
+            entries = run_matrix(
+                pdf,
+                providers=["glm_full_page"],
+                dpi_values=[150],
+                expected=_EXPECTED,
+                timeout_seconds=5,
+            )
+        return entries[0]
+
+    def test_entry_has_normalized_text_preview_field(self, tmp_path: Path):
+        entry = self._get_entry(tmp_path)
+        assert hasattr(entry, "normalized_text_preview")
+
+    def test_entry_preview_matches_provider_result(self, tmp_path: Path):
+        entry = self._get_entry(tmp_path, preview="My preview text")
+        assert entry.normalized_text_preview == "My preview text"
+
+    def test_entry_has_field_classifications_field(self, tmp_path: Path):
+        entry = self._get_entry(tmp_path)
+        assert hasattr(entry, "field_classifications")
+        assert isinstance(entry.field_classifications, dict)
+
+    def test_entry_field_classifications_keys_match_expected(self, tmp_path: Path):
+        entry = self._get_entry(tmp_path)
+        assert set(entry.field_classifications.keys()) == set(_EXPECTED.keys())
+
+    def test_entry_exact_match_classification_for_matching_field(self, tmp_path: Path):
+        entry = self._get_entry(tmp_path)
+        assert entry.field_classifications["vendor_invoice_no"] == "exact_match"
+        assert entry.field_classifications["vendor_invoice_date"] == "exact_match"
+        assert entry.field_classifications["po_reference"] == "exact_match"
+
+    def test_entry_parser_no_match_when_field_not_extracted(self, tmp_path: Path):
+        pdf = str(tmp_path / "no_match.pdf")
+        full_page = lambda *a, **kw: _make_ocr_result(
+            provider_name="glm_full_page",
+            raw_text_length=400,
+            extracted_fields={"vendor_invoice_no": None, "vendor_invoice_date": None, "po_reference": None},
+        )
+        with patch.object(ocr_matrix, "run_glm_full_page_evaluation", side_effect=full_page):
+            entries = run_matrix(
+                pdf,
+                providers=["glm_full_page"],
+                dpi_values=[150],
+                expected=_EXPECTED,
+                timeout_seconds=5,
+            )
+        entry = entries[0]
+        assert entry.field_classifications["vendor_invoice_no"] == "parser_no_match"
+        assert entry.field_classifications["vendor_invoice_date"] == "parser_no_match"
+
+    def test_entry_value_mismatch_when_extracted_wrong(self, tmp_path: Path):
+        pdf = str(tmp_path / "mismatch.pdf")
+        full_page = lambda *a, **kw: _make_ocr_result(
+            provider_name="glm_full_page",
+            raw_text_length=400,
+            extracted_fields={"vendor_invoice_no": "WRONG", "vendor_invoice_date": "WRONG", "po_reference": "WRONG"},
+        )
+        with patch.object(ocr_matrix, "run_glm_full_page_evaluation", side_effect=full_page):
+            entries = run_matrix(
+                pdf,
+                providers=["glm_full_page"],
+                dpi_values=[150],
+                expected=_EXPECTED,
+                timeout_seconds=5,
+            )
+        entry = entries[0]
+        assert entry.field_classifications["vendor_invoice_no"] == "value_mismatch"
+
+    def test_entry_error_gets_ocr_error_classification(self, tmp_path: Path):
+        pdf = str(tmp_path / "err_cls.pdf")
+        with patch.object(ocr_matrix, "run_glm_full_page_evaluation", side_effect=RuntimeError("boom")):
+            entries = run_matrix(
+                pdf,
+                providers=["glm_full_page"],
+                dpi_values=[150],
+                expected=_EXPECTED,
+                timeout_seconds=5,
+            )
+        entry = entries[0]
+        assert entry.field_classifications["vendor_invoice_no"] == "ocr_error"
+        assert entry.field_classifications["vendor_invoice_date"] == "ocr_error"
+        assert entry.field_classifications["po_reference"] == "ocr_error"
+
+
+# ---------------------------------------------------------------------------
+# Report rendering — Phase 1o additions
+# ---------------------------------------------------------------------------
+
+class TestMatrixReportingPhase1o:
+    def _make_entries(self) -> list[MatrixEntry]:
+        return [
+            MatrixEntry(
+                provider="glm_header",
+                dpi=72,
+                duration_ms=300,
+                success=True,
+                error=None,
+                raw_text_length=398,
+                extracted_fields={
+                    "vendor_invoice_no": "WRONG123",
+                    "vendor_invoice_date": "01-01-2026",
+                    "po_reference": None,
+                },
+                match_flags={
+                    "vendor_invoice_no": False,
+                    "vendor_invoice_date": True,
+                    "po_reference": False,
+                },
+                score=1,
+                normalized_text_preview="Invoice No: WRONG123\nInvoice Date: 01-01-2026\nPO Reference: PO ABC1",
+                field_classifications={
+                    "vendor_invoice_no": "value_mismatch",
+                    "vendor_invoice_date": "exact_match",
+                    "po_reference": "parser_no_match",
+                },
+            ),
+        ]
+
+    def test_markdown_report_contains_field_classification_section(self):
+        report = render_matrix_report(self._make_entries(), format="markdown")
+        assert "classification" in report.lower()
+
+    def test_markdown_report_contains_value_mismatch_label(self):
+        report = render_matrix_report(self._make_entries(), format="markdown")
+        assert "value_mismatch" in report
+
+    def test_markdown_report_contains_exact_match_label(self):
+        report = render_matrix_report(self._make_entries(), format="markdown")
+        assert "exact_match" in report
+
+    def test_markdown_report_contains_parser_no_match_label(self):
+        report = render_matrix_report(self._make_entries(), format="markdown")
+        assert "parser_no_match" in report
+
+    def test_markdown_report_contains_text_preview_section(self):
+        report = render_matrix_report(self._make_entries(), format="markdown")
+        assert "preview" in report.lower()
+
+    def test_markdown_report_contains_preview_text_content(self):
+        report = render_matrix_report(self._make_entries(), format="markdown")
+        assert "Invoice No: WRONG123" in report
+
+    def test_json_report_contains_field_classifications_key(self):
+        import json
+        report = render_matrix_report(self._make_entries(), format="json")
+        data = json.loads(report)
+        assert "field_classifications" in data[0]
+
+    def test_json_report_contains_normalized_text_preview_key(self):
+        import json
+        report = render_matrix_report(self._make_entries(), format="json")
+        data = json.loads(report)
+        assert "normalized_text_preview" in data[0]
+
+    def test_json_field_classifications_values_are_correct(self):
+        import json
+        report = render_matrix_report(self._make_entries(), format="json")
+        data = json.loads(report)
+        cls = data[0]["field_classifications"]
+        assert cls["vendor_invoice_no"] == "value_mismatch"
+        assert cls["vendor_invoice_date"] == "exact_match"
+        assert cls["po_reference"] == "parser_no_match"
+
+    def test_markdown_report_ascii_safe_with_classification_section(self):
+        """Classification labels must remain ASCII-safe."""
+        report = render_matrix_report(self._make_entries(), format="markdown")
+        report.encode("cp1252")  # must not raise
