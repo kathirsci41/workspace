@@ -36,6 +36,13 @@ VENDOR_INVOICE_REQUIRED_FIELDS = (
     "po_reference",
     "invoice_total",
 )
+VENDOR_INVOICE_CANDIDATE_FIELDS = (
+    "vendor_invoice_no",
+    "vendor_invoice_date",
+    "po_reference",
+    "taxable_amount",
+    "invoice_total",
+)
 HEADER_FIELD_ALIASES = {
     "vendor_invoice_no": ("invoice_number",),
     "vendor_invoice_date": ("invoice_date",),
@@ -394,6 +401,15 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
         metadata.last_error = None
         document.status = "PENDING_REVIEW"
         document.last_error = None
+
+    _capture_selected_rule_field_candidates(
+        db,
+        document,
+        extracted_data=extracted_data,
+        field_metadata=field_metadata,
+        diagnostics=diagnostics,
+        extraction_route=extraction_route,
+    )
 
     references = ReferenceIndexRepository(db).replace_for_document(
         document.id,
@@ -859,6 +875,187 @@ def _confidence_summary(field_metadata: dict[str, dict[str, Any]], alternatives:
     model = sum(1 for details in field_metadata.values() if details.get("source") == "model_layer2")
     manual = sum(1 for details in field_metadata.values() if details.get("source") == "manual_entry")
     return f"rules={rules}; model_layer2={model}; manual_entry={manual}; conflicts={len(alternatives)}"
+
+
+def _capture_selected_rule_field_candidates(
+    db: Session,
+    document: DocumentRecord,
+    *,
+    extracted_data: dict[str, Any],
+    field_metadata: dict[str, dict[str, Any]],
+    diagnostics: dict[str, Any],
+    extraction_route: str,
+) -> None:
+    import app.config as _cfg
+
+    cur = _cfg.settings
+    if not cur.evidence_capture_enabled:
+        return
+    if str(document.document_type).upper() != "VENDOR_INVOICE":
+        return
+    try:
+        svc = EvidenceService(db)
+        existing_keys = {
+            (
+                row.field_key,
+                row.candidate_value,
+                row.source_type,
+                row.selection_status,
+            )
+            for row in svc.list_field_candidates(document.id)
+        }
+        text_sources = svc.list_text_sources(document.id)
+
+        for field_key in VENDOR_INVOICE_CANDIDATE_FIELDS:
+            value = extracted_data.get(field_key)
+            if value in (None, ""):
+                continue
+            details = dict(field_metadata.get(field_key) or {})
+            source_type = _field_candidate_source_type(
+                details,
+                diagnostics,
+                extraction_route=extraction_route,
+            )
+            if source_type is None:
+                continue
+            candidate_value = _field_candidate_value(value)
+            dedupe_key = (field_key, candidate_value, source_type, "selected")
+            if dedupe_key in existing_keys:
+                continue
+            provider = _field_candidate_provider(source_type, details, diagnostics, cur)
+            svc.insert_field_candidate(
+                document_id=document.id,
+                field_key=field_key,
+                source_type=source_type,
+                provider=provider,
+                text_source_id=_field_candidate_text_source_id(
+                    text_sources,
+                    source_type=source_type,
+                    provider=provider,
+                ),
+                page_number=_field_candidate_page_number(
+                    field_key,
+                    diagnostics,
+                    source_type=source_type,
+                ),
+                candidate_value=candidate_value,
+                normalized_value=_field_candidate_value(value),
+                evidence_text=_field_candidate_evidence_text(
+                    field_key,
+                    source_type=source_type,
+                    details=details,
+                ),
+                confidence=_field_candidate_confidence(details),
+                selection_status="selected",
+            )
+            existing_keys.add(dedupe_key)
+    except Exception as exc:
+        log_event(
+            "evidence_capture_failed",
+            document_id=document.id,
+            error=str(exc)[:200],
+        )
+
+
+def _field_candidate_source_type(
+    details: dict[str, Any],
+    diagnostics: dict[str, Any],
+    *,
+    extraction_route: str,
+) -> str | None:
+    source = str(details.get("source") or "").lower()
+    if source in {"manual_entry", "model_layer2"}:
+        return None
+    if source == "ocr_header":
+        return "ocr_header"
+    if source == "filename_fallback":
+        return "filename_fallback"
+    if bool(diagnostics.get("digital_text_used")) or extraction_route == "digital":
+        return "digital_text"
+    if extraction_route in {"ocr_glm", "scanned"} or diagnostics.get("parser_route") == "ocr_rules":
+        return "ocr"
+    return None
+
+
+def _field_candidate_provider(
+    source_type: str,
+    details: dict[str, Any],
+    diagnostics: dict[str, Any],
+    cur: Any,
+) -> str | None:
+    provider = details.get("provider")
+    if provider:
+        return str(provider)
+    if source_type in {"ocr", "ocr_header"}:
+        return str(diagnostics.get("ocr_provider") or cur.ocr_provider)
+    if source_type == "digital_text":
+        return "digital_pdf"
+    return None
+
+
+def _field_candidate_text_source_id(
+    text_sources: list[Any],
+    *,
+    source_type: str,
+    provider: str | None,
+) -> str | None:
+    if source_type == "filename_fallback":
+        return None
+    for text_source in text_sources:
+        if text_source.source_type != source_type:
+            continue
+        if provider is not None and text_source.provider != provider:
+            continue
+        return text_source.id
+    return None
+
+
+def _field_candidate_page_number(
+    field_key: str,
+    diagnostics: dict[str, Any],
+    *,
+    source_type: str,
+) -> int | None:
+    if source_type == "filename_fallback":
+        return None
+    location = (diagnostics.get("field_locations") or {}).get(field_key) or {}
+    page = location.get("page")
+    if isinstance(page, int):
+        return page
+    return 1
+
+
+def _field_candidate_value(value: Any) -> str:
+    return " ".join(str(value).split())
+
+
+def _field_candidate_evidence_text(
+    field_key: str,
+    *,
+    source_type: str,
+    details: dict[str, Any],
+) -> str:
+    source_labels = {
+        "digital_text": "selected from digital text rules",
+        "ocr": "selected from OCR rules",
+        "ocr_header": "selected from targeted header OCR",
+        "filename_fallback": "selected from filename fallback",
+    }
+    label = source_labels.get(source_type, f"selected from {source_type}")
+    evidence = str(details.get("evidence_text") or "").strip()
+    if evidence:
+        return f"{field_key}: {label}; {evidence}"[:1000]
+    return f"{field_key}: {label}"[:1000]
+
+
+def _field_candidate_confidence(details: dict[str, Any]) -> float | None:
+    confidence = details.get("confidence")
+    if confidence is None:
+        return None
+    try:
+        return float(confidence)
+    except (TypeError, ValueError):
+        return None
 
 
 def _capture_digital_text_evidence(
