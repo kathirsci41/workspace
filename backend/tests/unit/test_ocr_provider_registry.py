@@ -208,7 +208,7 @@ class TestOcrProviderRegistry:
 
     def test_unknown_provider_raises_value_error(self):
         with pytest.raises(ValueError):
-            get_ocr_provider("paddleocr")
+            get_ocr_provider("azure_vision")
 
     def test_unknown_provider_error_mentions_known_providers(self):
         with pytest.raises(ValueError, match="glm"):

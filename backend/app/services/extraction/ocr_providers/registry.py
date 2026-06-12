@@ -6,11 +6,13 @@ from __future__ import annotations
 
 from app.services.extraction.ocr_providers.base import OcrProviderBase
 from app.services.extraction.ocr_providers.glm_provider import GlmOcrProvider
+from app.services.extraction.ocr_providers.paddle_provider import PaddleOcrProvider
 
 _DEFAULT_PROVIDER = "glm"
 
 _REGISTRY: dict[str, OcrProviderBase] = {
     "glm": GlmOcrProvider(),
+    "paddleocr": PaddleOcrProvider(),
 }
 
 
