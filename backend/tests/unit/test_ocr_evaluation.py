@@ -332,3 +332,107 @@ class TestEvaluationDoesNotMutateProduction:
 def test_ocr_evaluation_module_has_no_panimalar_hardcoding():
     source = inspect.getsource(ocr_evaluation).lower()
     assert "panimalar" not in source
+
+
+# ---------------------------------------------------------------------------
+# Phase 1q — parse_mode support
+# ---------------------------------------------------------------------------
+
+class TestHeaderNormalizedParseMode:
+    """Phase 1q: header_normalized parse mode applies production normalization."""
+
+    def test_ocr_provider_result_has_parse_mode_field(self, tmp_path: Path):
+        """OcrProviderResult must expose parse_mode so callers know what was applied."""
+        pdf = tmp_path / "pm.pdf"
+        _make_blank_pdf(pdf)
+        with patch.object(ocr_evaluation, "extract_header_text_with_ocr", return_value=_mock_header_result("Invoice No: X001")):
+            result = run_glm_header_evaluation(str(pdf), dpi=72, timeout_seconds=5, parse_mode="raw")
+        assert hasattr(result, "parse_mode")
+
+    def test_raw_mode_keeps_existing_behavior(self, tmp_path: Path):
+        """raw parse_mode must produce same result as current default (no normalization)."""
+        pdf = tmp_path / "raw.pdf"
+        _make_blank_pdf(pdf)
+        json_ocr = '```json\n{\n    "Invoice No": "RAW001"\n}\n```'
+        with patch.object(ocr_evaluation, "extract_header_text_with_ocr", return_value=_mock_header_result(json_ocr)):
+            result = run_glm_header_evaluation(str(pdf), dpi=72, timeout_seconds=5, parse_mode="raw")
+        assert result.parse_mode == "raw"
+        assert result.extracted_fields.get("vendor_invoice_no") is None
+
+    def test_header_normalized_mode_converts_json_ocr_to_fields(self, tmp_path: Path):
+        """header_normalized must recover fields from JSON-style header OCR."""
+        pdf = tmp_path / "norm.pdf"
+        _make_blank_pdf(pdf)
+        json_ocr = '```json\n{\n    "Invoice No": "NORM001",\n    "Invoice Date": "01-06-2026",\n    "PO Reference": "PO 1ABC2026000001"\n}\n```'
+        with patch.object(ocr_evaluation, "extract_header_text_with_ocr", return_value=_mock_header_result(json_ocr)):
+            result = run_glm_header_evaluation(str(pdf), dpi=72, timeout_seconds=5, parse_mode="header_normalized")
+        assert result.parse_mode == "header_normalized"
+        assert result.extracted_fields.get("vendor_invoice_no") == "NORM001"
+        assert result.extracted_fields.get("vendor_invoice_date") == "01-06-2026"
+        assert result.extracted_fields.get("po_reference") == "1ABC2026000001"
+
+    def test_header_normalized_strips_po_prefix_when_digit_present(self, tmp_path: Path):
+        """PO prefix must be stripped when the remainder contains a digit."""
+        pdf = tmp_path / "po.pdf"
+        _make_blank_pdf(pdf)
+        json_ocr = '```json\n{\n    "Invoice No": "POTEST001",\n    "Invoice Date": "01-06-2026",\n    "PO Reference": "PO 9ZXY2026000099"\n}\n```'
+        with patch.object(ocr_evaluation, "extract_header_text_with_ocr", return_value=_mock_header_result(json_ocr)):
+            result = run_glm_header_evaluation(str(pdf), dpi=72, timeout_seconds=5, parse_mode="header_normalized")
+        assert result.extracted_fields.get("po_reference") == "9ZXY2026000099"
+
+    def test_header_normalized_mode_only_applies_to_header_provider(self, tmp_path: Path):
+        """full-page provider ignores header_normalized and always uses raw behavior."""
+        pdf = tmp_path / "fp.pdf"
+        _make_blank_pdf(pdf)
+        json_ocr = '```json\n{\n    "Invoice No": "FPTEST001"\n}\n```'
+        with patch.object(ocr_evaluation, "extract_text_with_ocr", return_value=_mock_ocr_result(json_ocr)):
+            result = run_glm_full_page_evaluation(str(pdf), dpi=72, timeout_seconds=5, parse_mode="header_normalized")
+        assert result.parse_mode == "raw"
+        assert result.extracted_fields.get("vendor_invoice_no") is None
+
+    def test_wrong_ocr_values_remain_wrong_in_header_normalized_mode(self, tmp_path: Path):
+        """Normalization must NOT correct wrong OCR values — missing is better than wrong.
+
+        - Wrong invoice numbers that parse are forwarded as-is (not corrected).
+        - Values the parser rejects (bad date/PO formats) return None — not guessed-at values.
+        - In both cases, normalization never injects a "correct" value it does not have.
+        """
+        pdf = tmp_path / "wrong.pdf"
+        _make_blank_pdf(pdf)
+        json_ocr = '```json\n{\n    "Invoice No": "WRONG999",\n    "Invoice Date": "BADDATE",\n    "PO Reference": "PO BADREF"\n}\n```'
+        with patch.object(ocr_evaluation, "extract_header_text_with_ocr", return_value=_mock_header_result(json_ocr)):
+            result = run_glm_header_evaluation(str(pdf), dpi=72, timeout_seconds=5, parse_mode="header_normalized")
+        # Wrong invoice number is forwarded exactly as-is — not corrected
+        assert result.extracted_fields.get("vendor_invoice_no") == "WRONG999"
+        # BADDATE and PO BADREF are rejected by the parser (None is correct: missing > wrong)
+        # The key invariant: normalization never injects the real/expected value
+        assert result.extracted_fields.get("vendor_invoice_date") is None
+        assert result.extracted_fields.get("po_reference") is None
+
+    def test_malformed_json_does_not_crash_in_header_normalized_mode(self, tmp_path: Path):
+        """Malformed JSON OCR must not crash header_normalized mode."""
+        pdf = tmp_path / "malform.pdf"
+        _make_blank_pdf(pdf)
+        malformed = '{"Invoice No": "X001", "Invoice Date":   '
+        with patch.object(ocr_evaluation, "extract_header_text_with_ocr", return_value=_mock_header_result(malformed)):
+            result = run_glm_header_evaluation(str(pdf), dpi=72, timeout_seconds=5, parse_mode="header_normalized")
+        assert isinstance(result, OcrProviderResult)
+
+    def test_header_normalized_result_parse_mode_stored_on_result(self, tmp_path: Path):
+        """The applied parse_mode must be stored on the result object."""
+        pdf = tmp_path / "stored.pdf"
+        _make_blank_pdf(pdf)
+        with patch.object(ocr_evaluation, "extract_header_text_with_ocr", return_value=_mock_header_result("Invoice No: STORE001")):
+            result = run_glm_header_evaluation(str(pdf), dpi=72, timeout_seconds=5, parse_mode="header_normalized")
+        assert result.parse_mode == "header_normalized"
+
+    def test_evaluation_with_parse_mode_does_not_call_extract_document(self, tmp_path: Path):
+        """parse_mode must not cause evaluation to touch the production extractor."""
+        pdf = tmp_path / "nodoc.pdf"
+        _make_blank_pdf(pdf)
+        with (
+            patch.object(ocr_evaluation, "extract_header_text_with_ocr", return_value=_mock_header_result("Invoice No: NODOC001")),
+            patch("app.services.extraction_service.extract_document") as mock_extract,
+        ):
+            run_glm_header_evaluation(str(pdf), dpi=72, timeout_seconds=5, parse_mode="header_normalized")
+        mock_extract.assert_not_called()

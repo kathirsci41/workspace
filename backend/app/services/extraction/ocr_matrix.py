@@ -32,6 +32,7 @@ class MatrixEntry:
     score: int                                 # count of exact matches (0-3)
     normalized_text_preview: str = ""          # first 300 chars of OCR text
     field_classifications: dict[str, str] = field(default_factory=dict)  # per-field diagnosis
+    parse_mode: str = "raw"                    # "raw" | "header_normalized"
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +88,7 @@ def _run_cell(
     dpi: int,
     timeout_seconds: int,
     expected: dict,
+    parse_mode: str = "raw",
 ) -> MatrixEntry:
     """Run one (provider, DPI) cell and return a MatrixEntry.
 
@@ -95,11 +97,13 @@ def _run_cell(
     try:
         if provider == "glm_full_page":
             result = run_glm_full_page_evaluation(
-                pdf_path, dpi=dpi, timeout_seconds=timeout_seconds, run_parser=True
+                pdf_path, dpi=dpi, timeout_seconds=timeout_seconds, run_parser=True,
+                parse_mode=parse_mode,
             )
         elif provider == "glm_header":
             result = run_glm_header_evaluation(
-                pdf_path, dpi=dpi, timeout_seconds=timeout_seconds, run_parser=True
+                pdf_path, dpi=dpi, timeout_seconds=timeout_seconds, run_parser=True,
+                parse_mode=parse_mode,
             )
         else:
             raise ValueError(f"Unknown provider: {provider!r}")
@@ -131,6 +135,7 @@ def _run_cell(
             score=sc,
             normalized_text_preview=result.normalized_text_preview,
             field_classifications=classifications,
+            parse_mode=result.parse_mode,
         )
     except Exception as exc:
         return MatrixEntry(
@@ -145,6 +150,7 @@ def _run_cell(
             score=0,
             normalized_text_preview="",
             field_classifications={k: "ocr_error" for k in expected},
+            parse_mode=parse_mode,
         )
 
 
@@ -155,6 +161,7 @@ def run_matrix(
     dpi_values: list[int],
     expected: dict[str, str],
     timeout_seconds: int = 60,
+    parse_mode: str = "raw",
 ) -> list[MatrixEntry]:
     """Evaluate all (provider x DPI) combinations on pdf_path.
 
@@ -164,7 +171,7 @@ def run_matrix(
     entries: list[MatrixEntry] = []
     for provider in providers:
         for dpi in dpi_values:
-            entry = _run_cell(pdf_path, provider, dpi, timeout_seconds, expected)
+            entry = _run_cell(pdf_path, provider, dpi, timeout_seconds, expected, parse_mode)
             entries.append(entry)
     return entries
 
@@ -233,6 +240,11 @@ def _render_markdown(entries: list[MatrixEntry]) -> str:
         "",
     ]
 
+    if entries:
+        parse_modes = sorted({e.parse_mode for e in entries})
+        lines.append(f"Parse mode(s): {', '.join(parse_modes)}")
+        lines.append("")
+
     if summary["best_entry"]:
         best = summary["best_entry"]
         lines += [
@@ -243,10 +255,10 @@ def _render_markdown(entries: list[MatrixEntry]) -> str:
 
     # Main table
     lines.append(
-        "| Provider | DPI | Score | Duration ms | text_len | "
+        "| Provider | DPI | parse_mode | Score | Duration ms | text_len | "
         "inv_no | inv_date | po_ref | Success | Error |"
     )
-    lines.append("|---|---|---|---|---|---|---|---|---|---|")
+    lines.append("|---|---|---|---|---|---|---|---|---|---|---|")
 
     for e in entries:
         inv_no = _flag(e.match_flags.get("vendor_invoice_no"))
@@ -254,7 +266,7 @@ def _render_markdown(entries: list[MatrixEntry]) -> str:
         po_ref = _flag(e.match_flags.get("po_reference"))
         err = (e.error or "")[:60].replace("|", "/") if e.error else ""
         lines.append(
-            f"| {e.provider} | {e.dpi} | {e.score} | {e.duration_ms} | {e.raw_text_length} | "
+            f"| {e.provider} | {e.dpi} | {e.parse_mode} | {e.score} | {e.duration_ms} | {e.raw_text_length} | "
             f"{inv_no} | {inv_date} | {po_ref} | {e.success} | {err} |"
         )
 

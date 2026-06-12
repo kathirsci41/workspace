@@ -76,6 +76,13 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional file path to write the report (in addition to stdout)",
     )
+    p.add_argument(
+        "--parse-mode",
+        dest="parse_mode",
+        choices=["raw", "header_normalized"],
+        default="raw",
+        help="Parse mode: raw (default) or header_normalized (applies production normalization for glm_header)",
+    )
     return p
 
 
@@ -108,6 +115,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Scoring against: {expected}")
     else:
         print("No expected values provided — scores will be 0 for all cells")
+    print(f"Parse mode: {args.parse_mode}")
     print()
 
     entries = run_matrix(
@@ -116,6 +124,7 @@ def main(argv: list[str] | None = None) -> int:
         dpi_values=args.dpi,
         expected=expected,
         timeout_seconds=args.timeout,
+        parse_mode=args.parse_mode,
     )
 
     report = render_matrix_report(entries, format=args.format)

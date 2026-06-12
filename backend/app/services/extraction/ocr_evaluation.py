@@ -15,6 +15,7 @@ from app.services.extraction.glm_ocr_client import (
     extract_text_with_ocr,
 )
 from app.services.extraction.structured_text_parser import parse_structured_text
+from app.services.extraction_service import _normalize_vendor_invoice_header_ocr_text
 
 _PREVIEW_MAX = 300
 _EVAL_DPI_DEFAULT = 150
@@ -43,6 +44,7 @@ class OcrProviderResult:
     normalized_text_preview: str     # first _PREVIEW_MAX chars
     extracted_fields: dict[str, Any]  # vendor invoice fields if parser run
     provider_status: str             # "ok", "error", "unavailable"
+    parse_mode: str = "raw"          # "raw" | "header_normalized"
 
 
 def check_paddleocr_availability() -> str:
@@ -61,10 +63,12 @@ def run_glm_full_page_evaluation(
     timeout_seconds: int = _EVAL_TIMEOUT_DEFAULT,
     run_parser: bool = True,
     document_type: str = "VENDOR_INVOICE",
+    parse_mode: str = "raw",
 ) -> OcrProviderResult:
     """Run GLM full-page OCR on *pdf_path* and return an evaluation result.
 
     No DB writes. No side effects on production extraction.
+    Full-page provider always uses raw parse_mode regardless of the argument.
     """
     started = time.perf_counter()
     text = ""
@@ -99,6 +103,7 @@ def run_glm_full_page_evaluation(
         normalized_text_preview=text[:_PREVIEW_MAX],
         extracted_fields=extracted,
         provider_status="ok" if success else "error",
+        parse_mode="raw",
     )
 
 
@@ -109,10 +114,12 @@ def run_glm_header_evaluation(
     timeout_seconds: int = _EVAL_TIMEOUT_DEFAULT,
     run_parser: bool = True,
     document_type: str = "VENDOR_INVOICE",
+    parse_mode: str = "raw",
 ) -> OcrProviderResult:
     """Run GLM header OCR on *pdf_path* and return an evaluation result.
 
     No DB writes. No side effects on production extraction.
+    When parse_mode='header_normalized', applies production normalization before parsing.
     """
     started = time.perf_counter()
     text = ""
@@ -137,7 +144,16 @@ def run_glm_header_evaluation(
         error = str(exc)
 
     duration_ms = round((time.perf_counter() - started) * 1000)
-    extracted = _run_parser(document_type, text, route="ocr_glm") if run_parser and success else {}
+
+    if run_parser and success:
+        parse_text = (
+            _normalize_vendor_invoice_header_ocr_text(text)
+            if parse_mode == "header_normalized"
+            else text
+        )
+        extracted = _run_parser(document_type, parse_text, route="ocr_glm")
+    else:
+        extracted = {}
 
     return OcrProviderResult(
         provider_name="glm_header",
@@ -150,6 +166,7 @@ def run_glm_header_evaluation(
         normalized_text_preview=text[:_PREVIEW_MAX],
         extracted_fields=extracted,
         provider_status="ok" if success else "error",
+        parse_mode=parse_mode,
     )
 
 

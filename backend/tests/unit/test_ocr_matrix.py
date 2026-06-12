@@ -61,6 +61,7 @@ def _make_ocr_result(
     raw_text_length: int = 500,
     error: str | None = None,
     normalized_text_preview: str = "Invoice No: INV001\nInvoice Date: 01-01-2026",
+    parse_mode: str = "raw",
 ) -> SimpleNamespace:
     """Minimal fake OcrProviderResult for patching run_glm_*_evaluation."""
     return SimpleNamespace(
@@ -71,6 +72,7 @@ def _make_ocr_result(
         raw_text_length=raw_text_length,
         error=error,
         normalized_text_preview=normalized_text_preview,
+        parse_mode=parse_mode,
     )
 
 
@@ -875,3 +877,171 @@ class TestMatrixReportingPhase1o:
         """Classification labels must remain ASCII-safe."""
         report = render_matrix_report(self._make_entries(), format="markdown")
         report.encode("cp1252")  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# Phase 1q — parse_mode in MatrixEntry and run_matrix
+# ---------------------------------------------------------------------------
+
+class TestParseModePhase1q:
+    """Phase 1q: parse_mode propagates from run_matrix through MatrixEntry to report."""
+
+    def test_matrix_entry_has_parse_mode_field(self):
+        """MatrixEntry must have a parse_mode field defaulting to 'raw'."""
+        entry = MatrixEntry(
+            provider="glm_header",
+            dpi=150,
+            duration_ms=100,
+            success=True,
+            error=None,
+            raw_text_length=200,
+            extracted_fields={},
+            match_flags={},
+            score=0,
+        )
+        assert hasattr(entry, "parse_mode")
+        assert entry.parse_mode == "raw"
+
+    def test_matrix_entry_parse_mode_can_be_set_to_header_normalized(self):
+        """MatrixEntry must accept parse_mode='header_normalized'."""
+        entry = MatrixEntry(
+            provider="glm_header",
+            dpi=150,
+            duration_ms=100,
+            success=True,
+            error=None,
+            raw_text_length=200,
+            extracted_fields={},
+            match_flags={},
+            score=0,
+            parse_mode="header_normalized",
+        )
+        assert entry.parse_mode == "header_normalized"
+
+    def test_run_matrix_accepts_parse_mode_parameter(self, tmp_path: Path):
+        """run_matrix must accept parse_mode kwarg without TypeError."""
+        pdf = str(tmp_path / "doc.pdf")
+        full_page = lambda *a, **kw: _make_ocr_result(provider_name="glm_full_page")
+        header = lambda *a, **kw: _make_ocr_result(provider_name="glm_header")
+        with patch.object(ocr_matrix, "run_glm_full_page_evaluation", side_effect=full_page), \
+             patch.object(ocr_matrix, "run_glm_header_evaluation", side_effect=header):
+            entries = run_matrix(
+                pdf,
+                providers=["glm_header"],
+                dpi_values=[72],
+                expected=_EXPECTED,
+                timeout_seconds=5,
+                parse_mode="raw",
+            )
+        assert len(entries) == 1
+
+    def test_run_matrix_propagates_parse_mode_to_entries(self, tmp_path: Path):
+        """parse_mode passed to run_matrix must appear on each MatrixEntry."""
+        pdf = str(tmp_path / "doc.pdf")
+        full_page = lambda *a, **kw: _make_ocr_result(provider_name="glm_full_page", parse_mode="header_normalized")
+        header = lambda *a, **kw: _make_ocr_result(provider_name="glm_header", parse_mode="header_normalized")
+        with patch.object(ocr_matrix, "run_glm_full_page_evaluation", side_effect=full_page), \
+             patch.object(ocr_matrix, "run_glm_header_evaluation", side_effect=header):
+            entries = run_matrix(
+                pdf,
+                providers=["glm_header"],
+                dpi_values=[72],
+                expected=_EXPECTED,
+                timeout_seconds=5,
+                parse_mode="header_normalized",
+            )
+        assert entries[0].parse_mode == "header_normalized"
+
+    def test_run_matrix_passes_parse_mode_to_header_provider(self, tmp_path: Path):
+        """run_matrix must forward parse_mode to run_glm_header_evaluation."""
+        pdf = str(tmp_path / "doc.pdf")
+        captured_kwargs: list[dict] = []
+
+        def header_spy(*a, **kw):
+            captured_kwargs.append(kw)
+            return _make_ocr_result(provider_name="glm_header", parse_mode=kw.get("parse_mode", "raw"))
+
+        with patch.object(ocr_matrix, "run_glm_header_evaluation", side_effect=header_spy):
+            run_matrix(
+                pdf,
+                providers=["glm_header"],
+                dpi_values=[72],
+                expected=_EXPECTED,
+                timeout_seconds=5,
+                parse_mode="header_normalized",
+            )
+        assert captured_kwargs[0].get("parse_mode") == "header_normalized"
+
+    def test_run_matrix_default_parse_mode_is_raw(self, tmp_path: Path):
+        """Omitting parse_mode from run_matrix must default to 'raw'."""
+        pdf = str(tmp_path / "doc.pdf")
+        full_page = lambda *a, **kw: _make_ocr_result(provider_name="glm_full_page")
+        header = lambda *a, **kw: _make_ocr_result(provider_name="glm_header")
+        with patch.object(ocr_matrix, "run_glm_full_page_evaluation", side_effect=full_page), \
+             patch.object(ocr_matrix, "run_glm_header_evaluation", side_effect=header):
+            entries = run_matrix(
+                pdf,
+                providers=["glm_header"],
+                dpi_values=[72],
+                expected=_EXPECTED,
+                timeout_seconds=5,
+            )
+        assert entries[0].parse_mode == "raw"
+
+    def test_markdown_report_includes_parse_mode(self):
+        """Markdown report must mention parse_mode."""
+        entries = [
+            MatrixEntry(
+                provider="glm_header",
+                dpi=150,
+                duration_ms=100,
+                success=True,
+                error=None,
+                raw_text_length=200,
+                extracted_fields={"vendor_invoice_no": "INV001", "vendor_invoice_date": "01-01-2026", "po_reference": "PO001"},
+                match_flags={"vendor_invoice_no": True, "vendor_invoice_date": True, "po_reference": True},
+                score=3,
+                parse_mode="header_normalized",
+            )
+        ]
+        report = render_matrix_report(entries, format="markdown")
+        assert "header_normalized" in report
+
+    def test_json_report_includes_parse_mode(self):
+        """JSON report must include parse_mode key in each entry."""
+        import json
+        entries = [
+            MatrixEntry(
+                provider="glm_header",
+                dpi=150,
+                duration_ms=100,
+                success=True,
+                error=None,
+                raw_text_length=200,
+                extracted_fields={},
+                match_flags={},
+                score=0,
+                parse_mode="raw",
+            )
+        ]
+        report = render_matrix_report(entries, format="json")
+        data = json.loads(report)
+        assert "parse_mode" in data[0]
+        assert data[0]["parse_mode"] == "raw"
+
+    def test_matrix_does_not_mutate_production_extractor_with_parse_mode(self, tmp_path: Path):
+        """parse_mode support must not cause run_matrix to call extract_document."""
+        pdf = str(tmp_path / "nodoc.pdf")
+        header = lambda *a, **kw: _make_ocr_result(provider_name="glm_header", parse_mode="header_normalized")
+        with patch.object(ocr_matrix, "run_glm_header_evaluation", side_effect=header), \
+             patch("app.services.extraction_service.extract_document") as mock_extract:
+            run_matrix(
+                pdf,
+                providers=["glm_header"],
+                dpi_values=[72],
+                expected=_EXPECTED,
+                timeout_seconds=5,
+                parse_mode="header_normalized",
+            )
+        mock_extract.assert_not_called()
+
