@@ -612,3 +612,92 @@ def test_phase1k_production_code_has_no_document_specific_hardcoding():
         + inspect.getsource(glm_ocr_client)
     ).lower()
     assert "panimalar" not in source
+
+
+# ---------------------------------------------------------------------------
+# Phase 1p: focused unit tests for _normalize_vendor_invoice_header_ocr_text
+# ---------------------------------------------------------------------------
+
+def test_normalize_header_repeated_json_blocks_does_not_crash():
+    """Two JSON blocks with the same labels — stable, no exception, first match wins."""
+    text = (
+        '```json\n'
+        '{\n'
+        '  "Invoice No": "FIRST/001",\n'
+        '  "Invoice Date": "01-01-2026"\n'
+        '}\n'
+        '```\n'
+        '```json\n'
+        '{\n'
+        '  "Invoice No": "SECOND/002",\n'
+        '  "Invoice Date": "02-01-2026"\n'
+        '}\n'
+        '```'
+    )
+    result = extraction_service._normalize_vendor_invoice_header_ocr_text(text)
+    assert isinstance(result, str)
+    assert "Invoice No: FIRST/001" in result
+    assert "Invoice Date: 01-01-2026" in result
+
+
+def test_normalize_header_extra_non_target_keys_are_ignored():
+    """JSON with non-target keys like Total/GST — only target fields appear in parser lines."""
+    text = (
+        '```json\n'
+        '{\n'
+        '  "Invoice No": "EXT/001",\n'
+        '  "Invoice Date": "03-01-2026",\n'
+        '  "Total": "99000",\n'
+        '  "GST": "9"\n'
+        '}\n'
+        '```'
+    )
+    result = extraction_service._normalize_vendor_invoice_header_ocr_text(text)
+    assert "Invoice No: EXT/001" in result
+    assert "Invoice Date: 03-01-2026" in result
+    assert "Total: 99000" not in result
+    assert "GST: 9" not in result
+
+
+def test_normalize_header_po_prefix_stripped_when_remainder_contains_digit():
+    """'PO 1ABC2345' loses the 'PO ' prefix because the remainder contains a digit."""
+    text = '{"Invoice No": "DIG/001", "Invoice Date": "05-01-2026", "PO Reference": "PO 1ABC2345"}'
+    result = extraction_service._normalize_vendor_invoice_header_ocr_text(text)
+    assert "PO Reference: 1ABC2345" in result
+
+
+def test_normalize_header_po_prefix_not_stripped_when_remainder_has_no_digit():
+    """'PO BOX' has no digit in the remainder — the prefix is not stripped."""
+    text = '{"PO No": "PO BOX"}'
+    result = extraction_service._normalize_vendor_invoice_header_ocr_text(text)
+    assert "PO Reference: PO BOX" in result
+
+
+def test_normalize_header_wrong_ocr_value_passes_through_unchanged():
+    """A visibly wrong OCR value is forwarded as-is — no guessing, no correction."""
+    text = '{"Invoice No": "BADVAL999", "Invoice Date": "31-12-2025"}'
+    result = extraction_service._normalize_vendor_invoice_header_ocr_text(text)
+    assert "Invoice No: BADVAL999" in result
+    assert "Invoice Date: 31-12-2025" in result
+
+
+def test_normalize_header_malformed_json_like_text_does_not_crash():
+    """Incomplete or invalid JSON-like text must not raise an exception."""
+    malformed_inputs = [
+        '{"Invoice No":',
+        '"Invoice No" "NODOT/001"',
+        '```json\n{\n```',
+        "",
+        "   ",
+    ]
+    for raw in malformed_inputs:
+        result = extraction_service._normalize_vendor_invoice_header_ocr_text(raw)
+        assert isinstance(result, str), f"Raised or returned non-str for {raw!r}"
+
+
+def test_normalize_header_plain_text_label_value_still_works():
+    """Plain 'Label: Value' OCR (non-JSON) produces parser-readable output."""
+    text = "Invoice No: PLAIN/001\nInvoice Date: 04-01-2026\nPO No: PO-1001"
+    result = extraction_service._normalize_vendor_invoice_header_ocr_text(text)
+    assert "Invoice No: PLAIN/001" in result
+    assert "Invoice Date: 04-01-2026" in result
