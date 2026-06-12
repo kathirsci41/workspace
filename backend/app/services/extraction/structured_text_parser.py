@@ -241,7 +241,7 @@ def _parse_vendor_invoice(text: str, *, filename: str | None = None) -> tuple[di
         taxable_amount = component_gst_taxable
         taxable_amount_source = "invoice_total_minus_split_gst_components"
     vendor_invoice_no_source = None
-    vendor_invoice_no = _label_code_value(text, ("Tax Invoice No", "Tax Invoice Number", "Invoice No", "Inv No", "Invoice", "Bill No", "Bill Number", "Invoice Number", "Voucher No"), value_pattern=r"[A-Z0-9/-]{5,80}")
+    vendor_invoice_no = _label_code_value(text, ("Tax Invoice No", "Tax Invoice Number", "Invoice No", "Inv No", "Invoice", "Bill No", "Bill Number", "Invoice Number", "Voucher No"), value_pattern=r"[A-Z0-9/-]{5,80}", reject_dates=True)
     if vendor_invoice_no is None:
         vendor_invoice_no = _vendor_invoice_no_from_filename(filename)
         if vendor_invoice_no is not None:
@@ -384,6 +384,16 @@ def _looks_like_code(value: str | None) -> str | None:
     return v
 
 
+_DATE_VALUE_RE = re.compile(
+    r"^\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}$|^\d{4}[/.\-]\d{1,2}[/.\-]\d{1,2}$",
+    re.I,
+)
+
+
+def _looks_like_date(value: str) -> bool:
+    return bool(_DATE_VALUE_RE.match(value.strip()))
+
+
 def _first_code(*values: str | None) -> str | None:
     for value in values:
         code = _looks_like_code(value)
@@ -455,7 +465,13 @@ def _label_value(text: str, labels: tuple[str, ...], *, value_pattern: str) -> s
     return None
 
 
-def _label_code_value(text: str, labels: tuple[str, ...], *, value_pattern: str) -> str | None:
+def _label_code_value(
+    text: str,
+    labels: tuple[str, ...],
+    *,
+    value_pattern: str,
+    reject_dates: bool = False,
+) -> str | None:
     lines = [line.strip() for line in text.splitlines()]
     for label in labels:
         escaped = re.escape(label)
@@ -469,6 +485,8 @@ def _label_code_value(text: str, labels: tuple[str, ...], *, value_pattern: str)
                     continue
                 value = _looks_like_code(_clean_scalar(match.group(1)))
                 if value:
+                    if reject_dates and _looks_like_date(value):
+                        continue
                     return value
         for pattern in (
             rf"{escaped}\.?\s*[:#-]?\s*({value_pattern})",
@@ -478,6 +496,8 @@ def _label_code_value(text: str, labels: tuple[str, ...], *, value_pattern: str)
             for match in re.finditer(pattern, text, flags=re.I):
                 value = _looks_like_code(_clean_scalar(match.group(1)))
                 if value:
+                    if reject_dates and _looks_like_date(value):
+                        continue
                     return value
     return None
 

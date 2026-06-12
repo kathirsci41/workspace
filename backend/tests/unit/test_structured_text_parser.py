@@ -554,3 +554,71 @@ def test_vendor_invoice_missing_inv_no_with_generic_filename_remains_missing():
         filename="Vendor Invoice Document.pdf",
     )
     assert result["fields"].get("vendor_invoice_no") is None
+
+
+# ---------------------------------------------------------------------------
+# Phase 1s: Reject date-shaped candidates for vendor_invoice_no
+# ---------------------------------------------------------------------------
+
+
+def test_vendor_invoice_no_rejects_dd_mm_yyyy_candidate():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nInvoice No.\n02-01-2026\nInvoice Date: 02-01-2026\n",
+        extraction_route="digital",
+    )
+    assert result["fields"].get("vendor_invoice_no") is None
+
+
+def test_vendor_invoice_no_rejects_slash_date_format():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nInvoice No.\n02/01/2026\nInvoice Date: 02/01/2026\n",
+        extraction_route="digital",
+    )
+    assert result["fields"].get("vendor_invoice_no") is None
+
+
+def test_vendor_invoice_no_rejects_iso_date_format():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nInvoice No.\n2026-01-02\nInvoice Date: 02-01-2026\n",
+        extraction_route="digital",
+    )
+    assert result["fields"].get("vendor_invoice_no") is None
+
+
+def test_vendor_invoice_no_skips_date_candidate_uses_subsequent_valid_code():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nInvoice No.\n02-01-2026\nInv No: 333335674\nInvoice Date: 02-01-2026\n",
+        extraction_route="digital",
+    )
+    assert result["fields"].get("vendor_invoice_no") == "333335674"
+
+
+def test_vendor_invoice_date_unaffected_by_date_rejection_on_invoice_no():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nInvoice No.\n02-01-2026\nInvoice Date: 02-01-2026\n",
+        extraction_route="digital",
+    )
+    assert result["fields"].get("vendor_invoice_date") == "02-01-2026"
+
+
+def test_vendor_invoice_no_only_date_candidate_remains_none():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nInvoice No.\n02-01-2026\n",
+        extraction_route="digital",
+    )
+    assert result["fields"].get("vendor_invoice_no") is None
+
+
+def test_vendor_invoice_no_non_date_code_still_accepted():
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        "TAX INVOICE\nInvoice No: CHIIND30853\nInvoice Date: 02-01-2026\n",
+        extraction_route="digital",
+    )
+    assert result["fields"].get("vendor_invoice_no") == "CHIIND30853"
