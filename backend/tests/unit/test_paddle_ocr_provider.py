@@ -1,4 +1,4 @@
-"""Phase 1u/1v: PaddleOCR provider adapter tests.
+"""Phase 1u/1v/1xA: PaddleOCR provider adapter tests.
 
 Real API (PaddleOCR 3.7.0 / paddlex 3.7.x, verified in Phase 1v):
 - Instantiate:  PaddleOCR(lang="en")
@@ -14,6 +14,15 @@ Covers:
 - PaddleOCR output flattened from rec_texts to plain text
 - Registry: "paddleocr" key returns PaddleOcrProvider, default still GLM
 - Production extraction_service not mutated
+
+Phase 1xA adds:
+- Provider accepts optional device= and provider_name= constructor kwargs
+- GPU device ("gpu:0") infers provider_name="paddleocr_gpu" by default
+- CPU/no device keeps provider_name="paddleocr"
+- _set_paddle_device called before OCR when device is set
+- Device-setting failure returns a safe failed result (no crash)
+- Timeout accepted but not enforced (limitation explicitly documented)
+- Constructor does not import paddle at instantiation time
 """
 from __future__ import annotations
 
@@ -226,3 +235,157 @@ class TestPaddleProviderSafety:
     def test_no_installation_required_for_test_suite(self):
         # If this line is reached, tests run without paddleocr installed.
         assert "paddleocr" not in sys.modules
+
+
+# ---------------------------------------------------------------------------
+# Phase 1xA — device selection, GPU provenance, timeout documentation
+# ---------------------------------------------------------------------------
+
+
+class TestPaddleOcrProviderHardening:
+    """Phase 1xA: optional device/provider_name constructor args, GPU provenance, timeout honesty."""
+
+    # --- Constructor: backward compatibility ---
+
+    def test_default_constructor_no_args_provider_name_is_paddleocr(self):
+        assert PaddleOcrProvider().provider_name == "paddleocr"
+
+    def test_accepts_device_kwarg_without_error(self):
+        provider = PaddleOcrProvider(device="gpu:0")
+        assert provider is not None
+
+    def test_accepts_provider_name_kwarg_without_error(self):
+        provider = PaddleOcrProvider(provider_name="my_name")
+        assert provider is not None
+
+    # --- Provider name inference ---
+
+    def test_gpu_device_infers_provider_name_paddleocr_gpu(self):
+        provider = PaddleOcrProvider(device="gpu:0")
+        assert provider.provider_name == "paddleocr_gpu"
+
+    def test_cpu_device_keeps_provider_name_paddleocr(self):
+        provider = PaddleOcrProvider(device="cpu")
+        assert provider.provider_name == "paddleocr"
+
+    def test_none_device_keeps_provider_name_paddleocr(self):
+        provider = PaddleOcrProvider(device=None)
+        assert provider.provider_name == "paddleocr"
+
+    def test_explicit_provider_name_overrides_device_inference_for_gpu(self):
+        provider = PaddleOcrProvider(device="gpu:0", provider_name="custom_paddle")
+        assert provider.provider_name == "custom_paddle"
+
+    def test_explicit_provider_name_overrides_default_for_no_device(self):
+        provider = PaddleOcrProvider(provider_name="evaluation_cpu")
+        assert provider.provider_name == "evaluation_cpu"
+
+    # --- Device-setting integration ---
+
+    def test_set_device_called_before_ocr_when_device_provided(self):
+        mock_module, _ = _make_mock_paddle_module()
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._set_paddle_device") as mock_set, \
+             patch.dict(sys.modules, {"paddleocr": mock_module}):
+            mock_set.return_value = None
+            PaddleOcrProvider(device="gpu:0").run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
+        mock_set.assert_called_once_with("gpu:0")
+
+    def test_set_device_not_called_when_no_device(self):
+        mock_module, _ = _make_mock_paddle_module()
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._set_paddle_device") as mock_set, \
+             patch.dict(sys.modules, {"paddleocr": mock_module}):
+            mock_set.return_value = None
+            PaddleOcrProvider().run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
+        mock_set.assert_not_called()
+
+    # --- Device failure: safe result, no crash ---
+
+    def test_device_failure_returns_failed_result(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._set_paddle_device", return_value="CUDA unavailable"):
+            result = PaddleOcrProvider(device="gpu:0").run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
+        assert result.success is False
+
+    def test_device_failure_error_contains_device_info(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._set_paddle_device", return_value="CUDA unavailable"):
+            result = PaddleOcrProvider(device="gpu:0").run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
+        assert result.error is not None
+        assert len(result.error) > 0
+
+    def test_device_failure_does_not_crash(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._set_paddle_device", return_value="boom"):
+            try:
+                PaddleOcrProvider(device="gpu:0").run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
+            except Exception as exc:
+                pytest.fail(f"raised unexpectedly: {exc}")
+
+    # --- Result provenance ---
+
+    def test_gpu_run_result_has_provider_name_paddleocr_gpu(self):
+        mock_module, _ = _make_mock_paddle_module()
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._set_paddle_device", return_value=None), \
+             patch.dict(sys.modules, {"paddleocr": mock_module}):
+            result = PaddleOcrProvider(device="gpu:0").run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
+        assert result.provider_name == "paddleocr_gpu"
+
+    def test_cpu_run_result_has_provider_name_paddleocr(self):
+        mock_module, _ = _make_mock_paddle_module()
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch.dict(sys.modules, {"paddleocr": mock_module}):
+            result = PaddleOcrProvider().run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
+        assert result.provider_name == "paddleocr"
+
+    def test_failed_unavailable_result_uses_provider_name_from_instance(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=False):
+            result = PaddleOcrProvider(device="gpu:0").run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
+        assert result.provider_name == "paddleocr_gpu"
+
+    # --- Timeout: accepted, not enforced ---
+
+    def test_timeout_seconds_accepted_without_type_error(self):
+        """timeout_seconds is accepted by the API — must not raise TypeError."""
+        mock_module, _ = _make_mock_paddle_module()
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch.dict(sys.modules, {"paddleocr": mock_module}):
+            result = PaddleOcrProvider().run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=30)
+        assert isinstance(result, OcrProviderResult)
+
+    def test_timeout_not_enforced_fast_mock_still_succeeds(self):
+        """Phase 1xA: timeout_seconds=1 does NOT abort a fast mock call.
+
+        Limitation: timeout_seconds is accepted but not enforced at the process level.
+        The PaddleOCR predict() call is synchronous — there is no process-level preemption.
+        Thread-based timeout is unsafe (leaves OCR running in background). Phase 1xB must solve.
+        This test records the limitation: a fast mock at timeout_seconds=1 still succeeds.
+        """
+        mock_module, _ = _make_mock_paddle_module()
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch.dict(sys.modules, {"paddleocr": mock_module}):
+            result = PaddleOcrProvider().run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=1)
+        assert result.success is True
+
+    # --- Lazy import: no paddle at constructor time ---
+
+    def test_no_paddle_import_at_module_load_after_constructor(self):
+        """Constructing PaddleOcrProvider(device='gpu:0') must not import paddle."""
+        paddle_before = {k for k in sys.modules if "paddle" in k.lower()}
+        PaddleOcrProvider(device="gpu:0")
+        paddle_after = {k for k in sys.modules if "paddle" in k.lower()}
+        new_paddle_mods = paddle_after - paddle_before
+        assert new_paddle_mods == set(), f"unexpected paddle imports: {new_paddle_mods}"
+
+    # --- Flatten still supports real API ---
+
+    def test_flatten_result_handles_rec_texts_format(self):
+        """_flatten_paddle_result handles PaddleOCR 3.7.0 rec_texts page format."""
+        from app.services.extraction.ocr_providers.paddle_provider import _flatten_paddle_result
+        pages = [{"rec_texts": ["LINE A", "LINE B"]}, {"rec_texts": ["LINE C"]}]
+        text = _flatten_paddle_result(pages)
+        assert "LINE A" in text
+        assert "LINE B" in text
+        assert "LINE C" in text
