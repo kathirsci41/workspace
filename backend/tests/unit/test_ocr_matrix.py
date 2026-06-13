@@ -16,6 +16,13 @@ Phase 1o adds:
   - MatrixEntry has normalized_text_preview and field_classifications fields
   - Markdown report contains field classification table and text preview section
   - JSON report contains field_classifications and normalized_text_preview keys
+
+Phase 1w adds:
+  - Matrix accepts paddleocr_gpu provider key
+  - paddleocr_gpu records result without crashing
+  - Scoring works for paddleocr_gpu extracted fields
+  - Renderer includes paddleocr_gpu, duration, text_len, extracted fields
+  - paddleocr_gpu does not mutate production extraction
 """
 from __future__ import annotations
 
@@ -1044,4 +1051,156 @@ class TestParseModePhase1q:
                 parse_mode="header_normalized",
             )
         mock_extract.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Phase 1w — paddleocr_gpu provider in matrix
+# ---------------------------------------------------------------------------
+
+def _paddle_gpu_result(
+    *,
+    success: bool = True,
+    extracted_fields: dict | None = None,
+    raw_text_length: int = 2897,
+    duration_ms: int = 11154,
+    error: str | None = None,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        provider_name="paddleocr",
+        success=success,
+        error=error if not success else None,
+        duration_ms=duration_ms,
+        raw_text_length=raw_text_length,
+        extracted_fields=extracted_fields if extracted_fields is not None else {},
+        normalized_text_preview="Invoice No: INV001",
+        parse_mode="raw",
+    )
+
+
+class TestPaddleOcrGpuMatrix:
+    """Phase 1w: matrix accepts paddleocr_gpu provider, scores and renders correctly."""
+
+    def test_matrix_accepts_paddleocr_gpu_provider(self, tmp_path: Path):
+        pdf = str(tmp_path / "doc.pdf")
+        with patch.object(ocr_matrix, "run_paddleocr_evaluation", return_value=_paddle_gpu_result()):
+            entries = run_matrix(
+                pdf,
+                providers=["paddleocr_gpu"],
+                dpi_values=[150],
+                expected=_EXPECTED,
+                timeout_seconds=30,
+            )
+        assert len(entries) == 1
+        assert entries[0].provider == "paddleocr_gpu"
+
+    def test_matrix_records_paddleocr_gpu_result_without_crashing(self, tmp_path: Path):
+        pdf = str(tmp_path / "doc.pdf")
+        with patch.object(ocr_matrix, "run_paddleocr_evaluation", return_value=_paddle_gpu_result(success=False, error="GPU error")):
+            entries = run_matrix(
+                pdf,
+                providers=["paddleocr_gpu"],
+                dpi_values=[150],
+                expected=_EXPECTED,
+                timeout_seconds=30,
+            )
+        assert isinstance(entries[0], MatrixEntry)
+        assert entries[0].success is False
+
+    def test_matrix_scoring_works_for_paddleocr_gpu(self, tmp_path: Path):
+        pdf = str(tmp_path / "doc.pdf")
+        result = _paddle_gpu_result(
+            extracted_fields={
+                "vendor_invoice_no": "INV001",
+                "vendor_invoice_date": "01-01-2026",
+                "po_reference": "PO001",
+            }
+        )
+        with patch.object(ocr_matrix, "run_paddleocr_evaluation", return_value=result):
+            entries = run_matrix(
+                pdf,
+                providers=["paddleocr_gpu"],
+                dpi_values=[150],
+                expected=_EXPECTED,
+                timeout_seconds=30,
+            )
+        assert entries[0].score == 3
+
+    def test_renderer_includes_paddleocr_gpu_provider(self, tmp_path: Path):
+        pdf = str(tmp_path / "doc.pdf")
+        with patch.object(ocr_matrix, "run_paddleocr_evaluation", return_value=_paddle_gpu_result()):
+            entries = run_matrix(
+                pdf,
+                providers=["paddleocr_gpu"],
+                dpi_values=[150],
+                expected=_EXPECTED,
+                timeout_seconds=30,
+            )
+        report = render_matrix_report(entries, format="markdown")
+        assert "paddleocr_gpu" in report
+
+    def test_renderer_includes_duration_and_text_length(self, tmp_path: Path):
+        pdf = str(tmp_path / "doc.pdf")
+        with patch.object(ocr_matrix, "run_paddleocr_evaluation", return_value=_paddle_gpu_result(duration_ms=11154, raw_text_length=2897)):
+            entries = run_matrix(
+                pdf,
+                providers=["paddleocr_gpu"],
+                dpi_values=[150],
+                expected=_EXPECTED,
+                timeout_seconds=30,
+            )
+        report = render_matrix_report(entries, format="markdown")
+        assert "11154" in report
+        assert "2897" in report
+
+    def test_renderer_includes_extracted_fields(self, tmp_path: Path):
+        pdf = str(tmp_path / "doc.pdf")
+        result = _paddle_gpu_result(
+            extracted_fields={
+                "vendor_invoice_no": "INV001",
+                "vendor_invoice_date": "01-01-2026",
+                "po_reference": "PO001",
+            }
+        )
+        with patch.object(ocr_matrix, "run_paddleocr_evaluation", return_value=result):
+            entries = run_matrix(
+                pdf,
+                providers=["paddleocr_gpu"],
+                dpi_values=[150],
+                expected=_EXPECTED,
+                timeout_seconds=30,
+            )
+        report = render_matrix_report(entries, format="markdown")
+        assert "INV001" in report
+
+    def test_paddleocr_gpu_does_not_mutate_production(self, tmp_path: Path):
+        pdf = str(tmp_path / "doc.pdf")
+        with patch.object(ocr_matrix, "run_paddleocr_evaluation", return_value=_paddle_gpu_result()), \
+             patch("app.services.extraction_service.extract_document") as mock_extract:
+            run_matrix(
+                pdf,
+                providers=["paddleocr_gpu"],
+                dpi_values=[150],
+                expected=_EXPECTED,
+                timeout_seconds=30,
+            )
+        mock_extract.assert_not_called()
+
+    def test_paddleocr_gpu_passes_device_gpu0_to_evaluation(self, tmp_path: Path):
+        """Matrix must pass device='gpu:0' when provider key is paddleocr_gpu."""
+        pdf = str(tmp_path / "doc.pdf")
+        captured: list[dict] = []
+
+        def spy(*a, **kw):
+            captured.append(kw)
+            return _paddle_gpu_result()
+
+        with patch.object(ocr_matrix, "run_paddleocr_evaluation", side_effect=spy):
+            run_matrix(
+                pdf,
+                providers=["paddleocr_gpu"],
+                dpi_values=[150],
+                expected=_EXPECTED,
+                timeout_seconds=30,
+            )
+        assert captured[0].get("device") == "gpu:0"
 

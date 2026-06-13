@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from app.services.extraction.ocr_evaluation import (
     run_glm_full_page_evaluation,
     run_glm_header_evaluation,
+    run_paddleocr_evaluation,
 )
 
 
@@ -104,6 +105,11 @@ def _run_cell(
             result = run_glm_header_evaluation(
                 pdf_path, dpi=dpi, timeout_seconds=timeout_seconds, run_parser=True,
                 parse_mode=parse_mode,
+            )
+        elif provider == "paddleocr_gpu":
+            result = run_paddleocr_evaluation(
+                pdf_path, dpi=dpi, timeout_seconds=timeout_seconds, run_parser=True,
+                device="gpu:0",
             )
         else:
             raise ValueError(f"Unknown provider: {provider!r}")
@@ -256,44 +262,49 @@ def _render_markdown(entries: list[MatrixEntry]) -> str:
     # Main table
     lines.append(
         "| Provider | DPI | parse_mode | Score | Duration ms | text_len | "
-        "inv_no | inv_date | po_ref | Success | Error |"
+        "inv_no | inv_date | po_ref | inv_total | Success | Error |"
     )
-    lines.append("|---|---|---|---|---|---|---|---|---|---|---|")
+    lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
 
     for e in entries:
         inv_no = _flag(e.match_flags.get("vendor_invoice_no"))
         inv_date = _flag(e.match_flags.get("vendor_invoice_date"))
         po_ref = _flag(e.match_flags.get("po_reference"))
+        inv_total = _flag(e.match_flags.get("invoice_total"))
         err = (e.error or "")[:60].replace("|", "/") if e.error else ""
         lines.append(
             f"| {e.provider} | {e.dpi} | {e.parse_mode} | {e.score} | {e.duration_ms} | {e.raw_text_length} | "
-            f"{inv_no} | {inv_date} | {po_ref} | {e.success} | {err} |"
+            f"{inv_no} | {inv_date} | {po_ref} | {inv_total} | {e.success} | {err} |"
         )
 
     # Extracted field values table
     lines.append("")
     lines.append("### Extracted field values")
     lines.append("")
-    lines.append("| Provider | DPI | vendor_invoice_no | vendor_invoice_date | po_reference |")
-    lines.append("|---|---|---|---|---|")
+    lines.append("| Provider | DPI | vendor_invoice_no | vendor_invoice_date | po_reference | invoice_total |")
+    lines.append("|---|---|---|---|---|---|")
     for e in entries:
         inv_no = e.extracted_fields.get("vendor_invoice_no") or ""
         inv_date = e.extracted_fields.get("vendor_invoice_date") or ""
         po_ref = e.extracted_fields.get("po_reference") or ""
-        lines.append(f"| {e.provider} | {e.dpi} | {inv_no} | {inv_date} | {po_ref} |")
+        inv_total = e.extracted_fields.get("invoice_total") or ""
+        lines.append(f"| {e.provider} | {e.dpi} | {inv_no} | {inv_date} | {po_ref} | {inv_total} |")
 
     # Field classification table
     lines.append("")
     lines.append("### Field classifications")
     lines.append("")
-    lines.append("| Provider | DPI | vendor_invoice_no | vendor_invoice_date | po_reference |")
-    lines.append("|---|---|---|---|---|")
+    lines.append("| Provider | DPI | vendor_invoice_no | vendor_invoice_date | po_reference | invoice_total |")
+    lines.append("|---|---|---|---|---|---|")
     for e in entries:
         cls = e.field_classifications
         inv_no_cls = cls.get("vendor_invoice_no", "")
         inv_date_cls = cls.get("vendor_invoice_date", "")
         po_ref_cls = cls.get("po_reference", "")
-        lines.append(f"| {e.provider} | {e.dpi} | {inv_no_cls} | {inv_date_cls} | {po_ref_cls} |")
+        inv_total_cls = cls.get("invoice_total", "")
+        lines.append(
+            f"| {e.provider} | {e.dpi} | {inv_no_cls} | {inv_date_cls} | {po_ref_cls} | {inv_total_cls} |"
+        )
 
     # OCR text preview section
     lines.append("")

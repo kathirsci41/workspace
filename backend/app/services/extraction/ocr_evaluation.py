@@ -1,4 +1,4 @@
-"""OCR provider evaluation harness — Phase 1m.
+"""OCR provider evaluation harness — Phase 1m / 1w.
 
 Evaluation-only module. Never writes production document records.
 Never changes extraction behavior. Composes OCR leaf functions directly.
@@ -14,6 +14,7 @@ from app.services.extraction.glm_ocr_client import (
     extract_header_text_with_ocr,
     extract_text_with_ocr,
 )
+from app.services.extraction.ocr_providers import get_ocr_provider
 from app.services.extraction.structured_text_parser import parse_structured_text
 from app.services.extraction_service import _normalize_vendor_invoice_header_ocr_text
 
@@ -27,6 +28,7 @@ _VENDOR_INVOICE_TARGET_FIELDS = (
     "vendor_invoice_no",
     "vendor_invoice_date",
     "po_reference",
+    "invoice_total",
 )
 
 
@@ -47,6 +49,19 @@ class OcrProviderResult:
     parse_mode: str = "raw"          # "raw" | "header_normalized"
 
 
+def _set_paddle_device(device: str) -> str | None:
+    """Try to set the active Paddle device; return error string on failure, None on success.
+
+    Uses a lazy import so paddle is never required at module load time.
+    """
+    try:
+        import paddle  # noqa: PLC0415
+        paddle.device.set_device(device)
+        return None
+    except Exception as exc:
+        return str(exc)
+
+
 def check_paddleocr_availability() -> str:
     """Return "available" if paddleocr can be imported, else "unavailable".
 
@@ -54,6 +69,94 @@ def check_paddleocr_availability() -> str:
     """
     spec = importlib.util.find_spec("paddleocr")
     return "available" if spec is not None else "unavailable"
+
+
+def run_paddleocr_evaluation(
+    file_path: str,
+    *,
+    dpi: int = _EVAL_DPI_DEFAULT,
+    timeout_seconds: int = _EVAL_TIMEOUT_DEFAULT,
+    run_parser: bool = True,
+    device: str | None = None,
+) -> OcrProviderResult:
+    """Run PaddleOCR evaluation on *file_path* and return an evaluation result.
+
+    Evaluation-only. Never writes to any database.
+    When device is provided, attempts to set the Paddle device before inference;
+    a device-setting failure does not abort the evaluation — OCR proceeds and the
+    error is surfaced only if OCR itself also fails.
+    """
+    provider = get_ocr_provider("paddleocr")
+
+    if not provider.is_available():
+        return OcrProviderResult(
+            provider_name="paddleocr",
+            source_type="paddleocr",
+            provider_version=None,
+            duration_ms=0,
+            success=False,
+            error="PaddleOCR not installed",
+            raw_text_length=0,
+            normalized_text_preview="",
+            extracted_fields={},
+            provider_status="unavailable",
+        )
+
+    device_error: str | None = None
+    if device is not None:
+        device_error = _set_paddle_device(device)
+
+    try:
+        result = provider.run_full_page(
+            file_path,
+            max_pages=1,
+            dpi=dpi,
+            timeout_seconds=timeout_seconds,
+        )
+    except Exception as exc:
+        return OcrProviderResult(
+            provider_name="paddleocr",
+            source_type="paddleocr",
+            provider_version=None,
+            duration_ms=0,
+            success=False,
+            error=str(exc),
+            raw_text_length=0,
+            normalized_text_preview="",
+            extracted_fields={},
+            provider_status="error",
+        )
+
+    text = result.raw_text or ""
+
+    if not result.success:
+        return OcrProviderResult(
+            provider_name="paddleocr",
+            source_type="paddleocr",
+            provider_version=None,
+            duration_ms=result.duration_ms,
+            success=False,
+            error=result.error,
+            raw_text_length=len(text),
+            normalized_text_preview=text[:_PREVIEW_MAX],
+            extracted_fields={},
+            provider_status="error",
+        )
+
+    extracted = _run_parser("VENDOR_INVOICE", text, route="ocr") if run_parser else {}
+
+    return OcrProviderResult(
+        provider_name="paddleocr",
+        source_type="paddleocr",
+        provider_version=None,
+        duration_ms=result.duration_ms,
+        success=True,
+        error=None,
+        raw_text_length=len(text),
+        normalized_text_preview=text[:_PREVIEW_MAX],
+        extracted_fields=extracted,
+        provider_status="ok",
+    )
 
 
 def run_glm_full_page_evaluation(
