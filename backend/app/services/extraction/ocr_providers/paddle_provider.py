@@ -1,8 +1,14 @@
 """PaddleOCR provider adapter.
 
-PaddleOCR is not installed in this environment. Lazy imports ensure the module
-loads regardless of whether paddleocr is available. When unavailable,
-is_available() returns False and run_full_page() returns a failed result.
+Uses lazy imports so the module loads regardless of whether paddleocr is
+installed. When unavailable, is_available() returns False and run_full_page()
+returns a failed result.
+
+API notes (PaddleOCR 3.7.0 / paddlex 3.7.x):
+- Instantiate:  PaddleOCR(lang="en")  — use_angle_cls and show_log removed
+- Call:         ocr.predict(file_path)  — .ocr() is deprecated
+- Result:       list of OCRResult objects (one per page); each is dict-like
+                with result["rec_texts"] = list[str] of recognized text lines
 """
 from __future__ import annotations
 
@@ -18,15 +24,18 @@ def _paddle_available() -> bool:
     return importlib.util.find_spec("paddleocr") is not None
 
 
-def _flatten_paddle_result(pages) -> str:
-    """Flatten PaddleOCR page results into plain newline-separated text."""
+def _flatten_paddle_result(results) -> str:
+    """Flatten PaddleOCR predict() results into plain newline-separated text.
+
+    Each element in `results` is a dict-like OCRResult with a "rec_texts" key
+    that holds a list of recognized text strings for one page.
+    """
     lines = []
-    for page in (pages or []):
-        for detection in (page or []):
-            if detection and len(detection) >= 2:
-                text_tuple = detection[1]
-                if text_tuple and len(text_tuple) >= 1:
-                    lines.append(str(text_tuple[0]))
+    for result in (results or []):
+        texts = result["rec_texts"] if result is not None else []
+        for text in (texts or []):
+            if text:
+                lines.append(str(text))
     return "\n".join(lines)
 
 
@@ -64,9 +73,9 @@ class PaddleOcrProvider(OcrProviderBase):
         started = time.perf_counter()
         try:
             import paddleocr  # lazy — only reached when _paddle_available() is True
-            ocr = paddleocr.PaddleOCR(use_angle_cls=True, lang="en", show_log=False)
-            pages = ocr.ocr(file_path, cls=True)
-            raw_text = _flatten_paddle_result(pages)
+            ocr = paddleocr.PaddleOCR(lang="en")
+            results = ocr.predict(file_path)
+            raw_text = _flatten_paddle_result(results)
         except Exception as exc:
             elapsed_ms = round((time.perf_counter() - started) * 1000)
             return OcrProviderResult(

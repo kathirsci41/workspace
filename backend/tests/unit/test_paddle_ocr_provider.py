@@ -1,6 +1,9 @@
-"""Phase 1u: PaddleOCR provider adapter tests.
+"""Phase 1u/1v: PaddleOCR provider adapter tests.
 
-TDD: all tests written before implementation.
+Real API (PaddleOCR 3.7.0 / paddlex 3.7.x, verified in Phase 1v):
+- Instantiate:  PaddleOCR(lang="en")
+- Call:         ocr.predict(file_path)  (.ocr() is deprecated)
+- Result:       list of dict-like OCRResult objects; result["rec_texts"] = list[str]
 
 Covers:
 - PaddleOcrProvider can be imported without paddleocr installed
@@ -8,7 +11,7 @@ Covers:
 - is_available() when unavailable (mocked _paddle_available=False)
 - run_full_page() failure result shape when unavailable
 - is_available() and run_full_page() when available (mocked paddleocr module)
-- PaddleOCR output flattened to plain text
+- PaddleOCR output flattened from rec_texts to plain text
 - Registry: "paddleocr" key returns PaddleOcrProvider, default still GLM
 - Production extraction_service not mutated
 """
@@ -32,10 +35,10 @@ from app.services.extraction.ocr_providers.paddle_provider import PaddleOcrProvi
 # ---------------------------------------------------------------------------
 
 def _make_paddle_result(texts: list[str]):
-    """Minimal PaddleOCR-format output: one page, one detection per line."""
-    fake_bbox = [[0, 0], [100, 0], [100, 20], [0, 20]]
-    page = [[fake_bbox, (text, 0.99)] for text in texts]
-    return [page]
+    """Minimal PaddleOCR 3.7.0 predict() output: one page, rec_texts = list of strings."""
+    # Real format: list of dict-like OCRResult objects with result["rec_texts"]
+    page_result = {"rec_texts": list(texts)}
+    return [page_result]
 
 
 def _make_mock_paddle_module(texts: list[str] | None = None):
@@ -43,7 +46,7 @@ def _make_mock_paddle_module(texts: list[str] | None = None):
         texts = ["LINE ONE", "LINE TWO"]
     mock_module = MagicMock()
     mock_ocr_instance = MagicMock()
-    mock_ocr_instance.ocr.return_value = _make_paddle_result(texts)
+    mock_ocr_instance.predict.return_value = _make_paddle_result(texts)
     mock_module.PaddleOCR.return_value = mock_ocr_instance
     return mock_module, mock_ocr_instance
 
@@ -160,12 +163,12 @@ class TestPaddleOcrProviderAvailable:
                 PaddleOcrProvider().run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
         mock_module.PaddleOCR.assert_called_once()
 
-    def test_run_full_page_ocr_called_with_file_path(self):
+    def test_run_full_page_predict_called_with_file_path(self):
         mock_module, mock_ocr_instance = _make_mock_paddle_module()
         with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True):
             with patch.dict(sys.modules, {"paddleocr": mock_module}):
                 PaddleOcrProvider().run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
-        mock_ocr_instance.ocr.assert_called_once_with("f.pdf", cls=True)
+        mock_ocr_instance.predict.assert_called_once_with("f.pdf")
 
     def test_run_full_page_success_false_on_exception(self):
         mock_module = MagicMock()
