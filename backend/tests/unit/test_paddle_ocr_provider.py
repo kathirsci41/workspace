@@ -27,6 +27,7 @@ Phase 1xA adds:
 from __future__ import annotations
 
 import sys
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -389,3 +390,230 @@ class TestPaddleOcrProviderHardening:
         assert "LINE A" in text
         assert "LINE B" in text
         assert "LINE C" in text
+
+
+# ---------------------------------------------------------------------------
+# Phase 1xB — process-level timeout enforcement
+# ---------------------------------------------------------------------------
+#
+# Module-level worker functions for real multiprocessing.spawn tests below.
+# Must stay module-level (not nested) so spawn can pickle/import them by reference.
+
+def _fast_worker_for_test(payload, queue):
+    """Returns immediately. Proves the subprocess helper's success path
+    without requiring paddleocr to be installed."""
+    queue.put({"success": True, "raw_text": "FAST WORKER TEXT", "error": None, "duration_ms": 1})
+
+
+def _slow_worker_for_test(payload, queue):
+    """Sleeps far longer than any timeout used in tests. Proves the parent
+    terminates/kills a hung child rather than waiting or leaving it running."""
+    import time as _time
+    _time.sleep(payload.get("sleep_seconds", 30))
+    queue.put({"success": True, "raw_text": "SHOULD NOT ARRIVE", "error": None, "duration_ms": 1})
+
+
+class TestPaddleOcrProviderTimeoutEnforcement:
+    """Phase 1xB: real process-level timeout via multiprocessing subprocess isolation."""
+
+    # --- Constructor: backward compatibility ---
+
+    def test_default_constructor_enforce_timeout_disabled(self):
+        provider = PaddleOcrProvider()
+        assert provider._enforce_timeout is False
+
+    def test_accepts_enforce_timeout_true(self):
+        provider = PaddleOcrProvider(enforce_timeout=True)
+        assert provider._enforce_timeout is True
+
+    def test_enforce_timeout_false_keeps_direct_path(self):
+        """enforce_timeout=False (default) never calls the subprocess helper."""
+        mock_module, _ = _make_mock_paddle_module()
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._run_paddle_ocr_in_subprocess") as mock_run, \
+             patch.dict(sys.modules, {"paddleocr": mock_module}):
+            result = PaddleOcrProvider().run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
+        mock_run.assert_not_called()
+        assert result.success is True
+
+    # --- enforce_timeout=True wiring ---
+
+    def test_enforce_timeout_true_calls_subprocess_helper(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._run_paddle_ocr_in_subprocess") as mock_run:
+            mock_run.return_value = {"success": True, "raw_text": "TEXT", "error": None, "duration_ms": 100}
+            PaddleOcrProvider(enforce_timeout=True).run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=45)
+        mock_run.assert_called_once_with("f.pdf", None, 45)
+
+    def test_enforce_timeout_true_passes_device_to_helper(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._run_paddle_ocr_in_subprocess") as mock_run:
+            mock_run.return_value = {"success": True, "raw_text": "TEXT", "error": None, "duration_ms": 100}
+            PaddleOcrProvider(device="gpu:0", enforce_timeout=True).run_full_page(
+                "f.pdf", max_pages=1, dpi=150, timeout_seconds=45
+            )
+        mock_run.assert_called_once_with("f.pdf", "gpu:0", 45)
+
+    def test_enforce_timeout_true_success_result(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._run_paddle_ocr_in_subprocess") as mock_run:
+            mock_run.return_value = {"success": True, "raw_text": "HELLO WORLD", "error": None, "duration_ms": 1234}
+            result = PaddleOcrProvider(enforce_timeout=True).run_full_page(
+                "f.pdf", max_pages=1, dpi=150, timeout_seconds=45
+            )
+        assert result.success is True
+        assert result.raw_text == "HELLO WORLD"
+        assert result.error is None
+        assert result.duration_ms == 1234
+
+    def test_enforce_timeout_true_provider_error_result(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._run_paddle_ocr_in_subprocess") as mock_run:
+            mock_run.return_value = {"success": False, "raw_text": "", "error": "paddle internal error", "duration_ms": 500}
+            result = PaddleOcrProvider(enforce_timeout=True).run_full_page(
+                "f.pdf", max_pages=1, dpi=150, timeout_seconds=45
+            )
+        assert result.success is False
+        assert result.error == "paddle internal error"
+        assert result.raw_text == ""
+
+    # --- timeout result shape ---
+
+    def test_timeout_result_success_is_false(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._run_paddle_ocr_in_subprocess") as mock_run:
+            mock_run.return_value = {
+                "success": False, "raw_text": "", "error": "PaddleOCR subprocess timed out after 60s", "duration_ms": 60000,
+            }
+            result = PaddleOcrProvider(enforce_timeout=True).run_full_page(
+                "f.pdf", max_pages=1, dpi=150, timeout_seconds=60
+            )
+        assert result.success is False
+
+    def test_timeout_result_error_mentions_timed_out_and_seconds(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._run_paddle_ocr_in_subprocess") as mock_run:
+            mock_run.return_value = {
+                "success": False, "raw_text": "", "error": "PaddleOCR subprocess timed out after 60s", "duration_ms": 60000,
+            }
+            result = PaddleOcrProvider(enforce_timeout=True).run_full_page(
+                "f.pdf", max_pages=1, dpi=150, timeout_seconds=60
+            )
+        assert "timed out" in result.error.lower()
+        assert "60" in result.error
+
+    def test_timeout_result_provider_name_preserved_for_gpu(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._run_paddle_ocr_in_subprocess") as mock_run:
+            mock_run.return_value = {
+                "success": False, "raw_text": "", "error": "PaddleOCR subprocess timed out after 5s", "duration_ms": 5000,
+            }
+            result = PaddleOcrProvider(device="gpu:0", enforce_timeout=True).run_full_page(
+                "f.pdf", max_pages=1, dpi=150, timeout_seconds=5
+            )
+        assert result.provider_name == "paddleocr_gpu"
+
+    def test_timeout_result_raw_text_empty(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._run_paddle_ocr_in_subprocess") as mock_run:
+            mock_run.return_value = {
+                "success": False, "raw_text": "", "error": "PaddleOCR subprocess timed out after 5s", "duration_ms": 5000,
+            }
+            result = PaddleOcrProvider(enforce_timeout=True).run_full_page(
+                "f.pdf", max_pages=1, dpi=150, timeout_seconds=5
+            )
+        assert result.raw_text == ""
+
+    def test_timeout_result_duration_ms_around_timeout(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._run_paddle_ocr_in_subprocess") as mock_run:
+            mock_run.return_value = {
+                "success": False, "raw_text": "", "error": "PaddleOCR subprocess timed out after 5s", "duration_ms": 5000,
+            }
+            result = PaddleOcrProvider(enforce_timeout=True).run_full_page(
+                "f.pdf", max_pages=1, dpi=150, timeout_seconds=5
+            )
+        assert result.duration_ms >= 5 * 1000 * 0.9
+
+    # --- unavailable check happens before subprocess spawn ---
+
+    def test_unavailable_with_enforce_timeout_does_not_spawn_subprocess(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=False), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._run_paddle_ocr_in_subprocess") as mock_run:
+            result = PaddleOcrProvider(enforce_timeout=True).run_full_page(
+                "f.pdf", max_pages=1, dpi=150, timeout_seconds=5
+            )
+        mock_run.assert_not_called()
+        assert result.success is False
+        assert "not installed" in (result.error or "").lower()
+
+    # --- worker function: direct in-process calls (no real subprocess) ---
+
+    def test_worker_puts_success_result(self):
+        mock_module, _ = _make_mock_paddle_module(["WORKER LINE"])
+        from app.services.extraction.ocr_providers.paddle_provider import _paddle_ocr_worker
+        fake_queue = MagicMock()
+        with patch.dict(sys.modules, {"paddleocr": mock_module}):
+            _paddle_ocr_worker({"file_path": "f.pdf", "device": None}, fake_queue)
+        payload = fake_queue.put.call_args[0][0]
+        assert payload["success"] is True
+        assert "WORKER LINE" in payload["raw_text"]
+        assert payload["error"] is None
+
+    def test_worker_puts_error_result_on_exception(self):
+        mock_module = MagicMock()
+        mock_module.PaddleOCR.side_effect = RuntimeError("worker boom")
+        from app.services.extraction.ocr_providers.paddle_provider import _paddle_ocr_worker
+        fake_queue = MagicMock()
+        with patch.dict(sys.modules, {"paddleocr": mock_module}):
+            _paddle_ocr_worker({"file_path": "f.pdf", "device": None}, fake_queue)
+        payload = fake_queue.put.call_args[0][0]
+        assert payload["success"] is False
+        assert "worker boom" in payload["error"]
+
+    def test_worker_device_failure_returns_clear_error(self):
+        from app.services.extraction.ocr_providers.paddle_provider import _paddle_ocr_worker
+        fake_queue = MagicMock()
+        with patch("app.services.extraction.ocr_providers.paddle_provider._set_paddle_device", return_value="CUDA unavailable"):
+            _paddle_ocr_worker({"file_path": "f.pdf", "device": "gpu:0"}, fake_queue)
+        payload = fake_queue.put.call_args[0][0]
+        assert payload["success"] is False
+        assert "CUDA unavailable" in payload["error"]
+        assert "gpu:0" in payload["error"]
+
+    # --- real subprocess: prove process-level isolation (no paddleocr/GPU needed) ---
+
+    def test_subprocess_helper_real_process_success(self):
+        """Real spawned subprocess with a fast module-level worker."""
+        from app.services.extraction.ocr_providers.paddle_provider import _run_paddle_ocr_in_subprocess
+        result = _run_paddle_ocr_in_subprocess("f.pdf", None, 10, worker=_fast_worker_for_test)
+        assert result["success"] is True
+        assert result["raw_text"] == "FAST WORKER TEXT"
+
+    def test_subprocess_helper_real_process_timeout_terminates_child(self):
+        """Real spawned subprocess with a worker that sleeps past the timeout.
+
+        Proves the parent terminates/kills the child instead of waiting for it
+        or leaving it running in the background.
+        """
+        from app.services.extraction.ocr_providers.paddle_provider import _run_paddle_ocr_in_subprocess
+        started = time.perf_counter()
+        result = _run_paddle_ocr_in_subprocess("f.pdf", None, 1, worker=_slow_worker_for_test)
+        wall_seconds = time.perf_counter() - started
+        assert result["success"] is False
+        assert "timed out" in result["error"].lower()
+        assert "1" in result["error"]
+        assert result["raw_text"] == ""
+        assert wall_seconds < 10  # must not wait for the worker's 30s sleep
+
+    # --- existing behaviors must remain intact ---
+
+    def test_no_paddle_or_paddleocr_import_with_enforce_timeout_constructor(self):
+        """Constructing PaddleOcrProvider(enforce_timeout=True) must not import paddle/paddleocr."""
+        before = {k for k in sys.modules if "paddle" in k.lower()}
+        PaddleOcrProvider(enforce_timeout=True, device="gpu:0")
+        after = {k for k in sys.modules if "paddle" in k.lower()}
+        assert after - before == set()
+
+    def test_registry_default_still_glm(self):
+        assert get_default_ocr_provider().provider_name == "glm"
