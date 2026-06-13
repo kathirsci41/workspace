@@ -20,6 +20,7 @@ from app.services.extraction.glm_ocr_client import (
     extract_text_with_ocr,
 )
 from app.services.extraction.model_layer2 import extract_structured_fields_with_model
+from app.services.extraction.ocr_providers.paddle_provider import PaddleOcrProvider
 from app.services.extraction.pdf_field_locator import build_field_locations
 from app.services.extraction.structured_text_parser import FailureCode, parse_structured_text
 
@@ -119,97 +120,15 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
 
     if len(raw_text.strip()) < MIN_DIGITAL_TEXT_LENGTH:
         diagnostics["digital_text_used"] = False
-        extraction_route = "ocr_glm" if settings.ocr_enabled and settings.ocr_provider == "glm_ocr" else "scanned"
-        if settings.ocr_enabled and settings.ocr_provider == "glm_ocr":
-            try:
-                ocr_started = time.perf_counter()
-                log_event(
-                    "ocr_started",
-                    bundle_id=document.order_bundle_id,
-                    document_id=document.id,
-                    document_type=document.document_type,
-                    ocr_provider=settings.ocr_provider,
-                    ocr_model=settings.ocr_model,
-                )
-                ocr_result = extract_text_with_ocr(
-                    str(document.storage_path),
-                    max_pages=settings.ocr_max_pages,
-                    dpi=settings.ocr_dpi,
-                    timeout_seconds=settings.ocr_timeout_seconds,
-                )
-                raw_ocr_text = ocr_result.text
-                diagnostics.update(ocr_result.diagnostics)
-                diagnostics["ocr_available"] = True
-                page_errors = [str(page.get("error")) for page in ocr_result.pages if page.get("error")]
-                if not raw_ocr_text.strip() and page_errors:
-                    diagnostics.update(
-                        {
-                            "ocr_status": "provider_error",
-                            "ocr_error": page_errors[0][:500],
-                            "failure_code": FailureCode.OCR_FAILED.value,
-                            "failure_reason": f"glm-ocr ({settings.ocr_model}) provider error: {page_errors[0][:300]}",
-                        }
-                    )
-                elif len(raw_ocr_text.strip()) < settings.ocr_min_text_length:
-                    diagnostics.update(
-                        {
-                            "ocr_status": "empty",
-                            "failure_code": FailureCode.OCR_EMPTY.value,
-                            "failure_reason": "glm-ocr returned no usable text.",
-                        }
-                    )
-                else:
-                    diagnostics["ocr_status"] = "text_acquired"
-                ocr_event = "ocr_failed" if diagnostics.get("ocr_status") in {"provider_error", "empty"} else "ocr_completed"
-                log_event(
-                    ocr_event,
-                    bundle_id=document.order_bundle_id,
-                    document_id=document.id,
-                    document_type=document.document_type,
-                    ocr_status=diagnostics.get("ocr_status"),
-                    ocr_text_length=len(raw_ocr_text.strip()),
-                    failure_code=diagnostics.get("failure_code"),
-                    failure_reason=diagnostics.get("failure_reason"),
-                    duration_ms=round((time.perf_counter() - ocr_started) * 1000, 2),
-                )
-                _capture_ocr_text_evidence(
-                    db, document,
-                    ocr_text=raw_ocr_text,
-                    ocr_success=(diagnostics.get("ocr_status") == "text_acquired"),
-                    provider_version=ocr_result.model,
-                    duration_ms=ocr_result.diagnostics.get("ocr_duration_ms"),
-                    error=diagnostics.get("failure_reason") if diagnostics.get("ocr_status") != "text_acquired" else None,
-                )
-                text_for_parse = normalize_ocr_text(raw_ocr_text)
-            except Exception as exc:
-                diagnostics.update(
-                    {
-                        "ocr_text_length": 0,
-                        "raw_ocr_text_length": 0,
-                        "ocr_error": str(exc),
-                        "ocr_status": "provider_error",
-                        "failure_code": FailureCode.OCR_FAILED.value,
-                        "failure_reason": f"glm-ocr ({settings.ocr_model}) failed: {exc}",
-                    }
-                )
-                log_event(
-                    "ocr_failed",
-                    bundle_id=document.order_bundle_id,
-                    document_id=document.id,
-                    document_type=document.document_type,
-                    failure_code=FailureCode.OCR_FAILED.value,
-                    failure_reason=str(exc),
-                    duration_ms=round((time.perf_counter() - ocr_started) * 1000, 2) if "ocr_started" in locals() else None,
-                )
-                _capture_ocr_text_evidence(
-                    db, document,
-                    ocr_text=None,
-                    ocr_success=False,
-                    error=str(exc)[:500],
-                    duration_ms=round((time.perf_counter() - ocr_started) * 1000, 2) if "ocr_started" in locals() else None,
-                )
-                text_for_parse = ""
+        doc_type = str(document.document_type)
+        if _paddleocr_route_enabled(doc_type):
+            raw_ocr_text, text_for_parse, extraction_route = _run_paddleocr_route(db, document, diagnostics)
+        elif _glm_route_enabled(doc_type):
+            extraction_route = "ocr_glm"
+            diagnostics["ocr_route"] = "glm"
+            raw_ocr_text, text_for_parse = _run_glm_ocr_route(db, document, diagnostics)
         elif settings.ocr_enabled:
+            extraction_route = "scanned"
             diagnostics.update(
                 {
                     "ocr_text_length": 0,
@@ -221,6 +140,7 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
             )
             text_for_parse = ""
         else:
+            extraction_route = "scanned"
             diagnostics.update(
                 {
                     "ocr_text_length": 0,
@@ -446,6 +366,204 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
         duration_ms=round((time.perf_counter() - started) * 1000, 2),
     )
     return {"document": document, "metadata": metadata, "references": references}
+
+
+_GLM_OCR_PROVIDER_NAMES = {"glm_ocr", "glm"}
+_PADDLE_GPU_PROVIDER_NAME = "paddleocr_gpu"
+
+
+def _paddleocr_route_enabled(document_type: str) -> bool:
+    return (
+        settings.ocr_enabled
+        and settings.ocr_provider == _PADDLE_GPU_PROVIDER_NAME
+        and document_type.upper() == "VENDOR_INVOICE"
+    )
+
+
+def _glm_route_enabled(document_type: str) -> bool:
+    if not settings.ocr_enabled:
+        return False
+    if settings.ocr_provider in _GLM_OCR_PROVIDER_NAMES:
+        return True
+    if settings.ocr_provider == _PADDLE_GPU_PROVIDER_NAME:
+        return not _paddleocr_route_enabled(document_type)
+    return False
+
+
+def _run_glm_ocr_route(
+    db: Session,
+    document: DocumentRecord,
+    diagnostics: dict[str, Any],
+) -> tuple[str, str]:
+    """Run the GLM OCR provider, returning (raw_ocr_text, text_for_parse).
+
+    Mutates `diagnostics` in place. Used for the default GLM route and as the
+    fallback target when the optional PaddleOCR route fails.
+    """
+    raw_ocr_text = ""
+    try:
+        ocr_started = time.perf_counter()
+        log_event(
+            "ocr_started",
+            bundle_id=document.order_bundle_id,
+            document_id=document.id,
+            document_type=document.document_type,
+            ocr_provider=settings.ocr_provider,
+            ocr_model=settings.ocr_model,
+        )
+        ocr_result = extract_text_with_ocr(
+            str(document.storage_path),
+            max_pages=settings.ocr_max_pages,
+            dpi=settings.ocr_dpi,
+            timeout_seconds=settings.ocr_timeout_seconds,
+        )
+        raw_ocr_text = ocr_result.text
+        diagnostics.update(ocr_result.diagnostics)
+        diagnostics["ocr_available"] = True
+        page_errors = [str(page.get("error")) for page in ocr_result.pages if page.get("error")]
+        if not raw_ocr_text.strip() and page_errors:
+            diagnostics.update(
+                {
+                    "ocr_status": "provider_error",
+                    "ocr_error": page_errors[0][:500],
+                    "failure_code": FailureCode.OCR_FAILED.value,
+                    "failure_reason": f"glm-ocr ({settings.ocr_model}) provider error: {page_errors[0][:300]}",
+                }
+            )
+        elif len(raw_ocr_text.strip()) < settings.ocr_min_text_length:
+            diagnostics.update(
+                {
+                    "ocr_status": "empty",
+                    "failure_code": FailureCode.OCR_EMPTY.value,
+                    "failure_reason": "glm-ocr returned no usable text.",
+                }
+            )
+        else:
+            diagnostics["ocr_status"] = "text_acquired"
+        ocr_event = "ocr_failed" if diagnostics.get("ocr_status") in {"provider_error", "empty"} else "ocr_completed"
+        log_event(
+            ocr_event,
+            bundle_id=document.order_bundle_id,
+            document_id=document.id,
+            document_type=document.document_type,
+            ocr_status=diagnostics.get("ocr_status"),
+            ocr_text_length=len(raw_ocr_text.strip()),
+            failure_code=diagnostics.get("failure_code"),
+            failure_reason=diagnostics.get("failure_reason"),
+            duration_ms=round((time.perf_counter() - ocr_started) * 1000, 2),
+        )
+        _capture_ocr_text_evidence(
+            db, document,
+            ocr_text=raw_ocr_text,
+            ocr_success=(diagnostics.get("ocr_status") == "text_acquired"),
+            provider_version=ocr_result.model,
+            duration_ms=ocr_result.diagnostics.get("ocr_duration_ms"),
+            error=diagnostics.get("failure_reason") if diagnostics.get("ocr_status") != "text_acquired" else None,
+        )
+        text_for_parse = normalize_ocr_text(raw_ocr_text)
+    except Exception as exc:
+        diagnostics.update(
+            {
+                "ocr_text_length": 0,
+                "raw_ocr_text_length": 0,
+                "ocr_error": str(exc),
+                "ocr_status": "provider_error",
+                "failure_code": FailureCode.OCR_FAILED.value,
+                "failure_reason": f"glm-ocr ({settings.ocr_model}) failed: {exc}",
+            }
+        )
+        log_event(
+            "ocr_failed",
+            bundle_id=document.order_bundle_id,
+            document_id=document.id,
+            document_type=document.document_type,
+            failure_code=FailureCode.OCR_FAILED.value,
+            failure_reason=str(exc),
+            duration_ms=round((time.perf_counter() - ocr_started) * 1000, 2) if "ocr_started" in locals() else None,
+        )
+        _capture_ocr_text_evidence(
+            db, document,
+            ocr_text=None,
+            ocr_success=False,
+            error=str(exc)[:500],
+            duration_ms=round((time.perf_counter() - ocr_started) * 1000, 2) if "ocr_started" in locals() else None,
+        )
+        text_for_parse = ""
+    return raw_ocr_text, text_for_parse
+
+
+def _run_paddleocr_route(
+    db: Session,
+    document: DocumentRecord,
+    diagnostics: dict[str, Any],
+) -> tuple[str, str, str]:
+    """Optional PaddleOCR GPU route for VENDOR_INVOICE.
+
+    Returns (raw_ocr_text, text_for_parse, extraction_route). On success,
+    extraction_route is "ocr_paddleocr_gpu" and GLM is not called. On
+    failure/timeout/empty text, falls back to _run_glm_ocr_route() when
+    settings.ocr_paddle_fallback_to_glm is True (extraction_route="ocr_glm"),
+    otherwise returns a controlled failure result (extraction_route="scanned").
+    """
+    provider = PaddleOcrProvider(device=settings.ocr_paddle_device, enforce_timeout=True)
+    diagnostics["ocr_paddle_provider_name"] = provider.provider_name
+    diagnostics["ocr_paddle_device"] = settings.ocr_paddle_device
+    diagnostics["ocr_paddle_timeout_seconds"] = settings.ocr_paddle_timeout_seconds
+
+    if not provider.is_available():
+        success, raw_text, error, duration_ms = False, "", "PaddleOCR is not installed", 0
+    else:
+        result = provider.run_full_page(
+            str(document.storage_path),
+            max_pages=settings.ocr_max_pages,
+            dpi=settings.ocr_dpi,
+            timeout_seconds=settings.ocr_paddle_timeout_seconds,
+        )
+        success, raw_text, error, duration_ms = result.success, result.raw_text or "", result.error, result.duration_ms
+
+    diagnostics["ocr_paddle_duration_ms"] = duration_ms
+    diagnostics["ocr_paddle_text_length"] = len(raw_text.strip())
+
+    if success and raw_text.strip():
+        diagnostics["ocr_route"] = "paddleocr_gpu"
+        diagnostics["ocr_provider"] = provider.provider_name
+        diagnostics["ocr_available"] = True
+        diagnostics["ocr_status"] = "text_acquired"
+        diagnostics["raw_ocr_text_length"] = len(raw_text.strip())
+        diagnostics["ocr_text_length"] = len(raw_text.strip())
+        text_for_parse = normalize_ocr_text(raw_text)
+        _capture_ocr_text_evidence(
+            db, document,
+            ocr_text=raw_text,
+            ocr_success=True,
+            provider_version=provider.provider_name,
+            duration_ms=duration_ms,
+        )
+        return raw_text, text_for_parse, "ocr_paddleocr_gpu"
+
+    diagnostics["ocr_paddle_error"] = error
+    _capture_ocr_text_evidence(
+        db, document,
+        ocr_text=raw_text or None,
+        ocr_success=False,
+        provider_version=provider.provider_name,
+        duration_ms=duration_ms,
+        error=(error or "PaddleOCR returned no text")[:500],
+    )
+
+    if settings.ocr_paddle_fallback_to_glm:
+        raw_ocr_text, text_for_parse = _run_glm_ocr_route(db, document, diagnostics)
+        diagnostics["ocr_route"] = "paddleocr_gpu_then_glm_fallback"
+        return raw_ocr_text, text_for_parse, "ocr_glm"
+
+    diagnostics["ocr_route"] = "paddleocr_gpu"
+    diagnostics["ocr_available"] = False
+    diagnostics["ocr_text_length"] = 0
+    diagnostics["raw_ocr_text_length"] = 0
+    diagnostics["ocr_status"] = "provider_error"
+    diagnostics["failure_code"] = FailureCode.OCR_FAILED.value
+    diagnostics["failure_reason"] = f"paddleocr_gpu failed: {error or 'no text returned'}"
+    return "", "", "scanned"
 
 
 def _should_attempt_vendor_invoice_header_ocr(

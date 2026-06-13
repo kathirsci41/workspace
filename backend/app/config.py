@@ -34,6 +34,9 @@ class Settings:
     ocr_retry_attempts: int = int(os.getenv("OCR_RETRY_ATTEMPTS", "1"))
     ocr_min_text_length: int = int(os.getenv("OCR_MIN_TEXT_LENGTH", "30"))
     ocr_context_length: int = int(os.getenv("OCR_CONTEXT_LENGTH", "8192"))
+    ocr_paddle_device: str = os.getenv("OCR_PADDLE_DEVICE", "gpu:0")
+    ocr_paddle_timeout_seconds: int = int(os.getenv("OCR_PADDLE_TIMEOUT_SECONDS", "60"))
+    ocr_paddle_fallback_to_glm: bool = os.getenv("OCR_PADDLE_FALLBACK_TO_GLM", "true").lower() in {"1", "true", "yes", "on"}
     structured_rules_enabled: bool = os.getenv("STRUCTURED_RULES_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     model_layer2_enabled: bool = os.getenv("MODEL_LAYER2_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
     model_layer2_provider: str = os.getenv("MODEL_LAYER2_PROVIDER", "ollama")
