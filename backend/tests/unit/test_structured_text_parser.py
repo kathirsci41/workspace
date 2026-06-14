@@ -197,6 +197,44 @@ def test_customer_po_partial_parse_reports_required_fields_missing_not_empty():
     assert result["diagnostics"]["failure_code"] != FailureCode.OCR_EMPTY
 
 
+def test_customer_po_flags_suspicious_tax_amount_as_rate_not_amount():
+    """Phase 1xI Step 8.3: tax_amount=18 with grand_total-subtotal=18000 looks like a rate, not an amount."""
+    result = parse_structured_text(
+        "CUSTOMER_PO",
+        """
+        Purchase Order No: PMCH/PO/001
+        PO Date: 30/01/2026
+        Subtotal: 100000
+        Tax: 18%
+        Grand Total: 118000
+        """,
+        extraction_route="digital",
+    )
+
+    assert result["fields"]["tax_amount"] == 18
+    assert result["field_metadata"]["tax_amount"]["source"] == "suspicious_tax_amount"
+    assert result["field_metadata"]["tax_amount"]["confidence"] < 0.8
+    assert result["fields"]["grand_total"] == 118000
+    assert result["field_metadata"]["grand_total"]["source"] == "rules"
+
+
+def test_customer_po_does_not_flag_plausible_tax_amount():
+    result = parse_structured_text(
+        "CUSTOMER_PO",
+        """
+        Purchase Order No: PMCH/PO/002
+        PO Date: 30/01/2026
+        Subtotal: 100000
+        Tax Amount: 18000
+        Grand Total: 118000
+        """,
+        extraction_route="digital",
+    )
+
+    assert result["fields"]["tax_amount"] == 18000
+    assert result["field_metadata"]["tax_amount"]["source"] == "rules"
+
+
 def test_empty_scanned_text_reports_ocr_empty():
     result = parse_structured_text("VENDOR_INVOICE", "", extraction_route="scanned")
 
@@ -366,6 +404,95 @@ def test_vendor_invoice_missing_vendor_name_does_not_fail_minimum_extraction():
     assert result["fields"]["invoice_total"] == 554600
     assert "vendor_name" not in result["fields"]
     assert result["diagnostics"]["failure_code"] is None
+
+
+def test_vendor_invoice_flags_label_like_ship_to_name_as_needs_review():
+    """Phase 1xI Step 8.2: 'Invoice No.' captured as ship_to_name should be flagged, not hidden."""
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        """
+        TAX INVOICE
+        Bill To
+        C000691
+        Ship To
+        Invoice No.
+        Vendor Name
+        SUPREME
+        Invoice No: 2526PSI25087738
+        Invoice Total: 554600
+        """,
+        extraction_route="ocr",
+    )
+
+    assert result["fields"]["ship_to_name"] == "Invoice No."
+    assert result["field_metadata"]["ship_to_name"]["source"] == "needs_review"
+    assert result["field_metadata"]["ship_to_name"]["confidence"] < 0.8
+
+
+def test_vendor_invoice_flags_customer_code_bill_to_name_as_needs_review():
+    """Phase 1xI Step 8.2: 'C000691'-style customer codes captured as bill_to_name should be flagged."""
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        """
+        TAX INVOICE
+        Bill To
+        C000691
+        Ship To
+        Invoice No.
+        Vendor Name
+        SUPREME
+        Invoice No: 2526PSI25087738
+        Invoice Total: 554600
+        """,
+        extraction_route="ocr",
+    )
+
+    assert result["fields"]["bill_to_name"] == "C000691"
+    assert result["field_metadata"]["bill_to_name"]["source"] == "needs_review"
+    assert result["field_metadata"]["bill_to_name"]["confidence"] < 0.8
+
+
+def test_vendor_invoice_flags_short_generic_vendor_name_as_needs_review():
+    """Phase 1xI Step 8.2: a too-short/generic vendor_name like 'SUPREME' is flagged, value kept unchanged."""
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        """
+        TAX INVOICE
+        Bill To
+        C000691
+        Ship To
+        Invoice No.
+        Vendor Name
+        SUPREME
+        Invoice No: 2526PSI25087738
+        Invoice Total: 554600
+        """,
+        extraction_route="ocr",
+    )
+
+    assert result["fields"]["vendor_name"] == "SUPREME"
+    assert result["field_metadata"]["vendor_name"]["source"] == "needs_review"
+    assert result["field_metadata"]["vendor_name"]["confidence"] < 0.8
+
+
+def test_vendor_invoice_does_not_flag_normal_vendor_name():
+    """A real multi-word company name with a recognized suffix is not flagged needs_review."""
+    result = parse_structured_text(
+        "VENDOR_INVOICE",
+        """
+        TAX INVOICE
+        Inflow Technologies Private Limited
+        Invoice No: 333335674
+        Invoice Date: 02-01-2026
+        Your Ref.
+        : 1POC2526000408
+        Invoice Total: 463365.55
+        """,
+        extraction_route="digital",
+    )
+
+    assert result["fields"]["vendor_name"] == "Inflow Technologies Private Limited"
+    assert result["field_metadata"]["vendor_name"]["source"] == "rules"
 
 
 def test_vendor_invoice_keeps_inflow_reference_and_vendor_fields():

@@ -62,6 +62,7 @@ def parse_structured_text(
     if route == "digital":
         if doc_type == "CUSTOMER_PO":
             fields = _parse_customer_po(text)
+            field_metadata_overrides = _customer_po_field_metadata_overrides(fields)
         elif doc_type == "VENDOR_INVOICE":
             fields, parser_diagnostics, field_metadata_overrides = _parse_vendor_invoice(text, filename=filename)
         else:
@@ -79,6 +80,7 @@ def parse_structured_text(
 
     if doc_type == "CUSTOMER_PO":
         fields = _parse_customer_po(text)
+        field_metadata_overrides = _customer_po_field_metadata_overrides(fields)
     elif doc_type == "VENDOR_INVOICE":
         fields, parser_diagnostics, field_metadata_overrides = _parse_vendor_invoice(text, filename=filename)
     else:
@@ -198,6 +200,25 @@ def _parse_customer_po(text: str) -> dict[str, Any]:
     }
 
 
+def _customer_po_field_metadata_overrides(fields: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Phase 1xI Step 8.3: flag tax_amount that looks like a rate (e.g. 18) rather than an amount."""
+    field_metadata_overrides: dict[str, dict[str, Any]] = {}
+    tax_amount = fields.get("tax_amount")
+    subtotal = fields.get("subtotal_amount")
+    grand_total = fields.get("grand_total")
+    if tax_amount is not None and subtotal is not None and grand_total is not None:
+        implied_tax = grand_total - subtotal
+        if tax_amount <= 100 and implied_tax > tax_amount * 5:
+            field_metadata_overrides["tax_amount"] = {
+                "field": "tax_amount",
+                "value": tax_amount,
+                "confidence": 0.4,
+                "source": "suspicious_tax_amount",
+                "evidence_text": f"value ({tax_amount}) looks like a tax rate, not an amount; grand_total - subtotal_amount = {implied_tax}",
+            }
+    return field_metadata_overrides
+
+
 def _parse_vendor_invoice(text: str, *, filename: str | None = None) -> tuple[dict[str, Any], dict[str, Any], dict[str, dict[str, Any]]]:
     explicit_invoice_total = _explicit_invoice_total_from_labels(text)
     generic_invoice_total = None if explicit_invoice_total is not None else _last_amount_after_label(text, ("Total",), min_value=1000, window_chars=80)
@@ -315,6 +336,24 @@ def _parse_vendor_invoice(text: str, *, filename: str | None = None) -> tuple[di
             "source": tax_amount_source,
             "evidence_text": "invoice total minus taxable amount, confirmed by split GST component values",
         }
+    for party_field in ("bill_to_name", "ship_to_name"):
+        value = fields.get(party_field)
+        if value and _looks_like_label_or_code(value):
+            field_metadata_overrides[party_field] = {
+                "field": party_field,
+                "value": value,
+                "confidence": 0.3,
+                "source": "needs_review",
+                "evidence_text": "value looks like a field label or reference code, not a party name",
+            }
+    if vendor_name and _looks_like_incomplete_company_name(vendor_name):
+        field_metadata_overrides["vendor_name"] = {
+            "field": "vendor_name",
+            "value": vendor_name,
+            "confidence": 0.3,
+            "source": "needs_review",
+            "evidence_text": "value is short and generic; may be an incomplete vendor name",
+        }
     return fields, parser_diagnostics, field_metadata_overrides
 
 
@@ -360,10 +399,13 @@ def _with_aliases(doc_type: str, fields: dict[str, Any]) -> dict[str, Any]:
             result.setdefault("so_no", result["so_number"])
         if result.get("total_amount") is not None:
             result.setdefault("estimated_amount", result["total_amount"])
-    elif doc_type == "COMPANY_PO" and result.get("po_number"):
-        result.setdefault("vendor_po_no", result["po_number"])
-        if result.get("total_amount") is not None:
-            result.setdefault("net_amount", result["total_amount"])
+    elif doc_type == "COMPANY_PO":
+        if result.get("po_number"):
+            result.setdefault("vendor_po_no", result["po_number"])
+            if result.get("total_amount") is not None:
+                result.setdefault("net_amount", result["total_amount"])
+        if result.get("po_date"):
+            result.setdefault("vendor_po_date", result["po_date"])
     return result
 
 
@@ -400,6 +442,35 @@ def _first_code(*values: str | None) -> str | None:
         if code:
             return code
     return None
+
+
+_LABEL_LIKE_VALUE_RE = re.compile(
+    r"^(invoice|bill|tax\s*invoice|ship\s*to|bill\s*to|purchase\s*order|order|reference|ref|customer|po)"
+    r"\s*(no\.?|number|date)?\.?$",
+    re.I,
+)
+
+_PARTY_CODE_RE = re.compile(r"^[A-Z]\d{4,}$")
+
+_COMPANY_SUFFIX_RE = re.compile(
+    r"\b(ltd|limited|pvt|private|inc|incorporated|corp|corporation|co|company|industries|"
+    r"enterprises|traders|llp|llc|technologies|systems|solutions|group)\b",
+    re.I,
+)
+
+
+def _looks_like_label_or_code(value: str) -> bool:
+    """True if value is a field label (e.g. 'Invoice No.') or a short reference code (e.g. 'C000691')."""
+    v = value.strip()
+    return bool(_LABEL_LIKE_VALUE_RE.match(v) or _PARTY_CODE_RE.match(v))
+
+
+def _looks_like_incomplete_company_name(value: str) -> bool:
+    """True if value is a single short word with no recognized company suffix (e.g. 'SUPREME')."""
+    v = value.strip()
+    if len(v) >= 10 or " " in v:
+        return False
+    return not _COMPANY_SUFFIX_RE.search(v)
 
 
 def _clean_vendor_name(value: str | None, buyer_name: str | None = None) -> str | None:

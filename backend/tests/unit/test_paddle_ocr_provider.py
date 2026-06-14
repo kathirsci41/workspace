@@ -617,3 +617,129 @@ class TestPaddleOcrProviderTimeoutEnforcement:
 
     def test_registry_default_still_glm(self):
         assert get_default_ocr_provider().provider_name == "glm"
+
+
+# ---------------------------------------------------------------------------
+# Phase 1xI — runtime/model diagnostics (Step 6)
+# ---------------------------------------------------------------------------
+
+
+class TestPaddleRuntimeInfo:
+    def test_paddle_runtime_info_has_expected_keys(self):
+        from app.services.extraction.ocr_providers.paddle_provider import paddle_runtime_info
+        info = paddle_runtime_info()
+        assert set(info.keys()) == {
+            "paddleocr_available",
+            "paddleocr_version",
+            "paddlepaddle_version",
+            "paddle_init_args",
+        }
+
+    def test_paddle_runtime_info_reflects_availability(self):
+        from app.services.extraction.ocr_providers.paddle_provider import paddle_runtime_info
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=False):
+            info = paddle_runtime_info()
+        assert info["paddleocr_available"] is False
+
+    def test_paddle_runtime_info_init_args_contains_lang_en(self):
+        from app.services.extraction.ocr_providers.paddle_provider import paddle_runtime_info
+        info = paddle_runtime_info()
+        assert info["paddle_init_args"] == {"lang": "en"}
+
+    def test_paddle_runtime_info_version_unknown_when_metadata_lookup_fails(self):
+        from app.services.extraction.ocr_providers.paddle_provider import paddle_runtime_info
+        with patch("importlib.metadata.version", side_effect=Exception("no metadata")):
+            info = paddle_runtime_info()
+        assert info["paddleocr_version"] == "unknown"
+        assert info["paddlepaddle_version"] == "unknown"
+
+
+# ---------------------------------------------------------------------------
+# Phase 1xI — OCR text block capture (Step 7)
+# ---------------------------------------------------------------------------
+
+
+class TestExtractPaddleTextBlocks:
+    def test_returns_text_and_page_for_each_block(self):
+        from app.services.extraction.ocr_providers.paddle_provider import _extract_paddle_text_blocks
+        results = [{"rec_texts": ["HELLO", "WORLD"]}]
+        blocks = _extract_paddle_text_blocks(results)
+        assert blocks[0]["text"] == "HELLO"
+        assert blocks[0]["page"] == 1
+        assert blocks[1]["text"] == "WORLD"
+        assert blocks[1]["page"] == 1
+
+    def test_includes_confidence_when_rec_scores_present(self):
+        from app.services.extraction.ocr_providers.paddle_provider import _extract_paddle_text_blocks
+        results = [{"rec_texts": ["HELLO"], "rec_scores": [0.97]}]
+        blocks = _extract_paddle_text_blocks(results)
+        assert blocks[0]["confidence"] == pytest.approx(0.97)
+
+    def test_includes_bbox_when_rec_polys_present(self):
+        from app.services.extraction.ocr_providers.paddle_provider import _extract_paddle_text_blocks
+        results = [{"rec_texts": ["HELLO"], "rec_polys": [[[0, 0], [10, 0], [10, 5], [0, 5]]]}]
+        blocks = _extract_paddle_text_blocks(results)
+        assert "bbox" in blocks[0]
+
+    def test_omits_optional_keys_when_not_present(self):
+        from app.services.extraction.ocr_providers.paddle_provider import _extract_paddle_text_blocks
+        results = [{"rec_texts": ["HELLO"]}]
+        blocks = _extract_paddle_text_blocks(results)
+        assert "confidence" not in blocks[0]
+        assert "bbox" not in blocks[0]
+
+    def test_empty_for_none_results(self):
+        from app.services.extraction.ocr_providers.paddle_provider import _extract_paddle_text_blocks
+        assert _extract_paddle_text_blocks(None) == []
+
+    def test_page_numbers_increment_across_pages(self):
+        from app.services.extraction.ocr_providers.paddle_provider import _extract_paddle_text_blocks
+        results = [{"rec_texts": ["PAGE1"]}, {"rec_texts": ["PAGE2"]}]
+        blocks = _extract_paddle_text_blocks(results)
+        assert blocks[0]["page"] == 1
+        assert blocks[1]["page"] == 2
+
+
+class TestRunFullPageDiagnostics:
+    def test_run_full_page_populates_model_info(self):
+        mock_module, _ = _make_mock_paddle_module()
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch.dict(sys.modules, {"paddleocr": mock_module}):
+            result = PaddleOcrProvider().run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
+        assert result.model_info is not None
+        assert "paddleocr_version" in result.model_info
+
+    def test_run_full_page_populates_text_blocks(self):
+        mock_module, _ = _make_mock_paddle_module(["HELLO"])
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch.dict(sys.modules, {"paddleocr": mock_module}):
+            result = PaddleOcrProvider().run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
+        assert result.text_blocks is not None
+        assert result.text_blocks[0]["text"] == "HELLO"
+
+    def test_unavailable_result_has_no_text_blocks(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=False):
+            result = PaddleOcrProvider().run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
+        assert result.text_blocks is None
+
+    def test_worker_includes_text_blocks_in_payload(self):
+        mock_module, _ = _make_mock_paddle_module(["WORKER LINE"])
+        from app.services.extraction.ocr_providers.paddle_provider import _paddle_ocr_worker
+        fake_queue = MagicMock()
+        with patch.dict(sys.modules, {"paddleocr": mock_module}):
+            _paddle_ocr_worker({"file_path": "f.pdf", "device": None}, fake_queue)
+        payload = fake_queue.put.call_args[0][0]
+        assert "text_blocks" in payload
+        assert payload["text_blocks"][0]["text"] == "WORKER LINE"
+
+    def test_enforce_timeout_path_populates_text_blocks_from_subprocess_result(self):
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch("app.services.extraction.ocr_providers.paddle_provider._run_paddle_ocr_in_subprocess") as mock_run:
+            mock_run.return_value = {
+                "success": True, "raw_text": "HELLO", "error": None, "duration_ms": 10,
+                "text_blocks": [{"text": "HELLO", "page": 1}],
+            }
+            result = PaddleOcrProvider(enforce_timeout=True).run_full_page(
+                "f.pdf", max_pages=1, dpi=150, timeout_seconds=45
+            )
+        assert result.text_blocks == [{"text": "HELLO", "page": 1}]

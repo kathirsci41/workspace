@@ -32,10 +32,21 @@ function ExtractionReviewContent({ bundleId, documentId }: { bundleId: string; d
   const audit = useAsyncResource<AuditEvent[]>(() => listAuditEvents(bundleId), [bundleId]);
   const [page, setPage] = useState(1);
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [highlightedField, setHighlightedField] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isReextracting, setIsReextracting] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
   const activeDocument = selectedDocument.data;
+  const fieldLocations = activeDocument?.metadata?.field_locations ?? {};
+  const highlightLocation = highlightedField ? (fieldLocations[highlightedField] ?? null) : null;
+
+  function handleFieldClick(field: string) {
+    setHighlightedField(field);
+    const location = fieldLocations[field];
+    if (location?.page && typeof location.page === 'number') {
+      setPage(location.page);
+    }
+  }
 
   async function refreshAll() {
     await Promise.all([selectedDocument.reload(), documents.reload(), summary.reload(), audit.reload()]);
@@ -123,12 +134,15 @@ function ExtractionReviewContent({ bundleId, documentId }: { bundleId: string; d
         </aside>
 
         <div className="panel preview-panel">
-          {activeDocument ? <PdfPreviewPane document={activeDocument} selectedPage={page} onPageChange={setPage} /> : <p className="muted">Upload a document to preview extracted evidence.</p>}
+          {activeDocument ? <PdfPreviewPane document={activeDocument} selectedPage={page} onPageChange={setPage} highlightLocation={highlightLocation} /> : <p className="muted">Upload a document to preview extracted evidence.</p>}
         </div>
 
         <div className="panel fields-panel-wrap">
           {activeDocument ? (
-            <ExtractedFieldsPanel document={activeDocument} onEdit={setEditingField} />
+            <>
+              <p className="fields-hint">Click a field name to locate it in the PDF.</p>
+              <ExtractedFieldsPanel document={activeDocument} onEdit={setEditingField} onFieldClick={handleFieldClick} />
+            </>
           ) : (
             <p className="muted">No document selected.</p>
           )}

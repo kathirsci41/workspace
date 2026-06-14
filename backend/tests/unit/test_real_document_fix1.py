@@ -33,6 +33,25 @@ def test_company_po_summary_extracts_taxable_tax_and_net_amounts():
     assert result["fields"]["net_amount"] == 696200
 
 
+def test_company_po_vendor_po_date_alias_from_po_date():
+    """Phase 1xI Step 8.1: vendor_po_date should alias po_date so the review UI shows a value."""
+    result = parse_structured_text(
+        "COMPANY_PO",
+        """
+        PURCHASE ORDER
+        Order No.
+        : 1PTR2526000467
+        Order Date
+        30/01/2026
+        """,
+        extraction_route="digital",
+    )
+
+    assert result["fields"]["po_date"] == "30/01/2026"
+    assert result["fields"]["vendor_po_date"] == "30/01/2026"
+    assert result["fields"]["vendor_po_no"] == "1PTR2526000467"
+
+
 def test_vendor_invoice_observed_external_document_po_alias_is_supported():
     result = parse_structured_text(
         "VENDOR_INVOICE",

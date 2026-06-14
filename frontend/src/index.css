@@ -854,11 +854,14 @@ button.button {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr) minmax(380px, 420px);
   gap: 16px;
-  align-items: start;
+  height: calc(100vh - 210px);
+  overflow: hidden;
 }
 
 .document-selector-panel {
   min-width: 0;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .document-selector-panel select {
@@ -873,9 +876,16 @@ button.button {
   margin-bottom: 12px;
 }
 
+.pdf-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
 .pdf-pane__viewport {
-  min-height: 800px;
-  max-height: calc(100vh - 215px);
+  flex: 1;
+  min-height: 200px;
   overflow: auto;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -893,10 +903,22 @@ button.button {
 
 .preview-panel {
   padding: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .fields-panel-wrap {
   padding: 18px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.fields-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #64748b;
 }
 
 .field-groups {
@@ -911,6 +933,37 @@ button.button {
 
 .field-group h3 {
   margin: 0;
+}
+
+.field-group--warning h3 {
+  color: #b45309;
+}
+
+.field-group--warning .field-table {
+  border-color: #fcd34d;
+}
+
+.field-group--warning .field-table__row {
+  background: #fffbeb;
+}
+
+.source-badge {
+  width: fit-content;
+  border-radius: 999px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 750;
+  padding: 2px 7px;
+}
+
+.source-badge--warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.source-badge--info {
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .field-table {
@@ -999,6 +1052,37 @@ button.button {
   font-style: normal;
   font-weight: 750;
   padding: 2px 7px;
+}
+
+.field-name--clickable {
+  cursor: pointer;
+}
+
+.field-name--clickable:hover > span:first-child,
+.field-name--clickable:focus > span:first-child {
+  text-decoration: underline;
+}
+
+.pdf-highlight-container {
+  position: relative;
+}
+
+.pdf-highlight-overlay {
+  position: absolute;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 2px solid #f59e0b;
+  background: rgba(251, 191, 36, 0.18);
+  z-index: 10;
+}
+
+.pdf-highlight-unavailable {
+  margin: 0;
+  padding: 6px 12px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .field-evidence {

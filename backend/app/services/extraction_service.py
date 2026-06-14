@@ -20,7 +20,7 @@ from app.services.extraction.glm_ocr_client import (
     extract_text_with_ocr,
 )
 from app.services.extraction.model_layer2 import extract_structured_fields_with_model
-from app.services.extraction.ocr_providers.paddle_provider import PaddleOcrProvider
+from app.services.extraction.ocr_providers.paddle_provider import PaddleOcrProvider, paddle_runtime_info
 from app.services.extraction.pdf_field_locator import build_field_locations
 from app.services.extraction.structured_text_parser import FailureCode, parse_structured_text
 
@@ -509,9 +509,11 @@ def _run_paddleocr_route(
     diagnostics["ocr_paddle_provider_name"] = provider.provider_name
     diagnostics["ocr_paddle_device"] = settings.ocr_paddle_device
     diagnostics["ocr_paddle_timeout_seconds"] = settings.ocr_paddle_timeout_seconds
+    diagnostics["paddle_device"] = settings.ocr_paddle_device
 
     if not provider.is_available():
         success, raw_text, error, duration_ms = False, "", "PaddleOCR is not installed", 0
+        diagnostics.update(paddle_runtime_info())
     else:
         result = provider.run_full_page(
             str(document.storage_path),
@@ -520,6 +522,9 @@ def _run_paddleocr_route(
             timeout_seconds=settings.ocr_paddle_timeout_seconds,
         )
         success, raw_text, error, duration_ms = result.success, result.raw_text or "", result.error, result.duration_ms
+        diagnostics.update(result.model_info or paddle_runtime_info())
+        if result.text_blocks:
+            diagnostics["ocr_paddle_text_blocks"] = result.text_blocks
 
     diagnostics["ocr_paddle_duration_ms"] = duration_ms
     diagnostics["ocr_paddle_text_length"] = len(raw_text.strip())

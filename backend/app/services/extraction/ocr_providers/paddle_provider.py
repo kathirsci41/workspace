@@ -31,18 +31,74 @@ Phase 1xB — process-level timeout enforcement:
 """
 from __future__ import annotations
 
+import importlib.metadata
 import importlib.util
 import multiprocessing
 import time
+from typing import Any
 
 from app.services.extraction.ocr_providers.base import OcrProviderBase, OcrProviderResult
 
 _UNAVAILABLE_ERROR = "PaddleOCR is not installed"
 _TERMINATE_GRACE_SECONDS = 5
 
+PADDLE_INIT_ARGS: dict[str, Any] = {"lang": "en"}
+
 
 def _paddle_available() -> bool:
     return importlib.util.find_spec("paddleocr") is not None
+
+
+def paddle_runtime_info() -> dict[str, Any]:
+    """Best-effort PaddleOCR/PaddlePaddle runtime diagnostics.
+
+    Never raises: version lookups fall back to "unknown" if the packages
+    are not installed or metadata is unavailable.
+    """
+    info: dict[str, Any] = {
+        "paddleocr_available": _paddle_available(),
+        "paddleocr_version": "unknown",
+        "paddlepaddle_version": "unknown",
+        "paddle_init_args": dict(PADDLE_INIT_ARGS),
+    }
+    for package, key in (("paddleocr", "paddleocr_version"), ("paddlepaddle", "paddlepaddle_version")):
+        try:
+            info[key] = importlib.metadata.version(package)
+        except Exception:
+            pass
+    return info
+
+
+def _extract_paddle_text_blocks(results) -> list[dict[str, Any]]:
+    """Extract per-line text blocks (text, confidence, bbox, page) from PaddleOCR results.
+
+    Each element in `results` is a dict-like OCRResult for one page. Confidence
+    ("rec_scores") and bbox ("rec_polys") are included only when present.
+    """
+    blocks: list[dict[str, Any]] = []
+    for page_number, result in enumerate(results or [], start=1):
+        if result is None:
+            continue
+        texts = result["rec_texts"] if "rec_texts" in result else []
+        scores = result["rec_scores"] if "rec_scores" in result else None
+        polys = result["rec_polys"] if "rec_polys" in result else None
+        for index, text in enumerate(texts or []):
+            if not text:
+                continue
+            block: dict[str, Any] = {"text": str(text), "page": page_number}
+            if scores is not None and index < len(scores):
+                try:
+                    block["confidence"] = float(scores[index])
+                except (TypeError, ValueError):
+                    pass
+            if polys is not None and index < len(polys):
+                poly = polys[index]
+                try:
+                    block["bbox"] = [[float(x), float(y)] for x, y in poly]
+                except (TypeError, ValueError):
+                    pass
+            blocks.append(block)
+    return blocks
 
 
 def _set_paddle_device(device: str) -> str | None:
@@ -96,9 +152,10 @@ def _paddle_ocr_worker(payload: dict, queue) -> None:
 
     try:
         import paddleocr  # noqa: PLC0415 — lazy import, runs in child process only
-        ocr = paddleocr.PaddleOCR(lang="en")
+        ocr = paddleocr.PaddleOCR(**PADDLE_INIT_ARGS)
         results = ocr.predict(file_path)
         raw_text = _flatten_paddle_result(results)
+        text_blocks = _extract_paddle_text_blocks(results)
     except Exception as exc:
         queue.put({
             "success": False,
@@ -113,6 +170,7 @@ def _paddle_ocr_worker(payload: dict, queue) -> None:
         "raw_text": raw_text,
         "error": None,
         "duration_ms": round((time.perf_counter() - started) * 1000),
+        "text_blocks": text_blocks,
     })
 
 
@@ -222,6 +280,8 @@ class PaddleOcrProvider(OcrProviderBase):
                 error=result_dict.get("error"),
                 duration_ms=result_dict.get("duration_ms", 0),
                 model=None,
+                model_info=paddle_runtime_info(),
+                text_blocks=result_dict.get("text_blocks"),
             )
 
         if self._device is not None:
@@ -240,9 +300,10 @@ class PaddleOcrProvider(OcrProviderBase):
         started = time.perf_counter()
         try:
             import paddleocr  # lazy — only reached when _paddle_available() is True
-            ocr = paddleocr.PaddleOCR(lang="en")
+            ocr = paddleocr.PaddleOCR(**PADDLE_INIT_ARGS)
             results = ocr.predict(file_path)
             raw_text = _flatten_paddle_result(results)
+            text_blocks = _extract_paddle_text_blocks(results)
         except Exception as exc:
             elapsed_ms = round((time.perf_counter() - started) * 1000)
             return OcrProviderResult(
@@ -253,6 +314,7 @@ class PaddleOcrProvider(OcrProviderBase):
                 error=str(exc),
                 duration_ms=elapsed_ms,
                 model=None,
+                model_info=paddle_runtime_info(),
             )
 
         return OcrProviderResult(
@@ -263,4 +325,6 @@ class PaddleOcrProvider(OcrProviderBase):
             error=None,
             duration_ms=round((time.perf_counter() - started) * 1000),
             model=None,
+            model_info=paddle_runtime_info(),
+            text_blocks=text_blocks,
         )

@@ -6,7 +6,6 @@ import { exportVerificationReport } from '../api/export';
 import { getVerificationSummary } from '../api/verification';
 import { ExportReadinessPanel } from '../components/exports/ExportReadinessPanel';
 import { DataTable } from '../components/common/DataTable';
-import { EmptyState } from '../components/common/EmptyState';
 import { ErrorState } from '../components/common/ErrorState';
 import { LoadingState } from '../components/common/LoadingState';
 import { AppShell } from '../components/layout/AppShell';
@@ -133,9 +132,6 @@ function ExportsContent({ bundleId }: { bundleId: string }) {
         </DataTable>
       </section>
 
-      <section className="panel">
-        <EmptyState title="No export history available">The backend does not expose an export history endpoint.</EmptyState>
-      </section>
     </AppShell>
   );
 }

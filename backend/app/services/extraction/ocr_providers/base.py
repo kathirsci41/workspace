@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -14,6 +15,8 @@ class OcrProviderResult:
     error: str | None
     duration_ms: int
     model: str | None = field(default=None)
+    model_info: dict[str, Any] | None = field(default=None)
+    text_blocks: list[dict[str, Any]] | None = field(default=None)
 
 
 class OcrProviderBase(ABC):

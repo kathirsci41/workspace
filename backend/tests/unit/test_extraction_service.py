@@ -245,6 +245,68 @@ def test_paddle_success_result_is_parsed_with_existing_parser(tmp_path: Path, mo
 
 
 # ---------------------------------------------------------------------------
+# 5b. PaddleOCR route records runtime/model diagnostics (Phase 1xI Step 6)
+#     and OCR text blocks when the provider returns them (Step 7).
+# ---------------------------------------------------------------------------
+def test_paddle_route_records_runtime_diagnostics(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    pdf = tmp_path / "vendor.pdf"
+    _make_blank_pdf(pdf)
+    db = _make_session(tmp_path, monkeypatch, "paddle_runtime_diag.db", ocr_provider="paddleocr_gpu")
+    document = _setup_document(db, str(pdf))
+
+    paddle_result = _paddle_result(success=True, raw_text=_VENDOR_TEXT)
+    paddle_result.model_info = {
+        "paddleocr_available": True,
+        "paddleocr_version": "3.7.0",
+        "paddlepaddle_version": "3.7.1",
+        "paddle_init_args": {"lang": "en"},
+    }
+    provider = _mock_paddle_provider(result=paddle_result)
+
+    with patch.object(extraction_service, "PaddleOcrProvider", return_value=provider):
+        result = extraction_service.extract_document(db, document, force=True)
+
+    diagnostics = result["metadata"].diagnostics
+    assert diagnostics["paddleocr_available"] is True
+    assert diagnostics["paddleocr_version"] == "3.7.0"
+    assert diagnostics["paddlepaddle_version"] == "3.7.1"
+    assert diagnostics["paddle_device"] == "gpu:0"
+    assert diagnostics["paddle_init_args"] == {"lang": "en"}
+
+
+def test_paddle_route_records_text_blocks_when_available(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    pdf = tmp_path / "vendor.pdf"
+    _make_blank_pdf(pdf)
+    db = _make_session(tmp_path, monkeypatch, "paddle_text_blocks.db", ocr_provider="paddleocr_gpu")
+    document = _setup_document(db, str(pdf))
+
+    paddle_result = _paddle_result(success=True, raw_text=_VENDOR_TEXT)
+    paddle_result.text_blocks = [{"text": "TAX INVOICE", "page": 1, "confidence": 0.99}]
+    provider = _mock_paddle_provider(result=paddle_result)
+
+    with patch.object(extraction_service, "PaddleOcrProvider", return_value=provider):
+        result = extraction_service.extract_document(db, document, force=True)
+
+    diagnostics = result["metadata"].diagnostics
+    assert diagnostics["ocr_paddle_text_blocks"] == [{"text": "TAX INVOICE", "page": 1, "confidence": 0.99}]
+
+
+def test_paddle_route_without_text_blocks_does_not_crash(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """_paddle_result() defaults text_blocks=None — route must not fail when absent."""
+    pdf = tmp_path / "vendor.pdf"
+    _make_blank_pdf(pdf)
+    db = _make_session(tmp_path, monkeypatch, "paddle_no_text_blocks.db", ocr_provider="paddleocr_gpu")
+    document = _setup_document(db, str(pdf))
+
+    provider = _mock_paddle_provider(result=_paddle_result(success=True, raw_text=_VENDOR_TEXT))
+
+    with patch.object(extraction_service, "PaddleOcrProvider", return_value=provider):
+        result = extraction_service.extract_document(db, document, force=True)
+
+    assert "ocr_paddle_text_blocks" not in result["metadata"].diagnostics
+
+
+# ---------------------------------------------------------------------------
 # 6. PaddleOCR successful result does not call GLM.
 # ---------------------------------------------------------------------------
 def test_paddle_success_does_not_call_glm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
