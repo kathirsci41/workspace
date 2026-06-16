@@ -225,6 +225,7 @@ def extract_document(
                 db=db,
                 document=document,
                 parsed=parsed,
+                rotation_degrees=int(diagnostics.get("selected_rotation_degrees") or 0),
             )
             diagnostics.update(header_diagnostics)
     else:
@@ -829,6 +830,7 @@ def _apply_vendor_invoice_header_ocr(
     db: Session,
     document: DocumentRecord,
     parsed: dict[str, Any],
+    rotation_degrees: int = 0,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     started = time.perf_counter()
     needed_fields = [
@@ -848,6 +850,7 @@ def _apply_vendor_invoice_header_ocr(
             str(document.storage_path),
             dpi=settings.ocr_dpi,
             timeout_seconds=settings.ocr_timeout_seconds,
+            rotation_degrees=rotation_degrees,
         )
         diagnostics.update(result.diagnostics)
         if result.error:

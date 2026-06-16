@@ -547,6 +547,68 @@ def test_header_ocr_renders_top_40_percent_of_first_page(
     assert result.diagnostics["ocr_header_image_height"] == 400
 
 
+def test_header_ocr_renders_top_fraction_of_rotated_page(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """At rotation=90°, a 400×1000 portrait becomes 1000×400 landscape;
+    the top 40% crop should be 1000×160, not the unrotated 400×400."""
+    pdf = tmp_path / "crop-rotated.pdf"
+    _make_blank_pdf(pdf, width=400, height=1000)
+    monkeypatch.setattr(
+        glm_ocr_client,
+        "_call_ollama_generate_with_retries",
+        lambda *args, **kwargs: "Invoice No: ACME/INV/91002",
+    )
+
+    result = glm_ocr_client.extract_header_text_with_ocr(
+        str(pdf),
+        dpi=72,
+        timeout_seconds=30,
+        rotation_degrees=90,
+    )
+
+    assert result.diagnostics["ocr_header_rotation_degrees"] == 90
+    assert result.diagnostics["ocr_header_image_width"] == 1000
+    assert result.diagnostics["ocr_header_image_height"] == 160
+
+
+def test_header_ocr_rotation_forwarded_from_manual_extraction(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Manual rotation passed to extract_document propagates into extract_header_text_with_ocr."""
+    pdf = tmp_path / "rotated-extract.pdf"
+    _make_blank_pdf(pdf)
+    db = _make_session(tmp_path, monkeypatch, "rotated_extract.db")
+    document = _setup_document(db, str(pdf))
+
+    captured_kwargs: dict = {}
+
+    def fake_header_ocr(file_path, **kwargs):
+        captured_kwargs.update(kwargs)
+        return _header_result("Invoice No: ACME/INV/94001\n")
+
+    with (
+        patch.object(
+            extraction_service,
+            "extract_text_with_ocr",
+            return_value=_ocr_result(
+                "TAX INVOICE\nInvoice Date: 15-03-2026\nPO No: PO-94001\nInvoice Total: 118000\n"
+            ),
+        ),
+        patch.object(
+            extraction_service,
+            "extract_header_text_with_ocr",
+            side_effect=fake_header_ocr,
+            create=True,
+        ),
+    ):
+        extraction_service.extract_document(db, document, force=True, ocr_rotation_degrees=90)
+
+    assert captured_kwargs.get("rotation_degrees") == 90
+
+
 def test_header_ocr_uses_generic_label_preserving_prompt(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

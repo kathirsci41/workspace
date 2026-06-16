@@ -116,6 +116,7 @@ def extract_header_text_with_ocr(
     dpi: int,
     timeout_seconds: int,
     crop_fraction: float = HEADER_CROP_FRACTION,
+    rotation_degrees: int = 0,
 ) -> HeaderOcrResult:
     provider = settings.ocr_provider
     model = settings.ocr_model
@@ -130,6 +131,7 @@ def extract_header_text_with_ocr(
         "ocr_header_crop_fraction": crop_fraction,
         "ocr_header_dpi": dpi,
         "ocr_header_max_output_tokens": HEADER_OCR_MAX_OUTPUT_TOKENS,
+        "ocr_header_rotation_degrees": rotation_degrees,
     }
 
     try:
@@ -141,6 +143,7 @@ def extract_header_text_with_ocr(
                 page,
                 dpi=dpi,
                 crop_fraction=crop_fraction,
+                rotation_degrees=rotation_degrees,
             )
             diagnostics.update(
                 {
@@ -249,18 +252,24 @@ def _render_header_page_png(
     *,
     dpi: int,
     crop_fraction: float,
+    rotation_degrees: int = 0,
 ) -> tuple[bytes, int, int]:
     if not 0 < crop_fraction <= 1:
         raise ValueError("crop_fraction must be greater than 0 and at most 1")
-    page_rect = page.rect
-    clip = fitz.Rect(
-        page_rect.x0,
-        page_rect.y0,
-        page_rect.x1,
-        page_rect.y0 + (page_rect.height * crop_fraction),
+    matrix = fitz.Matrix(dpi / 72, dpi / 72).prerotate(rotation_degrees)
+    # Compute the device-space rect for the full page, then take the top
+    # crop_fraction of it. Transform that crop region back to page coordinates
+    # and use it as the clip — works correctly for all rotation angles without
+    # any direction-specific geometry.
+    device_rect = page.rect * matrix
+    clip_in_device = fitz.Rect(
+        device_rect.x0,
+        device_rect.y0,
+        device_rect.x1,
+        device_rect.y0 + device_rect.height * crop_fraction,
     )
-    matrix = fitz.Matrix(dpi / 72, dpi / 72)
-    pixmap = page.get_pixmap(matrix=matrix, clip=clip, alpha=False)
+    clip_in_page = clip_in_device * (~matrix)
+    pixmap = page.get_pixmap(matrix=matrix, clip=clip_in_page, alpha=False)
     return pixmap.tobytes("png"), pixmap.width, pixmap.height
 
 
