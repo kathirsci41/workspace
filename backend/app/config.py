@@ -37,6 +37,12 @@ class Settings:
     ocr_paddle_device: str = os.getenv("OCR_PADDLE_DEVICE", "gpu:0")
     ocr_paddle_timeout_seconds: int = int(os.getenv("OCR_PADDLE_TIMEOUT_SECONDS", "60"))
     ocr_paddle_fallback_to_glm: bool = os.getenv("OCR_PADDLE_FALLBACK_TO_GLM", "true").lower() in {"1", "true", "yes", "on"}
+    ocr_auto_rotate_enabled: bool = os.getenv("OCR_AUTO_ROTATE_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+    ocr_auto_rotate_timeout_seconds: int = int(os.getenv("OCR_AUTO_ROTATE_TIMEOUT_SECONDS", "30"))
+    extraction_queue_enabled: bool = os.getenv("EXTRACTION_QUEUE_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
+    ocr_extraction_max_concurrent: int = int(os.getenv("OCR_EXTRACTION_MAX_CONCURRENT", "1"))
+    ocr_extraction_queue_timeout_seconds: int = int(os.getenv("OCR_EXTRACTION_QUEUE_TIMEOUT_SECONDS", "900"))
+    ocr_extraction_queue_max_size: int = int(os.getenv("OCR_EXTRACTION_QUEUE_MAX_SIZE", "10"))
     structured_rules_enabled: bool = os.getenv("STRUCTURED_RULES_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     model_layer2_enabled: bool = os.getenv("MODEL_LAYER2_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
     model_layer2_provider: str = os.getenv("MODEL_LAYER2_PROVIDER", "ollama")

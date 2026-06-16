@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.services.document_normalizer import NormalizedDocument
+from app.services.extraction_service import _expected_schema
 from app.services.extraction.structured_text_parser import _ref_label_po, parse_structured_text
 from app.services.order_bundle_verifier import verify_order_bundle
 
@@ -30,6 +31,82 @@ def test_company_invoice_so_number_is_not_confused_with_invoice_number():
     assert fields["so_number"] == "1OTM2526001611"
     assert fields["so_no"] == "1OTM2526001611"
     assert fields["invoice_number"] == "1ITR2526001878"
+
+
+def test_customer_invoice_alias_uses_company_invoice_parser():
+    fields = _fields(
+        "CUSTOMER_INVOICE",
+        """
+        TAX INVOICE
+        Invoice No.
+        SO No.
+        1ITR2526001785
+        1OTM2526001429
+        Customer Name & Detail
+        SHRIRAM FINANCE LIMITED
+        Nett Amount
+        593701.66
+        90564.66
+        503137.00
+        """,
+    )
+
+    assert fields["invoice_no"] == "1ITR2526001785"
+    assert fields["so_no"] == "1OTM2526001429"
+    assert fields["net_amount"] == 593701.66
+
+
+def test_delivery_challan_alias_uses_company_dc_parser():
+    fields = _fields(
+        "DELIVERY_CHALLAN",
+        """
+        NON RETURNABLE DELIVERY CHALLAN
+        1DNT2526DC2915
+        SO No.
+        1OTM2526001429
+        Delivery To
+        SHRIRAM FINANCE LIMITED
+        DC Date
+        17/01/2026
+        Total
+        4
+        """,
+    )
+
+    assert fields["dc_no"] == "1DNT2526DC2915"
+    assert fields["so_no"] == "1OTM2526001429"
+
+
+def test_vendor_po_alias_uses_company_po_parser():
+    fields = _fields(
+        "VENDOR_PO",
+        """
+        PURCHASE ORDER
+        Order No.
+        1PTR2526000400
+        Order Date
+        17/12/2025
+        REDINGTON LIMITED
+        Vendor Name & Address
+        ON FULL DELIVERY
+        NOT ALLOWED
+        Net Amount
+        434526.44
+        78214.76
+        512741.20
+        """,
+    )
+
+    assert fields["vendor_po_no"] == "1PTR2526000400"
+    assert fields["vendor_name"] == "REDINGTON LIMITED"
+    assert fields["net_amount"] == 512741.2
+
+
+def test_extraction_schema_uses_canonical_type_for_document_aliases():
+    assert "invoice_no" in _expected_schema("CUSTOMER_INVOICE")
+    assert "dc_no" in _expected_schema("DELIVERY_CHALLAN")
+    assert "vendor_po_no" in _expected_schema("VENDOR_PO")
+    assert "vendor_invoice_no" in _expected_schema("VENDOR_BILL")
 
 
 def test_customer_po_grand_total_skips_line_item_count():

@@ -1,86 +1,173 @@
 import { Link } from 'react-router-dom';
 import { documentPreviewUrl } from '../../api/documents';
-import { documentExtractionStatus, documentReviewStatus, documentUploadStatus, type DocumentSlot } from '../../lib/build1';
+import {
+  documentExtractionStatus,
+  documentRecordTypeLabel,
+  identifierLabel,
+  statusLabel,
+  type DocumentGroup,
+} from '../../lib/build1';
+import { formatDateTime } from '../../lib/format';
+import type { BundleDocument } from '../../types/api';
 
 export function DocumentSlotCard({
   bundleId,
-  slot,
+  group,
   isBusy,
   onUpload,
   onExtract,
   onReextract,
   onDelete,
+  activityLabel,
 }: {
   bundleId: string;
-  slot: DocumentSlot;
-  isBusy: boolean;
+  group: DocumentGroup;
+  isBusy: (documentId: string) => boolean;
+  activityLabel?: (documentId: string) => string | null;
   onUpload: () => void;
+  onExtract: (document: BundleDocument) => void;
+  onReextract: (document: BundleDocument) => void;
+  onDelete: (document: BundleDocument) => void;
+}) {
+  return (
+    <section className={`document-slot document-slot--${group.state}`} role="region" aria-label={group.label}>
+      <div className="document-slot__header">
+        <div>
+          <h3>{group.label}</h3>
+          <span className="muted">Required document</span>
+        </div>
+        <span className="document-slot__count">{group.documents.length} uploaded</span>
+      </div>
+
+      {group.documents.length ? (
+        <>
+          <div className="document-record-list">
+            {group.documents.map((document) => (
+              <DocumentRecordRow
+                key={document.id}
+                bundleId={bundleId}
+                document={document}
+                group={group}
+                isBusy={isBusy(document.id)}
+                activityLabel={activityLabel?.(document.id) ?? null}
+                onExtract={() => onExtract(document)}
+                onReextract={() => onReextract(document)}
+                onDelete={() => onDelete(document)}
+              />
+            ))}
+          </div>
+          <button className="button button--ghost document-slot__add" type="button" onClick={onUpload}>
+            Add another {group.label}
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="document-slot__empty">No {group.label} uploaded.</p>
+          <button className="button button--primary" type="button" aria-label={`Upload ${group.label}`} onClick={onUpload}>Upload</button>
+        </>
+      )}
+    </section>
+  );
+}
+
+function DocumentRecordRow({
+  bundleId,
+  document,
+  group,
+  isBusy,
+  activityLabel,
+  onExtract,
+  onReextract,
+  onDelete,
+}: {
+  bundleId: string;
+  document: BundleDocument;
+  group: DocumentGroup;
+  isBusy: boolean;
+  activityLabel: string | null;
   onExtract: () => void;
   onReextract: () => void;
   onDelete: () => void;
 }) {
-  const document = slot.document;
-  const extractionStatus = documentExtractionStatus(document);
-  const primaryAction = document
-    ? extractionStatus === 'Extracted'
-      ? { label: 'Review Extraction', kind: 'link' as const }
-      : { label: isBusy ? 'Extracting...' : 'Run Extraction', kind: 'extract' as const }
-    : { label: 'Upload Document', kind: 'upload' as const };
+  const extractionStatus = activityLabel ?? documentExtractionStatus(document);
+  const shouldReextract = extractionStatus === 'Extracted' || extractionStatus === 'Failed';
+  const route = document.metadata?.diagnostics?.extraction_route;
+  const routeLabel = typeof route === 'string' && route ? identifierLabel(route) : '-';
+  const isActionBusy = isBusy || activityLabel === 'Waiting in extraction queue' || activityLabel === 'Extracting';
+
   return (
-    <article className={`document-slot document-slot--${slot.state}`}>
-      <div className="document-slot__header">
+    <article className="document-record" aria-label={document.filename}>
+      <div className="document-record__header">
         <div>
-          <h3>{slot.label}</h3>
-          <span className="muted">Required document</span>
+          <h4>{document.filename}</h4>
+          {document.document_type !== group.type ? <span className="muted">Alias record</span> : null}
         </div>
+        <span className="status-badge status-badge--neutral">{extractionStatus}</span>
       </div>
-      {document ? (
-        <>
-          <div className="document-slot__primary">
-            {primaryAction.kind === 'link' ? (
-              <Link className="button button--primary" to={`/bundles/${bundleId}/extraction/${document.id}`}>{primaryAction.label}</Link>
-            ) : (
-              <button className="button button--primary" type="button" disabled={isBusy} onClick={onExtract}>{primaryAction.label}</button>
-            )}
-          </div>
-          <dl className="detail-list">
-            <div>
-              <dt>Filename</dt>
-              <dd>{document.filename}</dd>
-            </div>
-          </dl>
-          <div className="status-dimensions">
-            <span><b>Document</b>{documentUploadStatus(document)}</span>
-            <span><b>Extraction</b>{extractionStatus}</span>
-            <span><b>Review</b>{documentReviewStatus(document)}</span>
-          </div>
-          {document.last_error || document.metadata?.last_error ? (
-            <p className="state-message state-message--error">{document.last_error || document.metadata?.last_error}</p>
-          ) : null}
-          <div className="document-slot__secondary-actions">
-            <a className="button button--ghost" href={documentPreviewUrl(document.id)} target="_blank" rel="noreferrer">Preview PDF</a>
-            <details className="more-menu">
-              <summary className="button button--ghost">More</summary>
-              <div className="more-menu__items">
-                <button type="button" onClick={onUpload}>Replace</button>
-                {extractionStatus === 'Extracted' ? (
-                  <button type="button" disabled={isBusy} onClick={onReextract}>{isBusy ? 'Re-extracting...' : 'Re-extract'}</button>
-                ) : null}
-                <button className="more-menu__danger" type="button" disabled={isBusy} onClick={onDelete}>Delete</button>
-              </div>
-            </details>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="status-dimensions">
-            <span><b>Document</b>Missing</span>
-            <span><b>Extraction</b>Pending</span>
-            <span><b>Review</b>Needs Review</span>
-          </div>
-          <button className="button button--primary" type="button" onClick={onUpload}>Upload Document</button>
-        </>
-      )}
+
+      <dl className="document-record__details">
+        <div>
+          <dt>Document type</dt>
+          <dd>{documentRecordTypeLabel(document.document_type, group.type)}</dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>{statusLabel(document.status)}</dd>
+        </div>
+        <div>
+          <dt>Extraction status</dt>
+          <dd>{extractionStatus}</dd>
+        </div>
+        <div>
+          <dt>Extraction route</dt>
+          <dd>{routeLabel}</dd>
+        </div>
+        <div>
+          <dt>Uploaded</dt>
+          <dd>{formatDateTime(document.created_at)}</dd>
+        </div>
+      </dl>
+
+      {document.last_error || document.metadata?.last_error ? (
+        <p className="state-message state-message--error">{document.last_error || document.metadata?.last_error}</p>
+      ) : null}
+
+      <div className="document-record__actions">
+        <button
+          className="button button--primary button--small"
+          type="button"
+          aria-label={`${shouldReextract ? 'Re-extract' : 'Extract'} ${document.filename}`}
+          disabled={isActionBusy}
+          onClick={shouldReextract ? onReextract : onExtract}
+        >
+          {isActionBusy ? (activityLabel === 'Waiting in extraction queue' ? 'Queued' : 'Working...') : shouldReextract ? 'Re-extract' : 'Extract'}
+        </button>
+        <Link
+          className="button button--ghost button--small"
+          aria-label={`Review ${document.filename}`}
+          to={`/bundles/${bundleId}/extraction/${document.id}`}
+        >
+          Review
+        </Link>
+        <a
+          className="button button--ghost button--small"
+          aria-label={`Preview ${document.filename}`}
+          href={documentPreviewUrl(document.id)}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Preview
+        </a>
+        <button
+          className="button button--danger button--small"
+          type="button"
+          aria-label={`Delete ${document.filename}`}
+          disabled={isActionBusy}
+          onClick={onDelete}
+        >
+          Delete
+        </button>
+      </div>
     </article>
   );
 }

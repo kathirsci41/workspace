@@ -5,6 +5,7 @@ import {
   bundleQueueMetrics,
   checkCategory,
   deriveIssues,
+  documentExtractionStatus,
   extractionProgress,
   checkDisplayMessage,
   checkDisplayName,
@@ -190,6 +191,49 @@ describe('Build 1 helpers', () => {
       failed: 0,
       confidenceAverage: null,
     });
+  });
+
+  it('shows queued extraction status before generic running status', () => {
+    expect(documentExtractionStatus({
+      ...uploadedDocument,
+      status: 'EXTRACTING',
+      metadata: {
+        ...uploadedDocument.metadata!,
+        diagnostics: {
+          extraction_activity_status: 'queued',
+          queued: true,
+        },
+      },
+    })).toBe('Waiting in extraction queue');
+
+    expect(documentExtractionStatus({
+      ...uploadedDocument,
+      status: 'EXTRACTING',
+      metadata: {
+        ...uploadedDocument.metadata!,
+        diagnostics: {
+          extraction_activity_status: 'running_ocr',
+        },
+      },
+    })).toBe('Extracting');
+  });
+
+  it('treats backend document aliases as satisfying their canonical required slot', () => {
+    const customerInvoiceAlias = {
+      ...extractedDocument,
+      id: 'doc-customer-invoice',
+      document_type: 'CUSTOMER_INVOICE',
+    };
+    const vendorBillAlias = {
+      ...uploadedDocument,
+      id: 'doc-vendor-bill',
+      document_type: 'VENDOR_BILL',
+    };
+
+    const slots = buildDocumentSlots([customerInvoiceAlias, vendorBillAlias]);
+
+    expect(slots.find((slot) => slot.type === 'COMPANY_INVOICE')?.document?.id).toBe('doc-customer-invoice');
+    expect(slots.find((slot) => slot.type === 'VENDOR_INVOICE')?.document?.id).toBe('doc-vendor-bill');
   });
 
   it('classifies verification checks into Build 1 filters and metrics', () => {

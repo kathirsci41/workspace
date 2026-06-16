@@ -8,13 +8,14 @@ import { ErrorState } from '../components/common/ErrorState';
 import { LoadingState } from '../components/common/LoadingState';
 import { PdfPreviewPane } from '../components/documents/PdfPreviewPane';
 import { ExtractedFieldsPanel } from '../components/extraction/ExtractedFieldsPanel';
+import { useExtractionActivity } from '../components/extraction/ExtractionActivityContext';
 import { ManualCorrectionModal } from '../components/extraction/ManualCorrectionModal';
 import { AppShell } from '../components/layout/AppShell';
 import { WorkflowTabs } from '../components/layout/WorkflowTabs';
 import { useAsyncResource } from '../hooks/useAsyncResource';
 import { documentLabel } from '../lib/build1';
 import { formatDateTime } from '../lib/format';
-import type { AuditEvent, BundleDocument, OrderBundle, VerificationSummary } from '../types/api';
+import type { AuditEvent, BundleDocument, OcrRotationPreference, OrderBundle, VerificationSummary } from '../types/api';
 
 export function ExtractionReviewPage() {
   const { bundleId, documentId } = useParams<{ bundleId: string; documentId?: string }>();
@@ -36,9 +37,15 @@ function ExtractionReviewContent({ bundleId, documentId }: { bundleId: string; d
   const [isSaving, setIsSaving] = useState(false);
   const [isReextracting, setIsReextracting] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const [ocrRotationPreferences, setOcrRotationPreferences] = useState<Record<string, OcrRotationPreference>>({});
+  const extractionActivity = useExtractionActivity();
   const activeDocument = selectedDocument.data;
   const fieldLocations = activeDocument?.metadata?.field_locations ?? {};
   const highlightLocation = highlightedField ? (fieldLocations[highlightedField] ?? null) : null;
+  const ocrRotationPreference: OcrRotationPreference = activeDocument
+    ? ocrRotationPreferences[activeDocument.id] ?? 'auto'
+    : 'auto';
+  const activeDocumentIsExtracting = activeDocument ? extractionActivity.isExtracting(activeDocument.id) : false;
 
   function handleFieldClick(field: string) {
     setHighlightedField(field);
@@ -72,7 +79,10 @@ function ExtractionReviewContent({ bundleId, documentId }: { bundleId: string; d
     setIsReextracting(true);
     setMutationError(null);
     try {
-      await reextractDocument(activeDocument.id);
+      await extractionActivity.runExtraction(
+        activeDocument,
+        () => reextractDocument(activeDocument.id, { ocrRotationDegrees: ocrRotationPreference }),
+      );
       await refreshAll();
     } catch (err) {
       setMutationError(err instanceof Error ? err.message : String(err));
@@ -87,7 +97,19 @@ function ExtractionReviewContent({ bundleId, documentId }: { bundleId: string; d
       title="Extraction Review"
       subtitle={bundle.data?.bundle_number ?? 'Review extracted values against PDF evidence.'}
       breadcrumbs={[{ label: 'Bundles', href: '/bundles' }, { label: bundle.data?.bundle_number ?? bundleId, href: `/bundles/${bundleId}/overview` }, { label: 'Extraction Review' }]}
-      actions={<button className="button button--primary" type="button" disabled={!activeDocument || isReextracting} onClick={handleReextract}>{isReextracting ? 'Re-extracting...' : 'Re-extract'}</button>}
+      actions={(
+        <div className="extraction-actions">
+          <span className="extraction-actions__rotation">OCR Rotation: {ocrRotationLabel(ocrRotationPreference)}</span>
+          <button
+            className="button button--primary"
+            type="button"
+            disabled={!activeDocument || isReextracting || activeDocumentIsExtracting}
+            onClick={handleReextract}
+          >
+            {isReextracting || activeDocumentIsExtracting ? 'Re-extracting...' : 'Re-extract'}
+          </button>
+        </div>
+      )}
     >
       <WorkflowTabs bundleId={bundleId} />
       <ErrorState message={documents.error ?? selectedDocument.error ?? summary.error ?? audit.error ?? mutationError} />
@@ -107,7 +129,7 @@ function ExtractionReviewContent({ bundleId, documentId }: { bundleId: string; d
               }}
             >
               {(documents.data ?? []).map((document) => (
-                <option key={document.id} value={document.id}>{documentLabel(document.document_type)}</option>
+                <option key={document.id} value={document.id}>{documentLabel(document.document_type)} - {document.filename}</option>
               ))}
             </select>
           </label>
@@ -134,7 +156,20 @@ function ExtractionReviewContent({ bundleId, documentId }: { bundleId: string; d
         </aside>
 
         <div className="panel preview-panel">
-          {activeDocument ? <PdfPreviewPane document={activeDocument} selectedPage={page} onPageChange={setPage} highlightLocation={highlightLocation} /> : <p className="muted">Upload a document to preview extracted evidence.</p>}
+          {activeDocument ? (
+            <PdfPreviewPane
+              document={activeDocument}
+              selectedPage={page}
+              highlightLocation={highlightLocation}
+              ocrRotationPreference={ocrRotationPreference}
+              onOcrRotationPreferenceChange={(nextPreference) => {
+                setOcrRotationPreferences((prev) => ({
+                  ...prev,
+                  [activeDocument.id]: nextPreference,
+                }));
+              }}
+            />
+          ) : <p className="muted">Upload a document to preview extracted evidence.</p>}
         </div>
 
         <div className="panel fields-panel-wrap">
@@ -159,4 +194,8 @@ function ExtractionReviewContent({ bundleId, documentId }: { bundleId: string; d
       />
     </AppShell>
   );
+}
+
+function ocrRotationLabel(preference: OcrRotationPreference): string {
+  return preference === 'auto' ? 'Auto' : `${preference}deg`;
 }

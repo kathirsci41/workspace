@@ -22,7 +22,12 @@ from app.services.extraction.glm_ocr_client import (
 from app.services.extraction.model_layer2 import extract_structured_fields_with_model
 from app.services.extraction.ocr_providers.paddle_provider import PaddleOcrProvider, paddle_runtime_info
 from app.services.extraction.pdf_field_locator import build_field_locations
-from app.services.extraction.structured_text_parser import FailureCode, parse_structured_text
+from app.services.extraction.structured_text_parser import (
+    FailureCode,
+    PARSER_DOCUMENT_TYPE_ALIASES,
+    parse_structured_text,
+)
+from app.services.extraction_queue import ocr_extraction_queue
 
 
 MIN_DIGITAL_TEXT_LENGTH = 25
@@ -58,24 +63,30 @@ HEADER_OCR_TARGET_LABELS = (
 )
 
 
-def extract_document(db: Session, document: DocumentRecord, *, force: bool = False) -> dict[str, Any]:
+def extract_document(
+    db: Session,
+    document: DocumentRecord,
+    *,
+    force: bool = False,
+    ocr_rotation_degrees: int | None = None,
+) -> dict[str, Any]:
     started = time.perf_counter()
+    manual_rotation_degrees = _normalize_ocr_rotation(ocr_rotation_degrees)
     log_event(
         "extraction_started",
         bundle_id=document.order_bundle_id,
         document_id=document.id,
         document_type=document.document_type,
         force=force,
+        ocr_rotation_degrees=manual_rotation_degrees,
     )
     metadata = document.metadata_record
     if metadata is None:
         metadata = DocumentMetadataRecord(document_id=document.id, status="PENDING", extracted_data={}, diagnostics={})
         db.add(metadata)
-        db.flush()
 
     document.status = "EXTRACTING"
     metadata.status = "PENDING"
-    db.flush()
 
     existing_field_meta: dict[str, Any] = (metadata.diagnostics or {}).get("field_metadata", {})
     manual_fields: dict[str, Any] = {
@@ -90,15 +101,18 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
     diagnostics["force"] = force
     diagnostics["filename"] = document.filename
     diagnostics.update(_mode_diagnostics())
+    diagnostics.update(_manual_rotation_diagnostics(manual_rotation_degrees))
 
     raw_text = ""
     raw_ocr_text = ""
+    digital_pages_for_evidence: list[str] = []
     extraction_route = "digital"
     if settings.digital_text_enabled:
         try:
             pages = extract_pdf_text_pages(str(document.storage_path), max_pages=settings.digital_text_max_pages)
             page_lengths = [len(page.strip()) for page in pages]
             raw_text = "\n".join(pages)
+            digital_pages_for_evidence = pages
             diagnostics.update(
                 {
                     "page_count": len(pages),
@@ -106,7 +120,6 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
                     "digital_text_page_lengths": page_lengths,
                 }
             )
-            _capture_digital_text_evidence(db, document, pages)
         except Exception as exc:
             diagnostics.update(
                 {
@@ -122,11 +135,33 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
         diagnostics["digital_text_used"] = False
         doc_type = str(document.document_type)
         if _paddleocr_route_enabled(doc_type):
-            raw_ocr_text, text_for_parse, extraction_route = _run_paddleocr_route(db, document, diagnostics)
+            raw_ocr_text, text_for_parse, extraction_route = _run_queued_ocr(
+                db,
+                document,
+                diagnostics,
+                provider=settings.ocr_provider,
+                runner=lambda: _run_paddleocr_route(
+                    db,
+                    document,
+                    diagnostics,
+                    manual_rotation_degrees=manual_rotation_degrees,
+                ),
+            )
         elif _glm_route_enabled(doc_type):
             extraction_route = "ocr_glm"
             diagnostics["ocr_route"] = "glm"
-            raw_ocr_text, text_for_parse = _run_glm_ocr_route(db, document, diagnostics)
+            raw_ocr_text, text_for_parse = _run_queued_ocr(
+                db,
+                document,
+                diagnostics,
+                provider=settings.ocr_provider,
+                runner=lambda: _run_glm_ocr_route(
+                    db,
+                    document,
+                    diagnostics,
+                    manual_rotation_degrees=manual_rotation_degrees,
+                ),
+            )
         elif settings.ocr_enabled:
             extraction_route = "scanned"
             diagnostics.update(
@@ -156,6 +191,9 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
         diagnostics["ocr_status"] = "skipped_digital_text"
         text_for_parse = raw_text
 
+    if digital_pages_for_evidence:
+        _capture_digital_text_evidence(db, document, digital_pages_for_evidence)
+
     pre_parse_failure_code = diagnostics.get("failure_code")
     pre_parse_failure_reason = diagnostics.get("failure_reason")
     if settings.structured_rules_enabled:
@@ -170,6 +208,7 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
             extraction_route == "ocr_glm"
             and str(document.document_type).upper() == "VENDOR_INVOICE"
             and raw_ocr_text.strip()
+            and not diagnostics.get("manual_rotation_requested")
         ):
             parsed, raw_ocr_text, text_for_parse, retry_diagnostics = _retry_sideways_vendor_invoice_ocr(
                 document=document,
@@ -201,7 +240,8 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
     field_metadata = dict(parsed.get("field_metadata") or {})
     diagnostics.update(parsed["diagnostics"])
     rules_failure_code = diagnostics.get("failure_code")
-    schema = _expected_schema(str(document.document_type))
+    schema_document_type = _canonical_extraction_document_type(document.document_type)
+    schema = _expected_schema(schema_document_type)
     missing_for_model = _missing_schema_fields(schema, fields)
     diagnostics["rules_extracted_fields"] = dict(fields)
     diagnostics["rules_missing_fields"] = list(parsed.get("missing_required_fields") or [])
@@ -218,7 +258,7 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
             missing_required_fields=missing_for_model,
         )
         model_result = extract_structured_fields_with_model(
-            str(document.document_type),
+            schema_document_type,
             text_for_parse,
             schema,
             missing_for_model,
@@ -370,6 +410,32 @@ def extract_document(db: Session, document: DocumentRecord, *, force: bool = Fal
 
 _GLM_OCR_PROVIDER_NAMES = {"glm_ocr", "glm"}
 _PADDLE_GPU_PROVIDER_NAME = "paddleocr_gpu"
+_ALLOWED_OCR_ROTATIONS = {0, 90, 180, 270}
+
+
+def _normalize_ocr_rotation(value: Any) -> int | None:
+    if value is None or value == "auto":
+        return None
+    try:
+        rotation = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("ocr_rotation_degrees must be one of: null, auto, 0, 90, 180, 270.") from exc
+    if rotation not in _ALLOWED_OCR_ROTATIONS:
+        raise ValueError("ocr_rotation_degrees must be one of: null, auto, 0, 90, 180, 270.")
+    return rotation
+
+
+def _manual_rotation_diagnostics(manual_rotation_degrees: int | None) -> dict[str, Any]:
+    return {
+        "manual_rotation_requested": manual_rotation_degrees is not None,
+        "manual_rotation_degrees": manual_rotation_degrees,
+        "auto_rotation_skipped_due_to_manual_override": manual_rotation_degrees is not None,
+    }
+
+
+def _canonical_extraction_document_type(document_type: Any) -> str:
+    doc_type = str(document_type or "").upper()
+    return PARSER_DOCUMENT_TYPE_ALIASES.get(doc_type, doc_type)
 
 
 def _paddleocr_route_enabled(document_type: str) -> bool:
@@ -390,10 +456,38 @@ def _glm_route_enabled(document_type: str) -> bool:
     return False
 
 
+def _run_queued_ocr(
+    db: Session,
+    document: DocumentRecord,
+    diagnostics: dict[str, Any],
+    *,
+    provider: str,
+    runner: Any,
+) -> Any:
+    queue_diagnostics: dict[str, object] = {}
+    with ocr_extraction_queue.acquire(
+        document_id=document.id,
+        filename=document.filename,
+        provider=provider,
+        enabled=settings.extraction_queue_enabled,
+        max_concurrent=settings.ocr_extraction_max_concurrent,
+        max_size=settings.ocr_extraction_queue_max_size,
+        timeout_seconds=settings.ocr_extraction_queue_timeout_seconds,
+    ) as acquired_diagnostics:
+        queue_diagnostics = acquired_diagnostics
+        diagnostics.update(queue_diagnostics)
+        diagnostics["extraction_activity_status"] = "running_ocr"
+        result = runner()
+    diagnostics.update(queue_diagnostics)
+    return result
+
+
 def _run_glm_ocr_route(
     db: Session,
     document: DocumentRecord,
     diagnostics: dict[str, Any],
+    *,
+    manual_rotation_degrees: int | None = None,
 ) -> tuple[str, str]:
     """Run the GLM OCR provider, returning (raw_ocr_text, text_for_parse).
 
@@ -401,6 +495,28 @@ def _run_glm_ocr_route(
     fallback target when the optional PaddleOCR route fails.
     """
     raw_ocr_text = ""
+    rotation_degrees = 0
+    if manual_rotation_degrees is not None:
+        rotation_degrees = manual_rotation_degrees
+        diagnostics["selected_rotation_degrees"] = manual_rotation_degrees
+        diagnostics["auto_rotation_skipped_due_to_manual_override"] = True
+    elif settings.ocr_auto_rotate_enabled:
+        try:
+            from app.services.extraction.ocr_auto_rotate import find_best_rotation_glm  # noqa: PLC0415
+            rotation_degrees, auto_diag = find_best_rotation_glm(
+                str(document.storage_path),
+                max_pages=settings.ocr_max_pages,
+                dpi=settings.ocr_dpi,
+                timeout_seconds=settings.ocr_auto_rotate_timeout_seconds,
+            )
+            auto_diag["text_length_before_rotation"] = auto_diag["candidate_scores"].get("0", {}).get("text_length", 0)
+            diagnostics.update(auto_diag)
+        except Exception as exc:
+            diagnostics["auto_rotate_probe_error"] = str(exc)[:200]
+            rotation_degrees = 0
+    else:
+        diagnostics["selected_rotation_degrees"] = 0
+
     try:
         ocr_started = time.perf_counter()
         log_event(
@@ -411,14 +527,30 @@ def _run_glm_ocr_route(
             ocr_provider=settings.ocr_provider,
             ocr_model=settings.ocr_model,
         )
-        ocr_result = extract_text_with_ocr(
-            str(document.storage_path),
-            max_pages=settings.ocr_max_pages,
-            dpi=settings.ocr_dpi,
-            timeout_seconds=settings.ocr_timeout_seconds,
-        )
+        try:
+            ocr_result = extract_text_with_ocr(
+                str(document.storage_path),
+                max_pages=settings.ocr_max_pages,
+                dpi=settings.ocr_dpi,
+                timeout_seconds=settings.ocr_timeout_seconds,
+                rotation_degrees=rotation_degrees,
+            )
+        except Exception as exc:
+            if manual_rotation_degrees is None:
+                raise
+            diagnostics["manual_rotation_error"] = str(exc)[:500]
+            diagnostics["manual_rotation_fallback_used"] = True
+            diagnostics["selected_rotation_degrees"] = 0
+            ocr_result = extract_text_with_ocr(
+                str(document.storage_path),
+                max_pages=settings.ocr_max_pages,
+                dpi=settings.ocr_dpi,
+                timeout_seconds=settings.ocr_timeout_seconds,
+                rotation_degrees=0,
+            )
         raw_ocr_text = ocr_result.text
         diagnostics.update(ocr_result.diagnostics)
+        diagnostics.setdefault("selected_rotation_degrees", rotation_degrees)
         diagnostics["ocr_available"] = True
         page_errors = [str(page.get("error")) for page in ocr_result.pages if page.get("error")]
         if not raw_ocr_text.strip() and page_errors:
@@ -496,6 +628,8 @@ def _run_paddleocr_route(
     db: Session,
     document: DocumentRecord,
     diagnostics: dict[str, Any],
+    *,
+    manual_rotation_degrees: int | None = None,
 ) -> tuple[str, str, str]:
     """Optional PaddleOCR GPU route for VENDOR_INVOICE.
 
@@ -514,6 +648,88 @@ def _run_paddleocr_route(
     if not provider.is_available():
         success, raw_text, error, duration_ms = False, "", "PaddleOCR is not installed", 0
         diagnostics.update(paddle_runtime_info())
+    elif manual_rotation_degrees is not None:
+        diagnostics["selected_rotation_degrees"] = manual_rotation_degrees
+        diagnostics["auto_rotation_skipped_due_to_manual_override"] = True
+        try:
+            if manual_rotation_degrees == 0:
+                result = provider.run_full_page(
+                    str(document.storage_path),
+                    max_pages=settings.ocr_max_pages,
+                    dpi=settings.ocr_dpi,
+                    timeout_seconds=settings.ocr_paddle_timeout_seconds,
+                )
+                success, raw_text, error, duration_ms = result.success, result.raw_text or "", result.error, result.duration_ms
+                diagnostics.update(result.model_info or paddle_runtime_info())
+                if result.text_blocks:
+                    diagnostics["ocr_paddle_text_blocks"] = result.text_blocks
+            else:
+                from app.services.extraction.ocr_auto_rotate import run_paddle_full_page_at_rotation  # noqa: PLC0415
+
+                success, raw_text, error, duration_ms = run_paddle_full_page_at_rotation(
+                    str(document.storage_path),
+                    manual_rotation_degrees,
+                    device=settings.ocr_paddle_device,
+                    max_pages=settings.ocr_max_pages,
+                    dpi=settings.ocr_dpi,
+                    timeout_seconds=settings.ocr_paddle_timeout_seconds,
+                )
+                diagnostics.update(paddle_runtime_info())
+            diagnostics["text_length_after_rotation"] = len(raw_text.strip())
+        except Exception as exc:
+            diagnostics["manual_rotation_error"] = str(exc)[:500]
+            diagnostics["manual_rotation_fallback_used"] = True
+            diagnostics["selected_rotation_degrees"] = 0
+            result = provider.run_full_page(
+                str(document.storage_path),
+                max_pages=settings.ocr_max_pages,
+                dpi=settings.ocr_dpi,
+                timeout_seconds=settings.ocr_paddle_timeout_seconds,
+            )
+            success, raw_text, error, duration_ms = result.success, result.raw_text or "", result.error, result.duration_ms
+            diagnostics.update(result.model_info or paddle_runtime_info())
+            if result.text_blocks:
+                diagnostics["ocr_paddle_text_blocks"] = result.text_blocks
+    elif settings.ocr_auto_rotate_enabled:
+        from app.services.extraction.ocr_auto_rotate import (  # noqa: PLC0415
+            find_best_rotation_paddle,
+            run_paddle_full_page_at_rotation,
+        )
+        try:
+            best_rotation, auto_diag = find_best_rotation_paddle(
+                str(document.storage_path),
+                device=settings.ocr_paddle_device,
+                max_pages=settings.ocr_max_pages,
+                dpi=settings.ocr_dpi,
+                timeout_seconds=settings.ocr_auto_rotate_timeout_seconds,
+            )
+            diagnostics.update(auto_diag)
+        except Exception as exc:
+            diagnostics["auto_rotate_probe_error"] = str(exc)[:200]
+            best_rotation = 0
+
+        if best_rotation == 0:
+            result = provider.run_full_page(
+                str(document.storage_path),
+                max_pages=settings.ocr_max_pages,
+                dpi=settings.ocr_dpi,
+                timeout_seconds=settings.ocr_paddle_timeout_seconds,
+            )
+            success, raw_text, error, duration_ms = result.success, result.raw_text or "", result.error, result.duration_ms
+            diagnostics.update(result.model_info or paddle_runtime_info())
+            if result.text_blocks:
+                diagnostics["ocr_paddle_text_blocks"] = result.text_blocks
+        else:
+            success, raw_text, error, duration_ms = run_paddle_full_page_at_rotation(
+                str(document.storage_path),
+                best_rotation,
+                device=settings.ocr_paddle_device,
+                max_pages=settings.ocr_max_pages,
+                dpi=settings.ocr_dpi,
+                timeout_seconds=settings.ocr_paddle_timeout_seconds,
+            )
+            diagnostics.update(paddle_runtime_info())
+        diagnostics["text_length_after_rotation"] = len(raw_text.strip())
     else:
         result = provider.run_full_page(
             str(document.storage_path),
@@ -557,7 +773,12 @@ def _run_paddleocr_route(
     )
 
     if settings.ocr_paddle_fallback_to_glm:
-        raw_ocr_text, text_for_parse = _run_glm_ocr_route(db, document, diagnostics)
+        raw_ocr_text, text_for_parse = _run_glm_ocr_route(
+            db,
+            document,
+            diagnostics,
+            manual_rotation_degrees=manual_rotation_degrees,
+        )
         diagnostics["ocr_route"] = "paddleocr_gpu_then_glm_fallback"
         return raw_ocr_text, text_for_parse, "ocr_glm"
 
@@ -938,6 +1159,8 @@ def _mode_diagnostics() -> dict[str, Any]:
         "model_validation_errors": [],
         "alternative_values": {},
         "manual_fallback_available": True,
+        "auto_rotation_enabled": settings.ocr_auto_rotate_enabled,
+        "selected_rotation_degrees": None,
     }
 
 
@@ -949,7 +1172,7 @@ def _host_only(url: str) -> str:
 
 
 def _expected_schema(document_type: str) -> dict[str, Any]:
-    doc_type = document_type.upper()
+    doc_type = _canonical_extraction_document_type(document_type)
     schemas = {
         "CUSTOMER_PO": {"customer_po_no": None, "customer_po_date": None, "customer_name": None, "billing_address": None, "delivery_address": None, "subtotal_amount": None, "tax_amount": None, "grand_total": None, "total_quantity": None},
         "COMPANY_INVOICE": {"invoice_no": None, "invoice_date": None, "customer_order_no": None, "so_no": None, "customer_name": None, "customer_address": None, "taxable_amount": None, "tax_amount": None, "net_amount": None},

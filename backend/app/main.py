@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes.bundles import router as bundles_router
 from app.api.routes.dev import router as dev_router
 from app.api.routes.documents import router as documents_router
+from app.api.routes.extractions import router as extractions_router
 from app.api.routes.health import router as health_router
 from app.config import settings
 from app.database import init_db, wait_for_database
@@ -37,4 +38,5 @@ app.add_middleware(
 app.include_router(health_router, prefix=settings.api_prefix)
 app.include_router(bundles_router, prefix=settings.api_prefix)
 app.include_router(documents_router, prefix=settings.api_prefix)
+app.include_router(extractions_router, prefix=settings.api_prefix)
 app.include_router(dev_router, prefix=settings.api_prefix)

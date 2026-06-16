@@ -12,6 +12,10 @@ class ManualExtractedDataPatch(BaseModel):
     reason: str | None = None
 
 
+class ExtractionRequest(BaseModel):
+    ocr_rotation_degrees: int | str | None = None
+
+
 class MetadataRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

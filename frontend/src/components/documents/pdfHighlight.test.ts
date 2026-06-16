@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { bboxToPercent, canHighlight, isScannedNoHighlight, PdfPreviewPane } from './PdfPreviewPane';
+import { bboxToPercent, canHighlight, isScannedNoHighlight } from './pdfHighlight';
+import { PdfPreviewPane } from './PdfPreviewPane';
 import type { BundleDocument, FieldLocation } from '../../types/api';
 
 const baseDocument: BundleDocument = {
@@ -139,6 +140,150 @@ describe('PdfPreviewPane component', () => {
     );
     expect(document.querySelector('.pdf-highlight-overlay')).toBeNull();
     expect(document.querySelector('.pdf-highlight-unavailable')).toBeNull();
+  });
+
+  it('shows a preview-unavailable message when a page image fails to load', () => {
+    render(
+      createElement(PdfPreviewPane, {
+        document: baseDocument,
+        selectedPage: 1,
+      }),
+    );
+
+    fireEvent.error(screen.getByAltText('PDF page 1 preview'));
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'PDF preview unavailable for page 1. The stored PDF file may be missing or unavailable.',
+    );
+    expect(screen.getByAltText('PDF page 1 preview')).not.toBeVisible();
+  });
+});
+
+describe('PdfPreviewPane rotation controls', () => {
+  function renderPane(highlightLocation?: FieldLocation | null) {
+    return render(
+      createElement(PdfPreviewPane, {
+        document: baseDocument,
+        selectedPage: 1,
+        highlightLocation,
+      }),
+    );
+  }
+
+  it('renders Rotate Left, Rotate Right, and Reset controls', () => {
+    renderPane();
+    expect(screen.getByRole('button', { name: 'Rotate left' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Rotate right' })).not.toBeNull();
+    // Reset only shown when rotation != 0; not visible at start
+    expect(screen.queryByRole('button', { name: 'Reset rotation' })).toBeNull();
+  });
+
+  it('shows Reset button and 90° label after one Rotate Right click', () => {
+    renderPane();
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate right' }));
+    expect(screen.getByRole('button', { name: 'Reset rotation' })).not.toBeNull();
+    expect(screen.getByLabelText('Current rotation: 90°')).not.toBeNull();
+  });
+
+  it('cycles Rotate Right through 0 → 90 → 180 → 270 → 0', () => {
+    renderPane();
+    const rotateRight = screen.getByRole('button', { name: 'Rotate right' });
+    fireEvent.click(rotateRight);
+    expect(screen.getByLabelText('Current rotation: 90°')).not.toBeNull();
+    fireEvent.click(rotateRight);
+    expect(screen.getByLabelText('Current rotation: 180°')).not.toBeNull();
+    fireEvent.click(rotateRight);
+    expect(screen.getByLabelText('Current rotation: 270°')).not.toBeNull();
+    fireEvent.click(rotateRight);
+    expect(screen.getByLabelText('Current rotation: 0°')).not.toBeNull();
+  });
+
+  it('Rotate Left from 0 goes to 270', () => {
+    renderPane();
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate left' }));
+    expect(screen.getByLabelText('Current rotation: 270°')).not.toBeNull();
+  });
+
+  it('Reset returns rotation to 0', () => {
+    renderPane();
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate right' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate right' }));
+    expect(screen.getByLabelText('Current rotation: 180°')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset rotation' }));
+    expect(screen.getByLabelText('Current rotation: 0°')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reset rotation' })).toBeNull();
+  });
+
+  it('suppresses highlight overlay when rotated, shows warning instead', () => {
+    renderPane(digitalLocation);
+    // At 0° highlight overlay should be visible
+    expect(document.querySelector('.pdf-highlight-overlay')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate right' }));
+    // After rotation, overlay should be gone and warning shown
+    expect(document.querySelector('.pdf-highlight-overlay')).toBeNull();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Highlight position unavailable while rotated',
+    );
+  });
+
+  it('restores highlight overlay when rotation is reset to 0', () => {
+    renderPane(digitalLocation);
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate right' }));
+    expect(document.querySelector('.pdf-highlight-overlay')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset rotation' }));
+    expect(document.querySelector('.pdf-highlight-overlay')).not.toBeNull();
+    expect(document.querySelector('.pdf-highlight-unavailable')).toBeNull();
+  });
+
+  it('swaps the reserved page layout dimensions at 90 degrees', () => {
+    renderPane();
+    const image = screen.getByAltText('PDF page 1 preview');
+    Object.defineProperty(image, 'naturalWidth', { value: 500, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 700, configurable: true });
+    fireEvent.load(image);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate right' }));
+
+    const frame = screen.getByTestId('pdf-page-frame-1');
+    expect(frame).toHaveStyle({ width: '140%' });
+    expect(frame).toHaveStyle({ aspectRatio: '700 / 500' });
+    expect(frame).toHaveAttribute('data-rotation', '90');
+  });
+
+  it('reset returns the reserved page layout dimensions to normal', () => {
+    renderPane();
+    const image = screen.getByAltText('PDF page 1 preview');
+    Object.defineProperty(image, 'naturalWidth', { value: 500, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 700, configurable: true });
+    fireEvent.load(image);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate right' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset rotation' }));
+
+    const frame = screen.getByTestId('pdf-page-frame-1');
+    expect(frame).toHaveStyle({ width: '100%' });
+    expect(frame).toHaveStyle({ aspectRatio: '500 / 700' });
+    expect(frame).toHaveAttribute('data-rotation', '0');
+  });
+
+  it('renders manual OCR rotation controls and can use the current preview rotation', () => {
+    const onOcrRotationPreferenceChange = vi.fn();
+    render(
+      createElement(PdfPreviewPane, {
+        document: baseDocument,
+        selectedPage: 1,
+        ocrRotationPreference: 'auto',
+        onOcrRotationPreferenceChange,
+      }),
+    );
+
+    expect(screen.getByLabelText('OCR rotation')).toHaveValue('auto');
+    fireEvent.change(screen.getByLabelText('OCR rotation'), { target: { value: '180' } });
+    expect(onOcrRotationPreferenceChange).toHaveBeenCalledWith(180);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate right' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Use current preview rotation for OCR' }));
+    expect(onOcrRotationPreferenceChange).toHaveBeenLastCalledWith(90);
   });
 });
 

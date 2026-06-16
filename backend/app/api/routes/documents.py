@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import fitz
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
 from fastapi.responses import FileResponse
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.api.serializers import audit_event_to_dict, document_to_dict, metadata_to_dict, reference_to_dict
@@ -10,9 +11,10 @@ from app.database import get_db
 from app.logging_config import log_event
 from app.repositories.documents import DocumentRepository
 from app.repositories.reference_index import ReferenceIndexRepository
-from app.schemas.document import ManualExtractedDataPatch
+from app.schemas.document import ExtractionRequest, ManualExtractedDataPatch
 from app.services.audit_service import AuditService
 from app.services.extraction_service import extract_document
+from app.services.extraction_queue import OcrExtractionQueueFullError, OcrExtractionQueueTimeoutError
 from app.services.file_cleanup_service import delete_document_file
 from app.services.manual_metadata_service import patch_extracted_data
 from app.services.storage_service import resolve_stored_pdf_path
@@ -81,36 +83,66 @@ def delete_document(document_id: str, db: Session = Depends(get_db)):
     return None
 
 
-@router.post("/{document_id}/extract")
-def extract_document_route(document_id: str, db: Session = Depends(get_db)):
+def _run_extraction(
+    db: Session,
+    document_id: str,
+    *,
+    force: bool,
+    payload: ExtractionRequest | None = None,
+):
     document = DocumentRepository(db).get(document_id)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
-    result = extract_document(db, document, force=False)
-    sync_bundle_status_from_verification(db, document.order_bundle_id)
-    db.commit()
-    db.refresh(document)
+    try:
+        result = extract_document(
+            db,
+            document,
+            force=force,
+            ocr_rotation_degrees=payload.ocr_rotation_degrees if payload else None,
+        )
+        sync_bundle_status_from_verification(db, document.order_bundle_id)
+        db.commit()
+        db.refresh(document)
+    except (OcrExtractionQueueFullError, OcrExtractionQueueTimeoutError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OperationalError as exc:
+        db.rollback()
+        if "database is locked" in str(exc).lower():
+            raise HTTPException(
+                status_code=503,
+                detail="Another extraction is in progress. Please wait a moment and try again.",
+            ) from exc
+        raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
     return {
         "document": document_to_dict(document),
         "metadata": metadata_to_dict(document.metadata_record),
         "references": [reference_to_dict(reference) for reference in result["references"]],
     }
+
+
+@router.post("/{document_id}/extract")
+def extract_document_route(
+    document_id: str,
+    payload: ExtractionRequest | None = Body(default=None),
+    db: Session = Depends(get_db),
+):
+    return _run_extraction(db, document_id, force=False, payload=payload)
 
 
 @router.post("/{document_id}/re-extract")
-def reextract_document_route(document_id: str, db: Session = Depends(get_db)):
-    document = DocumentRepository(db).get(document_id)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
-    result = extract_document(db, document, force=True)
-    sync_bundle_status_from_verification(db, document.order_bundle_id)
-    db.commit()
-    db.refresh(document)
-    return {
-        "document": document_to_dict(document),
-        "metadata": metadata_to_dict(document.metadata_record),
-        "references": [reference_to_dict(reference) for reference in result["references"]],
-    }
+def reextract_document_route(
+    document_id: str,
+    payload: ExtractionRequest | None = Body(default=None),
+    db: Session = Depends(get_db),
+):
+    return _run_extraction(db, document_id, force=True, payload=payload)
 
 
 @router.patch("/{document_id}/extracted-data")

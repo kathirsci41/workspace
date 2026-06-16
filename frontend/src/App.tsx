@@ -8,25 +8,28 @@ import { ExtractionReviewPage } from './pages/ExtractionReviewPage';
 import { HealthPage } from './pages/HealthPage';
 import { IssuesPage } from './pages/IssuesPage';
 import { VerificationPage } from './pages/VerificationPage';
+import { ExtractionActivityProvider } from './components/extraction/ExtractionActivityContext';
 
 export function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Navigate to="/bundles" replace />} />
-        <Route path="/bundles" element={<BundlesPage />} />
-        <Route path="/bundles/:bundleId" element={<BundleOverviewRedirect />} />
-        <Route path="/bundles/:bundleId/overview" element={<BundleOverviewPage />} />
-        <Route path="/bundles/:bundleId/documents" element={<DocumentsPage />} />
-        <Route path="/bundles/:bundleId/extraction" element={<ExtractionReviewPage />} />
-        <Route path="/bundles/:bundleId/extraction/:documentId" element={<ExtractionReviewPage />} />
-        <Route path="/bundles/:bundleId/verification" element={<VerificationPage />} />
-        <Route path="/bundles/:bundleId/issues" element={<IssuesPage />} />
-        <Route path="/bundles/:bundleId/audit" element={<AuditTrailPage />} />
-        <Route path="/bundles/:bundleId/exports" element={<ExportsPage />} />
-        <Route path="/health" element={<HealthPage />} />
-        <Route path="*" element={<Navigate to="/bundles" replace />} />
-      </Routes>
+      <ExtractionActivityProvider>
+        <Routes>
+          <Route path="/" element={<Navigate to="/bundles" replace />} />
+          <Route path="/bundles" element={<BundlesPage />} />
+          <Route path="/bundles/:bundleId" element={<BundleOverviewRedirect />} />
+          <Route path="/bundles/:bundleId/overview" element={<BundleOverviewPage />} />
+          <Route path="/bundles/:bundleId/documents" element={<DocumentsPage />} />
+          <Route path="/bundles/:bundleId/extraction" element={<ExtractionReviewPage />} />
+          <Route path="/bundles/:bundleId/extraction/:documentId" element={<ExtractionReviewPage />} />
+          <Route path="/bundles/:bundleId/verification" element={<VerificationPage />} />
+          <Route path="/bundles/:bundleId/issues" element={<IssuesPage />} />
+          <Route path="/bundles/:bundleId/audit" element={<AuditTrailPage />} />
+          <Route path="/bundles/:bundleId/exports" element={<ExportsPage />} />
+          <Route path="/health" element={<HealthPage />} />
+          <Route path="*" element={<Navigate to="/bundles" replace />} />
+        </Routes>
+      </ExtractionActivityProvider>
     </BrowserRouter>
   );
 }

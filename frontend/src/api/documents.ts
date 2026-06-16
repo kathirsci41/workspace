@@ -1,6 +1,6 @@
 import { apiUrl, requestJson } from './client';
 import { debugLog } from './debugLog';
-import type { BundleDocument, DocumentType } from '../types/api';
+import type { BundleDocument, DocumentType, ExtractionActivityResponse, OcrRotationPreference } from '../types/api';
 
 type DocumentMutationPayload = BundleDocument | {
   document?: BundleDocument;
@@ -41,20 +41,41 @@ export async function uploadDocument(bundleId: string, documentType: DocumentTyp
   return payload;
 }
 
-export function extractDocument(documentId: string): Promise<BundleDocument> {
+const EXTRACTION_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+
+export interface ExtractionRequestOptions {
+  ocrRotationDegrees?: OcrRotationPreference;
+}
+
+function extractionRequestInit(options?: ExtractionRequestOptions): RequestInit & { timeoutMs: number } {
+  const rotation = options?.ocrRotationDegrees;
+  return {
+    method: 'POST',
+    timeoutMs: EXTRACTION_TIMEOUT_MS,
+    body: JSON.stringify({
+      ocr_rotation_degrees: rotation === undefined || rotation === 'auto' ? null : rotation,
+    }),
+  };
+}
+
+export function extractDocument(documentId: string, options?: ExtractionRequestOptions): Promise<BundleDocument> {
   debugLog('extraction_started', { document_id: documentId });
-  return requestJson<DocumentMutationPayload>(`/documents/${documentId}/extract`, { method: 'POST' }).then((payload) => {
+  return requestJson<DocumentMutationPayload>(`/documents/${documentId}/extract`, extractionRequestInit(options)).then((payload) => {
     debugLog('extraction_completed', { document_id: documentId });
     return normalizeDocumentPayload(payload);
   });
 }
 
-export function reextractDocument(documentId: string): Promise<BundleDocument> {
+export function reextractDocument(documentId: string, options?: ExtractionRequestOptions): Promise<BundleDocument> {
   debugLog('extraction_started', { document_id: documentId, force: true });
-  return requestJson<DocumentMutationPayload>(`/documents/${documentId}/re-extract`, { method: 'POST' }).then((payload) => {
+  return requestJson<DocumentMutationPayload>(`/documents/${documentId}/re-extract`, extractionRequestInit(options)).then((payload) => {
     debugLog('extraction_completed', { document_id: documentId, force: true });
     return normalizeDocumentPayload(payload);
   });
+}
+
+export function getExtractionActivity(): Promise<ExtractionActivityResponse> {
+  return requestJson<ExtractionActivityResponse>('/extractions/activity');
 }
 
 export function patchExtractedData(documentId: string, fields: Record<string, unknown>, reason: string): Promise<BundleDocument> {

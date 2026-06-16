@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { ExtractionActivityBanner } from '../extraction/ExtractionActivityContext';
 import { TopBar } from './TopBar';
 
 export interface Breadcrumb {
@@ -27,6 +28,7 @@ export function AppShell({
   return (
     <div className="app-shell">
       <TopBar bundleId={bundleId} bundleLabel={bundleLabel} />
+      <ExtractionActivityBanner />
       <main className="main-content">
         <nav className="breadcrumbs" aria-label="Breadcrumb">
           {breadcrumbs.map((crumb, index) => (

@@ -27,10 +27,13 @@ export async function getHealth(): Promise<{ status: string; service: string }> 
   return response.json();
 }
 
-export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+export async function requestJson<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
+  const { timeoutMs, ...fetchInit } = init ?? {};
+  const signal = timeoutMs != null ? AbortSignal.timeout(timeoutMs) : undefined;
   const response = await fetch(apiUrl(path), {
-    ...init,
-    headers: init?.body instanceof FormData ? init.headers : { 'Content-Type': 'application/json', ...init?.headers },
+    ...fetchInit,
+    signal,
+    headers: fetchInit?.body instanceof FormData ? fetchInit.headers : { 'Content-Type': 'application/json', ...fetchInit?.headers },
   });
   if (!response.ok) {
     const text = await response.text();

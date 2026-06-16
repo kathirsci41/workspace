@@ -31,6 +31,13 @@ VENDOR_INVOICE_REQUIRED = (
     "invoice_total",
 )
 
+PARSER_DOCUMENT_TYPE_ALIASES = {
+    "CUSTOMER_INVOICE": "COMPANY_INVOICE",
+    "DELIVERY_CHALLAN": "COMPANY_DC",
+    "VENDOR_PO": "COMPANY_PO",
+    "VENDOR_BILL": "VENDOR_INVOICE",
+}
+
 
 def parse_structured_text(
     document_type: str,
@@ -40,10 +47,11 @@ def parse_structured_text(
     context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     doc_type = str(document_type or "").upper()
+    parser_doc_type = _parser_document_type(doc_type)
     text = raw_text or ""
     text_length = len(text.strip())
     route = str(extraction_route or "").lower()
-    parser_diagnostics: dict[str, Any] = {}
+    parser_diagnostics: dict[str, Any] = _parser_document_type_diagnostics(doc_type, parser_doc_type)
     field_metadata_overrides: dict[str, dict[str, Any]] = {}
 
     if text_length == 0:
@@ -57,19 +65,21 @@ def parse_structured_text(
             text_length=text_length,
             filename=filename,
             context=context,
+            extra_diagnostics=parser_diagnostics,
         )
 
     if route == "digital":
-        if doc_type == "CUSTOMER_PO":
+        if parser_doc_type == "CUSTOMER_PO":
             fields = _parse_customer_po(text)
             field_metadata_overrides = _customer_po_field_metadata_overrides(fields)
-        elif doc_type == "VENDOR_INVOICE":
-            fields, parser_diagnostics, field_metadata_overrides = _parse_vendor_invoice(text, filename=filename)
+        elif parser_doc_type == "VENDOR_INVOICE":
+            fields, extra_diagnostics, field_metadata_overrides = _parse_vendor_invoice(text, filename=filename)
+            parser_diagnostics.update(extra_diagnostics)
         else:
-            fields = extract_digital_fields(text, doc_type)
+            fields = extract_digital_fields(text, parser_doc_type)
         return _result(
-            fields=_with_aliases(doc_type, fields),
-            required=_required_fields(doc_type),
+            fields=_with_aliases(parser_doc_type, fields),
+            required=_required_fields(parser_doc_type),
             parser_route="digital_rules",
             text_length=text_length,
             filename=filename,
@@ -78,24 +88,38 @@ def parse_structured_text(
             field_metadata_overrides=field_metadata_overrides,
         )
 
-    if doc_type == "CUSTOMER_PO":
+    if parser_doc_type == "CUSTOMER_PO":
         fields = _parse_customer_po(text)
         field_metadata_overrides = _customer_po_field_metadata_overrides(fields)
-    elif doc_type == "VENDOR_INVOICE":
-        fields, parser_diagnostics, field_metadata_overrides = _parse_vendor_invoice(text, filename=filename)
+    elif parser_doc_type == "VENDOR_INVOICE":
+        fields, extra_diagnostics, field_metadata_overrides = _parse_vendor_invoice(text, filename=filename)
+        parser_diagnostics.update(extra_diagnostics)
     else:
-        fields = extract_digital_fields(text, doc_type)
+        fields = extract_digital_fields(text, parser_doc_type)
 
     return _result(
-        fields=_with_aliases(doc_type, fields),
-        required=_required_fields(doc_type),
-        parser_route="ocr_rules" if doc_type in {"CUSTOMER_PO", "VENDOR_INVOICE"} else "regex_rules",
+        fields=_with_aliases(parser_doc_type, fields),
+        required=_required_fields(parser_doc_type),
+        parser_route="ocr_rules" if parser_doc_type in {"CUSTOMER_PO", "VENDOR_INVOICE"} else "regex_rules",
         text_length=text_length,
         filename=filename,
         context=context,
         extra_diagnostics=parser_diagnostics,
         field_metadata_overrides=field_metadata_overrides,
     )
+
+
+def _parser_document_type(document_type: str) -> str:
+    return PARSER_DOCUMENT_TYPE_ALIASES.get(document_type, document_type)
+
+
+def _parser_document_type_diagnostics(document_type: str, parser_document_type: str) -> dict[str, Any]:
+    if parser_document_type == document_type:
+        return {}
+    return {
+        "raw_document_type": document_type,
+        "parser_document_type": parser_document_type,
+    }
 
 
 def _result(

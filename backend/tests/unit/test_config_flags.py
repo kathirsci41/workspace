@@ -16,6 +16,10 @@ def test_extraction_mode_flags_have_release_candidate_defaults():
     assert settings.ocr_retry_attempts == 1
     assert settings.ocr_min_text_length == 30
     assert settings.ocr_context_length == 8192
+    assert settings.extraction_queue_enabled is True
+    assert settings.ocr_extraction_max_concurrent == 1
+    assert settings.ocr_extraction_queue_timeout_seconds == 900
+    assert settings.ocr_extraction_queue_max_size == 10
     assert settings.structured_rules_enabled is True
     assert settings.model_layer2_enabled is False
     assert settings.model_layer2_provider == "ollama"

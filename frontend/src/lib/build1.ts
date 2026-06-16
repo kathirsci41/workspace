@@ -15,6 +15,11 @@ export interface DocumentSlot extends RequiredDocumentSlot {
   state: 'uploaded' | 'missing';
 }
 
+export interface DocumentGroup extends RequiredDocumentSlot {
+  documents: BundleDocument[];
+  state: 'uploaded' | 'missing';
+}
+
 export interface DerivedIssue {
   id: string;
   title: string;
@@ -67,6 +72,25 @@ const DOCUMENT_LABELS: Record<string, string> = Object.fromEntries(
   REQUIRED_DOCUMENT_SLOTS.map((slot) => [slot.type, slot.label]),
 );
 
+Object.assign(DOCUMENT_LABELS, {
+  CUSTOMER_INVOICE: 'Customer Invoice',
+  DELIVERY_CHALLAN: 'Delivery Challan',
+  VENDOR_PO: 'Vendor PO',
+  VENDOR_BILL: 'Vendor Bill',
+});
+
+const CANONICAL_DOCUMENT_TYPES: Record<string, DocumentType> = {
+  CUSTOMER_PO: 'CUSTOMER_PO',
+  COMPANY_INVOICE: 'COMPANY_INVOICE',
+  CUSTOMER_INVOICE: 'COMPANY_INVOICE',
+  COMPANY_DC: 'COMPANY_DC',
+  DELIVERY_CHALLAN: 'COMPANY_DC',
+  COMPANY_PO: 'COMPANY_PO',
+  VENDOR_PO: 'COMPANY_PO',
+  VENDOR_INVOICE: 'VENDOR_INVOICE',
+  VENDOR_BILL: 'VENDOR_INVOICE',
+};
+
 export function statusLabel(status: string | null | undefined): string {
   if (!status) return 'Extraction Pending';
   return STATUS_LABELS[status] ?? titleCase(status);
@@ -85,6 +109,15 @@ export function documentLabel(type: string | null | undefined): string {
   return DOCUMENT_LABELS[type] ?? titleCase(type);
 }
 
+export function canonicalDocumentType(type: string | null | undefined): DocumentType | null {
+  return type ? CANONICAL_DOCUMENT_TYPES[type] ?? null : null;
+}
+
+export function documentRecordTypeLabel(type: string, groupType: DocumentType): string {
+  const aliasSuffix = type === groupType ? '' : ' alias';
+  return `${documentLabel(type)} (${type}${aliasSuffix})`;
+}
+
 export function identifierLabel(value: string | null | undefined): string {
   if (!value) return '-';
   return titleCase(value);
@@ -100,6 +133,10 @@ export function documentUploadStatus(document: BundleDocument | null | undefined
 
 export function documentExtractionStatus(document: BundleDocument | null | undefined): string {
   if (!document) return 'Pending';
+  const diagnostics = document.metadata?.diagnostics ?? {};
+  if (diagnostics.extraction_activity_status === 'queued' || diagnostics.queued === true) {
+    return 'Waiting in extraction queue';
+  }
   if (document.status === 'EXTRACTION_FAILED' || document.metadata?.status === 'FAILED') return 'Failed';
   if (['EXTRACTED', 'MANUAL_ENTRY'].includes(document.metadata?.status ?? '')) return 'Extracted';
   if (document.status === 'EXTRACTING') return 'Extracting';
@@ -124,8 +161,26 @@ export function bundleQueueMetrics(bundles: OrderBundle[]) {
 
 export function buildDocumentSlots(documents: BundleDocument[]): DocumentSlot[] {
   return REQUIRED_DOCUMENT_SLOTS.map((slot) => {
-    const document = documents.find((entry) => entry.document_type === slot.type) ?? null;
+    const document = documents.find((entry) => canonicalDocumentType(entry.document_type) === slot.type) ?? null;
     return { ...slot, document, state: document ? 'uploaded' : 'missing' };
+  });
+}
+
+export function buildDocumentGroups(documents: BundleDocument[]): DocumentGroup[] {
+  return REQUIRED_DOCUMENT_SLOTS.map((slot) => {
+    const matchingDocuments = documents.filter((entry) => canonicalDocumentType(entry.document_type) === slot.type);
+    const rawTypes = new Set(matchingDocuments.map((document) => document.document_type));
+    const label = slot.type === 'COMPANY_INVOICE'
+      && rawTypes.has('COMPANY_INVOICE')
+      && rawTypes.has('CUSTOMER_INVOICE')
+      ? 'Company Invoice / Customer Invoice'
+      : slot.label;
+    return {
+      ...slot,
+      label,
+      documents: matchingDocuments,
+      state: matchingDocuments.length ? 'uploaded' : 'missing',
+    };
   });
 }
 

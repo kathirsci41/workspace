@@ -92,6 +92,7 @@ def _make_session(
     ocr_provider: str = "glm_ocr",
     ocr_paddle_fallback_to_glm: bool = True,
     ocr_enabled: bool = True,
+    ocr_auto_rotate_enabled: bool = False,
 ) -> Session:
     db_url = f"sqlite:///{tmp_path / name}"
     current = Settings(
@@ -106,6 +107,7 @@ def _make_session(
         ocr_paddle_device="gpu:0",
         ocr_paddle_timeout_seconds=60,
         ocr_paddle_fallback_to_glm=ocr_paddle_fallback_to_glm,
+        ocr_auto_rotate_enabled=ocr_auto_rotate_enabled,
     )
     replace_settings(current)
     monkeypatch.setattr(extraction_service, "settings", current)
@@ -162,6 +164,84 @@ def test_default_config_uses_glm_path(tmp_path: Path, monkeypatch: pytest.Monkey
     assert result["metadata"].diagnostics["ocr_route"] == "glm"
     assert result["metadata"].diagnostics["extraction_route"] == "ocr_glm"
     assert result["metadata"].extracted_data["vendor_invoice_no"] == "ACME/INV/77001"
+
+
+def test_manual_glm_rotation_skips_auto_rotate_and_passes_selected_rotation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    pdf = tmp_path / "vendor.pdf"
+    _make_blank_pdf(pdf)
+    original_bytes = pdf.read_bytes()
+    db = _make_session(tmp_path, monkeypatch, "manual_glm_rotation.db", ocr_auto_rotate_enabled=True)
+    document = _setup_document(db, str(pdf))
+
+    with (
+        patch.object(extraction_service, "extract_text_with_ocr", return_value=_ocr_result(_VENDOR_TEXT)) as glm_mock,
+        patch("app.services.extraction.ocr_auto_rotate.find_best_rotation_glm") as auto_rotate_mock,
+    ):
+        result = extraction_service.extract_document(db, document, force=True, ocr_rotation_degrees=90)
+
+    auto_rotate_mock.assert_not_called()
+    glm_mock.assert_called_once()
+    assert glm_mock.call_args.kwargs["rotation_degrees"] == 90
+    diagnostics = result["metadata"].diagnostics
+    assert diagnostics["manual_rotation_requested"] is True
+    assert diagnostics["manual_rotation_degrees"] == 90
+    assert diagnostics["auto_rotation_skipped_due_to_manual_override"] is True
+    assert diagnostics["selected_rotation_degrees"] == 90
+    assert document.storage_path == str(pdf)
+    assert pdf.read_bytes() == original_bytes
+
+
+def test_manual_paddle_rotation_uses_temporary_rotated_ocr_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    pdf = tmp_path / "vendor.pdf"
+    _make_blank_pdf(pdf)
+    db = _make_session(
+        tmp_path,
+        monkeypatch,
+        "manual_paddle_rotation.db",
+        ocr_provider="paddleocr_gpu",
+        ocr_auto_rotate_enabled=True,
+    )
+    document = _setup_document(db, str(pdf))
+    provider = _mock_paddle_provider(result=_paddle_result(success=True, raw_text="SHOULD NOT BE USED"))
+
+    with (
+        patch.object(extraction_service, "PaddleOcrProvider", return_value=provider),
+        patch("app.services.extraction.ocr_auto_rotate.find_best_rotation_paddle") as auto_rotate_mock,
+        patch(
+            "app.services.extraction.ocr_auto_rotate.run_paddle_full_page_at_rotation",
+            return_value=(True, _VENDOR_TEXT, None, 45),
+        ) as rotated_ocr_mock,
+    ):
+        result = extraction_service.extract_document(db, document, force=True, ocr_rotation_degrees=270)
+
+    auto_rotate_mock.assert_not_called()
+    provider.run_full_page.assert_not_called()
+    rotated_ocr_mock.assert_called_once()
+    assert rotated_ocr_mock.call_args.args[1] == 270
+    diagnostics = result["metadata"].diagnostics
+    assert diagnostics["manual_rotation_requested"] is True
+    assert diagnostics["manual_rotation_degrees"] == 270
+    assert diagnostics["auto_rotation_skipped_due_to_manual_override"] is True
+    assert diagnostics["selected_rotation_degrees"] == 270
+
+
+def test_digital_extraction_does_not_enter_ocr_queue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    pdf = tmp_path / "digital_vendor.pdf"
+    _make_blank_pdf(pdf)
+    db = _make_session(tmp_path, monkeypatch, "digital_no_queue.db")
+    document = _setup_document(db, str(pdf))
+
+    with (
+        patch.object(extraction_service, "extract_pdf_text_pages", return_value=[_VENDOR_TEXT]),
+        patch.object(extraction_service.ocr_extraction_queue, "acquire") as queue_acquire,
+        patch.object(extraction_service, "extract_text_with_ocr") as glm_mock,
+    ):
+        result = extraction_service.extract_document(db, document, force=True)
+
+    queue_acquire.assert_not_called()
+    glm_mock.assert_not_called()
+    assert result["metadata"].diagnostics["digital_text_used"] is True
+    assert result["metadata"].diagnostics["ocr_status"] == "skipped_digital_text"
 
 
 # ---------------------------------------------------------------------------

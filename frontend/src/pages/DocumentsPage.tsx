@@ -4,6 +4,7 @@ import { getBundle } from '../api/bundles';
 import { deleteDocument, extractDocument, listBundleDocuments, reextractDocument, uploadDocument } from '../api/documents';
 import { getVerificationSummary } from '../api/verification';
 import { DocumentSlotCard } from '../components/documents/DocumentSlotCard';
+import { useExtractionActivity } from '../components/extraction/ExtractionActivityContext';
 import { UploadDocumentModal } from '../components/documents/UploadDocumentModal';
 import { ErrorState } from '../components/common/ErrorState';
 import { KpiCard } from '../components/common/KpiCard';
@@ -11,7 +12,7 @@ import { LoadingState } from '../components/common/LoadingState';
 import { AppShell } from '../components/layout/AppShell';
 import { WorkflowTabs } from '../components/layout/WorkflowTabs';
 import { useAsyncResource } from '../hooks/useAsyncResource';
-import { buildDocumentSlots, extractionProgress } from '../lib/build1';
+import { buildDocumentGroups, extractionProgress } from '../lib/build1';
 import type { BundleDocument, DocumentType, OrderBundle, VerificationSummary } from '../types/api';
 
 export function DocumentsPage() {
@@ -28,9 +29,10 @@ function DocumentsContent({ bundleId }: { bundleId: string }) {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
-  const slots = buildDocumentSlots(documents.data ?? []);
+  const extractionActivity = useExtractionActivity();
+  const groups = buildDocumentGroups(documents.data ?? []);
   const extraction = extractionProgress(documents.data ?? []);
-  const missing = slots.filter((slot) => !slot.document).length;
+  const missing = groups.filter((group) => group.documents.length === 0).length;
 
   async function refresh() {
     await Promise.all([documents.reload(), summary.reload(), bundle.reload()]);
@@ -74,17 +76,18 @@ function DocumentsContent({ bundleId }: { bundleId: string }) {
         <KpiCard label="Missing" value={missing} tone={missing ? 'danger' : 'success'} />
       </section>
 
-      <section className="document-slot-grid" aria-label="Required document slots">
-        {slots.map((slot) => (
+      <section className="document-slot-grid" aria-label="Required document groups">
+        {groups.map((group) => (
           <DocumentSlotCard
-            key={slot.type}
+            key={group.type}
             bundleId={bundleId}
-            slot={slot}
-            isBusy={busyAction?.includes(slot.document?.id ?? slot.type) ?? false}
-            onUpload={() => { setModalType(slot.type); setIsUploadOpen(true); }}
-            onExtract={() => slot.document && run(`extract-${slot.document.id}`, () => extractDocument(slot.document!.id))}
-            onReextract={() => slot.document && run(`reextract-${slot.document.id}`, () => reextractDocument(slot.document!.id))}
-            onDelete={() => slot.document && run(`delete-${slot.document.id}`, () => deleteDocument(slot.document!.id))}
+            group={group}
+            isBusy={(documentId) => (busyAction?.includes(documentId) ?? false) || extractionActivity.isExtracting(documentId)}
+            activityLabel={extractionActivity.activityLabelForDocument}
+            onUpload={() => { setModalType(group.type); setIsUploadOpen(true); }}
+            onExtract={(document) => run(`extract-${document.id}`, () => extractionActivity.runExtraction(document, () => extractDocument(document.id)))}
+            onReextract={(document) => run(`reextract-${document.id}`, () => extractionActivity.runExtraction(document, () => reextractDocument(document.id)))}
+            onDelete={(document) => run(`delete-${document.id}`, () => deleteDocument(document.id))}
           />
         ))}
       </section>

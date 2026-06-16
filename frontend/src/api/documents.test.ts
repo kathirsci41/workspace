@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { patchExtractedData, uploadDocument } from './documents';
+import { extractDocument, patchExtractedData, uploadDocument } from './documents';
 
 const documentPayload = {
   id: 'doc-1',
@@ -68,5 +68,26 @@ describe('documents api', () => {
     const form = fetchMock.mock.calls[0][1].body as FormData;
     expect(form.get('document_type')).toBe('VENDOR_INVOICE');
     expect(form.get('file')).toBe(file);
+  });
+
+  it('sends optional manual OCR rotation when extracting', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ document: documentPayload }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const extracted = await extractDocument('doc-1', { ocrRotationDegrees: 90 });
+
+    expect(extracted).toEqual(documentPayload);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:8100/api/documents/doc-1/extract',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ ocr_rotation_degrees: 90 }),
+      }),
+    );
   });
 });

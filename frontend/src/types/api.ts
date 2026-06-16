@@ -2,6 +2,7 @@ export type BundleStatus = 'OK' | 'REVIEW_REQUIRED' | 'MISMATCH' | 'MISSING_DOCU
 export type SectionStatus = 'PASS' | 'PARTIAL_PASS' | BundleStatus;
 export type DocumentStatus = 'UPLOADED' | 'EXTRACTING' | 'PENDING_REVIEW' | 'VERIFIED' | 'EXTRACTION_FAILED' | 'REJECTED';
 export type DocumentType = 'CUSTOMER_PO' | 'COMPANY_INVOICE' | 'COMPANY_DC' | 'COMPANY_PO' | 'VENDOR_INVOICE';
+export type OcrRotationPreference = 'auto' | 0 | 90 | 180 | 270;
 
 export interface FieldLocation {
   page: number | null;
@@ -110,4 +111,26 @@ export interface AuditEvent {
   order_bundle_id: string | null;
   payload: Record<string, unknown>;
   created_at: string;
+}
+
+export interface ExtractionActivityJob {
+  id: string;
+  document_id: string;
+  filename: string;
+  provider: string;
+  status: 'queued' | 'running' | string;
+  stage: string;
+  queued_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  queue_position: number | null;
+  elapsed_ms: number;
+}
+
+export interface ExtractionActivityResponse {
+  active: boolean;
+  active_count: number;
+  queue_count: number;
+  active_jobs: ExtractionActivityJob[];
+  queued_jobs: ExtractionActivityJob[];
 }
