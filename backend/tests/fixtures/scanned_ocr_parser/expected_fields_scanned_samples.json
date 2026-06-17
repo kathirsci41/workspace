@@ -1,0 +1,73 @@
+{
+  "vendor_bill_2526psi25087738": {
+    "document_type": "VENDOR_INVOICE",
+    "expected_fields": {
+      "vendor_invoice_no": "2526PSI25087738",
+      "vendor_invoice_date": "12-02-2026",
+      "po_reference": "1PTR2526000467",
+      "invoice_total": "554600",
+      "vendor_gstin": "33AAGCS1406H1ZR",
+      "vendor_name": "Supreme Computers India Pvt Ltd"
+    },
+    "verification_source": "manual_read_from_sample_pdf_and_paddle_raw_text",
+    "confidence": "high",
+    "notes": "vendor_invoice_no appears as 'Invoice No. : 2526PSI25087738'. po_reference appears as 'External doc. No. PO 1PTR2526000467'. invoice_total appears as 'Total Invoice Value : Rs 554600'. vendor_gstin '33AAGCS1406H1ZR' appears as 'GSTIN No. 33AAGCS1406H1ZR' on the shipped-from address block — previously absent from expected dict so was classified UNKNOWN. vendor_name: raw OCR line 10 has 'Supreme Computers India Pvt Ltd'; parser returns 'SUPREME' — confirmed PARSE_FAIL."
+  },
+  "tax_invoice_shriram_fin": {
+    "document_type": "CUSTOMER_INVOICE",
+    "expected_fields": {
+      "invoice_no": "1ITR2526001785",
+      "invoice_date": "17/01/2026",
+      "customer_order_no": "PWFA251127016",
+      "total_amount": "593701.66",
+      "taxable_amount": "503137.00",
+      "tax_amount": "90564.66",
+      "customer_name": "SHRIRAM FINANCE LIMITED"
+    },
+    "verification_source": "manual_read_from_sample_pdf_and_paddle_raw_text",
+    "confidence": "high",
+    "notes": "Skylark outgoing tax invoice to Shriram Finance. invoice_no ':1ITR2526001785' on line 14. invoice_date ':17/01/2026' on line 18. customer_order_no 'Customer Order No. & Date : PWFA251127016 & 27/11/2025'. total_amount 'Nett Amount 593701.66' (line 143). taxable_amount 'Amount 503137.00' (line 130 Bank Particulars section). tax_amount 'Tax 90564.66' (line 135, IGST 18%). customer_name 'SHRIRAM FINANCE LIMITED' (line 24). Parser correctly extracts invoice_no/date/customer_order_no but misses total, taxable, tax, and customer_name entirely."
+  },
+  "tax_invoice_reddington": {
+    "document_type": "CUSTOMER_INVOICE",
+    "expected_fields": {
+      "invoice_no": "C190224826",
+      "invoice_date": "12.01.2026",
+      "customer_order_no": "1PTR2526000400",
+      "total_amount": "502430.78",
+      "taxable_amount": "425788.80",
+      "tax_amount": "76641.98",
+      "customer_name": "SKYLARK INFORMATION TECHNOLOGIES"
+    },
+    "verification_source": "manual_read_from_sample_pdf_and_paddle_raw_text",
+    "confidence": "medium",
+    "notes": "Two-invoice PDF: invoice C190224826 (total 502430.78) on page 1 and C190224835 (total 10946.20) on page 2. Fixture values reflect first/primary invoice. 'Your Ref. : 1PTR2526000400' (Skylark's PO ref) appears on both invoices — this is the correct customer_order_no, but parser extracts it as invoice_no instead. Parser also captures 'SAC996749' (a freight HSN/SAC code) as customer_order_no — wrong. invoice_date '12.01.2026' (dot-separated) exists in OCR but parser returns null — suspected regex format mismatch (parser likely matches only slash/dash separators). total_amount 502430.78 appears as 'Invoice Total 502,430.78' (line 113). taxable_amount 425788.80 as 'Total before Tax 425,788.80' (line 109). tax_amount 76641.98 as 'Tax Total 76,641.98' (line 111). customer_name: 'SKYLARK INFORMATION TECHNOLOGIES' appears contiguously (lines 35/36/153/154); full 'PRIVATE LIMITED' suffix is split across OCR lines so shorter form used for machine-matchable fixture value."
+  },
+  "tax_invoice_inflow_amc": {
+    "document_type": "CUSTOMER_INVOICE",
+    "expected_fields": {
+      "invoice_no": "333335674",
+      "invoice_date": "02-01-2026",
+      "customer_order_no": "1POC2526000408",
+      "total_amount": "463365.55",
+      "taxable_amount": "392682.67",
+      "tax_amount": null,
+      "customer_name": "SKYLARK INFORMATION TECHNOLOGIES"
+    },
+    "verification_source": "manual_read_from_sample_pdf_and_paddle_raw_text",
+    "confidence": "high",
+    "notes": "Inflow Technologies invoice to Skylark for HPE Foundation Care AMC service. invoice_no is Inflow's actual invoice number '333335674' (line 16/113). '1POC2526000408' is Skylark's Customer Ref No (labeled 'Customer Ref No' on invoice) — parser incorrectly maps this to invoice_no/so_no instead of customer_order_no. invoice_date '02-01-2026' (line 17) — parser extracts correctly. customer_order_no '1POC2526000408' is present in OCR but parser does not extract it into customer_order_no field. total_amount '463365.55' from 'Invoice Total [INR] 463,365.55' (lines 208/212). taxable_amount '392682.67' from 'otal Amount [INR] 1.00 392,682.67' (line 204). tax_amount: CGST=35341.44 and SGST=35341.44, sum=70682.88, but the sum value 70682.88 does not appear verbatim in OCR — only individual components present — so tax_amount set null to avoid misclassification. customer_name 'SKYLARK INFORMATION TECHNOLOGIES' appears contiguously (lines 23/25/121/125); 'PRIVATE LIMITED' suffix is split across OCR lines in multi-column layout."
+  },
+  "purchase_order_shriram_fin": {
+    "document_type": "CUSTOMER_PO",
+    "expected_fields": {
+      "customer_po_no": "PWFA251127016",
+      "customer_po_date": "27 November 2025",
+      "customer_name": "SHRIRAM FINANCE LIMITED",
+      "total_amount": "503137"
+    },
+    "verification_source": "manual_read_from_sample_pdf_and_paddle_raw_text",
+    "confidence": "high",
+    "notes": "Shriram Finance purchase order issued to Skylark. All 4 important fields are clearly present in OCR text and the parser extracted all of them correctly. customer_po_no 'PWFA251127016' appears on every page (lines 2/60/77/108). customer_po_date '27 November 2025' (lines 3/63/79/110). customer_name 'SHRIRAM FINANCE LIMITED' (lines 57/71/73/75/105/189). total_amount 'Grand Total 503137.00' (lines 48-49). This is a PADDLE_OCR_PASS_PARSE_PASS result — the only routing gap is that production does not route CUSTOMER_PO to PaddleOCR."
+  }
+}

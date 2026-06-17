@@ -94,6 +94,8 @@ def parse_structured_text(
     elif parser_doc_type == "VENDOR_INVOICE":
         fields, extra_diagnostics, field_metadata_overrides = _parse_vendor_invoice(text, filename=filename)
         parser_diagnostics.update(extra_diagnostics)
+    elif parser_doc_type == "COMPANY_INVOICE":
+        fields = _parse_customer_invoice_ocr(text, filename=filename)
     else:
         fields = extract_digital_fields(text, parser_doc_type)
 
@@ -903,6 +905,256 @@ def _money_values(text: str) -> list[float | int]:
     return values
 
 
+# ---------------------------------------------------------------------------
+# OCR-aware CUSTOMER_INVOICE (COMPANY_INVOICE) parsing.
+#
+# The digital-path ``_extract_company_invoice`` is tuned for Skylark's own
+# digitally-generated invoices. Third-party scanned invoices (vendor->Skylark
+# tax invoices captured by PaddleOCR) use different labels and columnar OCR
+# layouts. These helpers extract the shared invoice fields generically by
+# anchoring on labels rather than Skylark-specific code patterns, taking the
+# FIRST label occurrence so multi-invoice PDFs resolve to the primary invoice,
+# and only emitting amounts that appear verbatim in the OCR text.
+# ---------------------------------------------------------------------------
+
+_CI_DATE_RE = re.compile(r"\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\b")
+_CI_GSTIN_RE = re.compile(r"\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[A-Z\d]{2}\b", re.I)
+_CI_PAN_RE = re.compile(r"^[A-Z]{5}\d{4}[A-Z]$", re.I)
+_CI_CODE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9/\-]{4,}")
+_CI_AMOUNT_RE = re.compile(r"[0-9][0-9,]*(?:\.\d+)?")
+
+_CI_INVOICE_NO_LABELS = ("invoice number", "invoice no", "tax invoice no", "bill no")
+_CI_INVOICE_NO_FALLBACK_LABELS = ("invoice",)
+_CI_INVOICE_NO_REJECT = ("invoice date", "invoice due", "invoice total", "invoice value", "tax invoice")
+_CI_ORDER_NO_LABELS = (
+    "customer order no",
+    "customer po",
+    "buyer order",
+    "your ref",
+    "customer ref no",
+    "customer reference",
+    "po no",
+    "p.o. no",
+)
+_CI_DATE_LABELS = ("invoice date", "date of invoice", "inv date", "bill date")
+_CI_NAME_LABELS_PRIMARY = ("bill to", "bill-to", "billed to", "billing address", "sold to", "buyer")
+_CI_NAME_LABELS_FALLBACK = ("customer name",)
+_CI_TOTAL_LABELS = ("nett amount", "invoice total", "grand total", "total invoice value", "net amount")
+_CI_TAXABLE_LABELS = (
+    "total before tax",
+    "taxable value",
+    "taxable amount",
+    "otal amount [inr]",
+    "total amount [inr]",
+)
+_CI_TAX_LABELS = ("tax total", "tax amount", "total tax", "igst", "cgst")
+
+
+def _ci_lines(text: str) -> list[str]:
+    return [line.strip() for line in (text or "").splitlines() if line.strip()]
+
+
+def _ci_label_segments(
+    lines: list[str],
+    labels: tuple[str, ...],
+    *,
+    reject: tuple[str, ...] = (),
+    window: int = 8,
+) -> list[str] | None:
+    """Return text segments starting at the first line matching a label.
+
+    The first element is the remainder of the label line after the label text
+    (for same-line values); the rest are the following ``window`` lines (for
+    columnar layouts where values trail the labels).
+    """
+    for index, line in enumerate(lines):
+        low = line.lower()
+        if any(token in low for token in reject):
+            continue
+        for label in labels:
+            pos = low.find(label)
+            if pos == -1:
+                continue
+            remainder = line[pos + len(label):]
+            return [remainder, *lines[index + 1 : index + 1 + window]]
+    return None
+
+
+def _ci_order_no(lines: list[str]) -> str | None:
+    segments = _ci_label_segments(lines, _CI_ORDER_NO_LABELS, window=8)
+    if segments is None:
+        return None
+    return _ci_pick_code(segments, mode="order")
+
+
+def _ci_invoice_no(lines: list[str], *, exclude: set[str]) -> str | None:
+    for labels, reject in (
+        (_CI_INVOICE_NO_LABELS, ()),
+        (_CI_INVOICE_NO_FALLBACK_LABELS, _CI_INVOICE_NO_REJECT),
+    ):
+        segments = _ci_label_segments(lines, labels, reject=reject, window=8)
+        if segments is None:
+            continue
+        value = _ci_pick_code(segments, mode="invoice", exclude=exclude)
+        if value is not None:
+            return value
+    return None
+
+
+def _ci_pick_code(segments: list[str], *, mode: str, exclude: set[str] | None = None) -> str | None:
+    excluded = {str(value).upper() for value in (exclude or set()) if value}
+    for segment in segments:
+        for raw in _CI_CODE_RE.findall(segment):
+            value = raw.strip(" :#-").strip()
+            if len(value) < 6:
+                continue
+            if value.upper() in excluded:
+                continue
+            if _CI_DATE_RE.search(value) or _CI_GSTIN_RE.search(value) or _CI_PAN_RE.match(value):
+                continue
+            has_alpha = any(char.isalpha() for char in value)
+            has_digit = any(char.isdigit() for char in value)
+            if not has_digit:
+                continue
+            if mode == "order":
+                # Customer order/reference numbers always mix letters and digits.
+                if not (has_alpha and has_digit):
+                    continue
+            else:  # invoice
+                # Invoice numbers may be alphanumeric or purely numeric.
+                if not has_alpha and len(value) < 7:
+                    continue
+            return value
+    return None
+
+
+def _ci_invoice_date(lines: list[str]) -> str | None:
+    segments = _ci_label_segments(lines, _CI_DATE_LABELS, window=8)
+    if segments is None:
+        return None
+    for segment in segments:
+        match = _CI_DATE_RE.search(segment)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _ci_customer_name(lines: list[str]) -> str | None:
+    for labels in (_CI_NAME_LABELS_PRIMARY, _CI_NAME_LABELS_FALLBACK):
+        segments = _ci_label_segments(lines, labels, window=6)
+        if segments is None:
+            continue
+        for segment in segments:
+            candidate = segment.strip(" :.-")
+            if _ci_looks_like_party_name(candidate):
+                return _clean_scalar(candidate)
+    return None
+
+
+def _ci_looks_like_party_name(value: str) -> bool:
+    value = value.strip()
+    if len(value) < 6 or ":" in value:
+        return False
+    if re.search(r"\d", value):  # addresses / codes carry digits
+        return False
+    words = [word for word in re.split(r"\s+", value) if len(word) >= 2]
+    if len(words) < 2:
+        return False
+    letters = [char for char in value if char.isalpha()]
+    if not letters:
+        return False
+    uppercase = [char for char in letters if char.isupper()]
+    return len(uppercase) / len(letters) >= 0.7
+
+
+def _ci_amount_after(lines: list[str], labels: tuple[str, ...], *, min_value: float = 1000.0) -> float | int | None:
+    segments = _ci_label_segments(lines, labels, window=6)
+    if segments is None:
+        return None
+    for segment in segments:
+        for match in _CI_AMOUNT_RE.finditer(segment):
+            value = _to_number(match.group(0))
+            if value is not None and value >= min_value:
+                return value
+    return None
+
+
+def _ci_amount_verbatim(value: float | int, text: str) -> bool:
+    flat = text.replace(",", "")
+    decimal_form = f"{float(value):.2f}"
+    if decimal_form in flat:
+        return True
+    if float(value).is_integer():
+        return re.search(rf"(?<!\d){re.escape(str(int(value)))}(?!\d)", flat) is not None
+    return False
+
+
+def _ci_amounts(lines: list[str]) -> tuple[float | int | None, float | int | None, float | int | None]:
+    blob = "\n".join(lines)
+    total = _ci_amount_after(lines, _CI_TOTAL_LABELS)
+    taxable = _ci_amount_after(lines, _CI_TAXABLE_LABELS)
+    tax: float | int | None = None
+    if total is not None and taxable is not None:
+        candidate = round(float(total) - float(taxable), 2)
+        if candidate == 0:
+            # total == taxable is an arithmetic identity for zero tax (LUT/export),
+            # not a fabricated sum, so it needs no verbatim guard.
+            tax = 0
+        elif candidate > 0 and _ci_amount_verbatim(candidate, blob):
+            tax = _to_number(f"{candidate}")
+    elif total is not None and taxable is None:
+        tax_label = _ci_amount_after(lines, _CI_TAX_LABELS)
+        if tax_label is not None:
+            candidate = round(float(total) - float(tax_label), 2)
+            if candidate > 0 and _ci_amount_verbatim(candidate, blob):
+                taxable = _to_number(f"{candidate}")
+                tax = tax_label
+    return total, taxable, tax
+
+
+def _parse_customer_invoice_ocr(text: str, filename: str | None = None) -> dict[str, Any]:
+    """OCR-aware extraction for scanned third-party customer/tax invoices.
+
+    Starts from the digital-path extraction (preserving its behavior for any
+    field the OCR-aware rules do not resolve) and applies generic
+    label-anchored overrides for the shared invoice fields.
+    """
+    fields = dict(extract_digital_fields(text, "COMPANY_INVOICE"))
+    lines = _ci_lines(text)
+
+    order_no = _ci_order_no(lines)
+    invoice_no = _ci_invoice_no(lines, exclude={order_no} if order_no else set())
+    invoice_date = _ci_invoice_date(lines)
+    customer_name = _ci_customer_name(lines)
+    total, taxable, tax = _ci_amounts(lines)
+
+    if invoice_no:
+        fields["invoice_number"] = invoice_no
+    if order_no:
+        fields["po_reference"] = order_no
+    if invoice_date:
+        fields["invoice_date"] = invoice_date
+    if customer_name:
+        fields["customer_name"] = customer_name
+    if total is not None:
+        fields["total_amount"] = total
+        fields["net_amount"] = total
+    if taxable is not None:
+        fields["taxable_amount"] = taxable
+    if tax is not None:
+        fields["tax_amount"] = tax
+    elif total is not None and taxable is not None:
+        # Amount block resolved confidently but the tax figure is not present
+        # verbatim in the OCR text -> do not fabricate it.
+        fields.pop("tax_amount", None)
+
+    return _without_empty_ci(fields)
+
+
+def _without_empty_ci(fields: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in fields.items() if value not in (None, "")}
+
+
 def _extract_header_company(text: str, buyer_name: str | None = None) -> str | None:
     label_noise = re.compile(
         r"^(tax invoice|invoice|bill|purchase order|delivery challan|gst|pan|cin|gstin|irn|ack no|state name|page \d)$",
@@ -913,7 +1165,8 @@ def _extract_header_company(text: str, buyer_name: str | None = None) -> str | N
         re.I,
     )
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    for line in lines[:10]:
+    first_qualifying: str | None = None
+    for line in lines[:12]:
         if len(line) < 5 or re.match(r"^[\d:.,/\-\s]+$", line):
             continue
         if re.match(r"^C/O[\.\s]", line, re.I):
@@ -929,8 +1182,17 @@ def _extract_header_company(text: str, buyer_name: str | None = None) -> str | N
         if not re.search(r"\b[A-Z]{3,}\b", line) and not re.search(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b", line):
             continue
         cleaned = re.sub(r"\([^)]*\)", "", line).strip(" .,")
-        if len(cleaned) >= 5:
+        if len(cleaned) < 5:
+            continue
+        # Prefer a line carrying a recognized company suffix (e.g. "... Pvt Ltd")
+        # over an earlier single-word header fragment (e.g. a stylized logo line
+        # like "SUPREME"). Fall back to the first qualifying line otherwise.
+        if _COMPANY_SUFFIX_RE.search(cleaned):
             return _clean_vendor_name(cleaned, buyer_name=buyer_name)
+        if first_qualifying is None:
+            first_qualifying = cleaned
+    if first_qualifying is not None:
+        return _clean_vendor_name(first_qualifying, buyer_name=buyer_name)
     return None
 
 

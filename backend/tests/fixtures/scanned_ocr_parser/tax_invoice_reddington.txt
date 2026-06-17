@@ -1,0 +1,221 @@
+Redington
+REDINGTON LIMITED
+Invoice
+: C190224826
+C/O.PROCONNECT SUPPLY CHAIN
+Our Order
+: 3003698085 Date : 18.12.2025 Time : 20:25:32
+SOLUTION LTD
+Invoice date
+:12.01.2026 Time :20:59:29
+NO 79, KILMUDALAMBDU PANPAKKAM
+Your Ref.
+: 1PTR2526000400
+VILLAGE,
+GUMMIDIPUNDI
+Customer
+: S10073
+THIRUVALLUR DISTRICT
+GSTNO
+:33AACCS3213Q1ZB
+CHENNAI- 601206
+Def. Pmnt.
+: Door Delivery/ Credit days 45
+Tamil Nadu
+Currency
+: INR
+GST:33AABCR0347P1ZA
+Place of Supply
+: Tamil Nadu
+Storage Location : 1010
+IRN Number
+: df7f81bec84db51a78bc35ecc27453fd1e2c0475c1dc17e3a61904f518c3861a
+BILL-TO:
+SHIP-TO:
+SKYLARK INFORMATION TECHNOLOGIES
+SKYLARK INFORMATION TECHNOLOGIES PVT LTD
+PVT LTD
+NO.1, CHARI STREET, T.NAGAR
+NO.1, CHARI STREET, T.NAGAR
+CHENNAI-600017
+CHENNAI-600017, Tamil Nadu
+Tamil Nadu
+33AACCS3213Q1ZB
+GSTIN: 33AACCS3213Q1ZB
+ITEM CODE/ITEM
+HSN/SAC
+QUANTITY
+UNIT PRICE
+SGST/UGST
+CGST
+IGST
+TOTAL
+WEIGHT
+DESCRIPTION
+FORTSH7047
+851769
+1.000
+194,400.00
+17,496.00
+17,496.00
+194,400.00
+6.100
+FG-120G-HW-APP
+EA
+9.00
+9.00
+229,392.00
+FG-120G
+FORTSD0935
+998713
+1.000
+231,000.00
+20,790.00
+20,790.00
+231,000.00
+0.001
+FC-10-F120G-284-02-60-
+EA
+9.00
+9.00
+272,580.00
+SUPPORT
+FC-10-F120G-284-02-60
+Vol Wt
+6.30
+Freight Charg(SAC 996749)
+388.80
+34.99
+34.99
+458.78
+9.00
+9.00
+NOTE: Interest rate against overdue payments mentioned in Clause.14 of this invoice stands revised to 24% per annum with effect from 01 December' 2018.
+DECLARATION
+Certified that all the particulars shown in the above nvoice are true and correct based on information available with us . Iis further certified that our Registration under
+relevant GST Act is valid as on dale of the invoice
+Contact: MR.KUMAR / JOSE PRAKASH - 044 43480000.
+Remarks
+SHRIRAM TRANSPORT FINANCE CO LTD-MH
+Invoice value in Words: FIVE LAKHTWO THOU$AND FOUR HUNDRED THIRTYRUPEES SEVENTY EIGHT PASE
+Tax Total
+38,320.99
+38,320.99
+Total Wt.
+6.101
+Please scan the QR code for Tensand Conditions
+http://ril-edi.redington.co.in/TermsAndConditions/ales.html
+Total before Tax
+425,788.80
+Tax Total
+76,641.98
+Invoice Total
+502,430.78
+The person signing this document has got authority to bind the Buyer and to sign on behalf of the Buyer. By acknowledging receipt of goods hereon, the Buyer irrevocably
+agrees to abide by the terms and conditions along with this Invoice and over any other terms agreed elsewhere between the Buyer and Supplier.
+For REDINGTON Limited
+PAN: AARCP0347BCFN:L52509TN1961PLC028758
+Redington
+REDINGTON LIMITED
+Invoice
+: C190224835
+C/O.PROCONNECT SUPPLY CHAIN
+Our Order
+: 3003730474 Date : 02.01.2026 Time : 17:12:34
+SOLUTION LTD
+Invoice date
+:12.01.2026 Time :22:11:29
+NO 79, KILMUDALAMBDU PANPAKKAM
+Your Ref.
+:1PTR2526000400
+VILLAGE,
+GUMMIDIPUNDI
+Customer
+: S10073
+THIRUVALLUR DISTRICT
+GST NO
+:33AACCS3213Q1ZB
+CHENNAI - 601206
+Def. Pmnt.
+: Out Station/ Credit days 45
+SAHARA
+Tamil Nadu
+Currency
+: INR
+GST:33AABCR0347P1ZA
+Place of Supply
+: Tamil Nadu
+Storage Location : 1001
+IRN Number
+:78ec411ef63729e6e13b5f733f30917eed377900b2f0d6d667ada38d628c4807
+BILL-TO:
+SHIP-TO:
+SKYLARK INFORMATION TECHNOLOGIES
+SKYLARK INFORMATION TECHNOLOGIES PVT LTD
+PVT LTD
+NO.1, CHARI STREET, T.NAGAR
+NO.1, CHARI STREET, T.NAGAR
+CHENNAI-600017
+CHENNAI-600017, Tamil Nadu
+Tamil Nadu
+33AACCS3213Q1ZB
+GSTIN: 33AACCS3213Q1ZB
+ITEM CODE/ITEM
+HSN/SAC
+QUANTITY
+UNIT PRICE
+SGST/UGST
+CGST
+IGST
+TOTAL
+WEIGHT
+DESCRIPTION
+FOSSHW0427
+851762
+2.000
+4,563.22
+821.38
+821.38
+9,126.44
+0.040
+FN-TRAN-SX-FORTI-
+EA
+9.00
+9.00
+10,769.20
+TRANSCEIVER-HW-APP
+FN-TRAN-SX
+NDKDL1U,NDLEFAU,
+Vol Wt
+0.008
+Outstation Freight(SAC 996749)
+150.00
+13.50
+13.50
+177.00
+9.00
+9.00
+NOTE: Interest rate against overdue payments mentioned in Clause.14 of this invoice stands revised to 24% per annum with effect from 01 December' 2018.
+DECLARATION
+Certified that all the particulars shown in the abovenvoice are true and correct based on information available with us . I is further certified that our Registration under
+relevant GST Act is valid as on dale of the invoice
+Contact: MR.KUMAR / JOSE PRAKASH - 044 43480000.
+Remarks
+SHRIRAM FINANCE LIMITED
+Invoice value in Words: TENTHOUSAND NINE HUNDRED FORTYSIX RUPEESTWENTY PAISE
+Tax Total
+834.88
+834.88
+Total Wt.
+0.040
+Please scan the QR code for Terms and Conditions
+http://ril-edi.redington.co.in/TermsAndConditions/ales.html
+Total before Tax
+9,276.44
+Tax Total
+1,669.76
+Invoice Total
+10,946.20
+The person signing this document has got authority to bind the Buyer and to sign on behalf of the Buyer. By acknowledging receipt of goods hereon, the Buyer irrevocably
+agrees to abide by the terms and conditions along with this Invoice and over any other terms agreed elsewhere between the Buyer and Supplier.
+For REDINGTON Limited

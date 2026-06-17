@@ -1,0 +1,149 @@
+SKYLARK INFORMATION TECHNOLOGIES PRIVATE LIMITED
+No. 1, Chari Street, T.Nagar,
+skylark
+Chennai-600017
++91 44 4348 0000 | info@skylarkinfo.com
+Help line: +91 44 4348 0030 | support@skylarkinfo.com
+ISO 9001 : 2015 CERTIFIED & ISO 27001 : 2013 CERTIFIED
+GSTIN
+:33AACCS3213Q1ZB
+PAN No. : AACCS3213Q
+CIN No. : U74999TN1997PTC039039
+www.skylarkinfo.com
+Invoice No.
+:1ITR2526001785
+Customer Order No. & Date : PWFA251127016 & 27/11/2025
+SO No. : 1OTM2526001429
+Invoice Date
+:17/01/2026
+Invoice Due Date : 16/02/2026
+Acct Manager : JAGAN G M
+IRN No.
+: fbe3c3a2d4419cea8556b7853df61af29917217a4d4ab5addbf6755aede6540c
+Customer Name & Detail :
+SHRIRAM FINANCE LIMITED
+H NO 12-13-1274, FLR III, MASPACK HOUSE STREET NO 8, TARNAKA, Hyderabad, Telangana,
+500003 HYDERABAD 500003, Telengana, PH : 9890438650
+GST No.
+:36AAACS7018R1ZU
+PAN No.
+: AAACS7018R
+si
+HSN Code
+Qty
+UOM
+Value
+Discount
+Tax
+Amount
+Description
+Unit Rate
+(FG-120G)
+NM
+492569.00
+492569.00
+0.00
+88662.42
+581231.42
+1
+851769
+1
+Fortigate 120G 18 x GE RJ45 ports
+(including 1 x MGMT port,
+1 x HA port, 16 x switch
+ports), 8 x GE SFP slots,
+4 x 10GE SFP slots,SP5
+hardware accelerated,
+dual AC power supplies
+FortiGate-120G 5 Year
+FortiCare Elite Support
+851769
+2
+NM
+5284.00
+10568.00
+0.00
+1902.24
+12470.24
+2
+(FN-TRAN-SXAPAC)
+FN-TRAN-SXAPAC 1 GE
+SFP transceiver module,
+short range 500m, LC
+connector, MMF, 850nm,
+-20 C to 85 C, for
+systems with SFP slots
+Total
+503137.00
+90564.66
+593701.6
+Tax Summary
+Tax Detail :
+IGST 18%
+18 %
+90564.66
+90564.66
+Tax Total :
+SKYLARK INFORMATION TECHNOLOGIES PRIVATE LIMITED
+No. 1, Chari Street, T.Nagar,
+skylark
+Chennai-600017
++91 44 4348 0000 | info@skylarkinfo.com
+Help line: +91 44 4348 0030 | support@skylarkinfo.com
+ISO 9001 : 2015 CERTIFIED & ISO 27001 : 2013 CERTIFIED
+GSTIN
+: 33AACCS3213Q1ZB
+PAN No. : AACCS3213Q
+CIN No. : U74999TN1997PTC039039
+www.skylarkinfo.com
+Invoice No.
+:1ITR2526001785
+Customer Order No. & Date : PWFA251127016 & 27/11/2025
+SO No. : 1OTM2526001429
+Invoice Date
+Invoice Due Date : 16/02/2026
+:17/01/2026
+Acct Manager : JAGAN G M
+IRN No.
+: fbe3c3a2d4419cea8556b7853df61af29917217a4d4ab5addbf6755aede6540c
+Customer Name & Detail :
+SHRIRAM FINANCE LIMITED
+H NO 12-13-1274, FLR III, MASPACK HOUSE STREET NO 8, TARNAKA, Hyderabad, Telangana,
+500003 HYDERABAD 500003, Telengana, PH : 9890438650
+GST No.
+:36AAACS7018R1ZU
+PAN No.
+: AAACS7018R
+Sl
+Description
+HSN Code
+Qty
+UOM
+Unit Rate
+Value
+Discount
+Tax
+Amount
+Received the above goods in good
+Bank Particulars
+Amount
+503137.00
+condition
+Bank Name : Standard Chartered Bank
+A/C Name : Skylark Information Technologies Pvt Ltd.
+Tax
+90564.66
+A/C No.
+:43605132857
+Branch
+: G.N. Chetty Road, Chennai
+Signature & Seal of the Customer
+IFSC Code : SCBL0036083
+Nett Amount
+593701.66
+Rupees Five Lakh Ninety Three Thousand Seven Hundred One and Paise Sixty Six Only
+Terms & Condition
+for SKYLARK INFORMATION TECHNOLOGIES PRIVATE LIMITED
+1. Subject to CHENNAI Jurisdiction
+2. Interest @24% p.a. will be charged on over due payments
+3. Goods once sold will not be taken back or exchanged
