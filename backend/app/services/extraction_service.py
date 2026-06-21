@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import time
 from typing import Any
@@ -12,7 +13,10 @@ from app.models.document import DocumentRecord
 from app.models.document_metadata import DocumentMetadataRecord
 from app.repositories.reference_index import ReferenceIndexRepository
 from app.services.evidence_service import EvidenceService
+from app.services.extraction.bbox_field_extractor import extract_header_fields
 from app.services.extraction.digital_text_extractor import extract_pdf_text_pages, normalize_ocr_text
+from app.services.extraction.liteparse_extractor import extract_bboxes
+from app.services.extraction.table_row_extractor import extract_line_items_from_bboxes
 from app.services.extraction.glm_ocr_client import (
     HEADER_CROP_FRACTION,
     HEADER_OCR_MAX_OUTPUT_TOKENS,
@@ -262,6 +266,8 @@ def extract_document(
             "field_metadata": {},
         }
     fields = dict(parsed["fields"])
+    if document.storage_path and os.path.exists(str(document.storage_path)):
+        fields = _apply_bbox_layer(str(document.storage_path), fields)
     field_metadata = dict(parsed.get("field_metadata") or {})
     diagnostics.update(parsed["diagnostics"])
     rules_failure_code = diagnostics.get("failure_code")
@@ -846,6 +852,24 @@ def _should_attempt_vendor_invoice_header_ocr(
         _header_field_is_missing_or_weak(parsed, field)
         for field in VENDOR_INVOICE_HEADER_FIELDS
     )
+
+
+def _apply_bbox_layer(pdf_path: str, regex_result: dict[str, Any]) -> dict[str, Any]:
+    """Layer+merge: augment regex/rules extraction with LiteParse bbox extraction.
+    Additive only — regex_result is returned unchanged if bbox extraction finds nothing.
+    Bbox fields win on key overlap (Decision G)."""
+    lp = extract_bboxes(pdf_path)
+    if not lp["is_digital"] or lp["error"] or not lp["bboxes"]:
+        return regex_result
+    bbox_fields = extract_header_fields(lp["bboxes"])
+    line_items = extract_line_items_from_bboxes(lp["bboxes"])
+    if line_items:
+        bbox_fields["line_items"] = line_items
+    if not bbox_fields:
+        return regex_result
+    merged = {**regex_result, **bbox_fields}
+    merged["_extraction_source"] = "bbox+regex"
+    return merged
 
 
 def _header_field_is_missing_or_weak(

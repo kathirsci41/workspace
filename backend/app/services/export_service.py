@@ -551,6 +551,8 @@ def _write_fields(ws, documents):
         for field, value in meta.extracted_data.items():
             if str(field).startswith("raw_"):
                 continue
+            if isinstance(value, (list, dict)):
+                continue
             det  = fm.get(field, {})
             loc  = fl.get(field, {})
             _table_row(ws, row, [
