@@ -183,6 +183,13 @@
       "evidence_text": "1OTM2526001611",
       "source": "digital_text",
       "confidence": 0.9
+    },
+    "_extraction_source": {
+      "page": null,
+      "bbox": null,
+      "evidence_text": "bbox+regex",
+      "source": "digital_text",
+      "confidence": null
     }
   },
   "field_confidences": {
