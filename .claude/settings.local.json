@@ -5,7 +5,13 @@
       "Bash(docker compose *)",
       "Bash(npm test *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(python -m pytest tests -q --no-header)",
+      "Bash(/c/Users/kathi/AppData/Local/Programs/Python/Python312/python.exe -m pytest tests -q --no-header)",
+      "Bash(/c/Users/kathi/AppData/Local/Programs/Python/Python312/python.exe -c \"import liteparse; print\\('liteparse OK'\\)\")",
+      "Bash(/c/Users/kathi/AppData/Local/Programs/Python/Python312/python.exe -c \"import fitz; print\\('PyMuPDF OK'\\)\")",
+      "Bash(/c/Users/kathi/AppData/Local/Programs/Python/Python312/python.exe -m pip install liteparse)",
+      "Bash(/c/Users/kathi/AppData/Local/Programs/Python/Python312/python.exe *)"
     ]
   }
 }
