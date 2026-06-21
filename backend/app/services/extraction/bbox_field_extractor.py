@@ -84,24 +84,34 @@ def _below(label: dict, candidate: dict) -> bool:
     )
 
 
+def _is_value_candidate(text: str) -> bool:
+    """Reject empty/punctuation-only bboxes (e.g. a lone ':' separator) as values."""
+    return bool(re.sub(r"[:\-–•|.\s]+", "", text))
+
+
+def _clean_value(text: str) -> str:
+    """Strip leading separator punctuation a label's own ':' sometimes leaks into the next bbox."""
+    return re.sub(r"^[:\-–•|\s]+", "", text.strip())
+
+
 def _find_value(label_bbox: dict, all_bboxes: list[dict]) -> str:
     """Find value bbox for a given label bbox. Right-of wins over below."""
     same_row_right = [
         b for b in all_bboxes
-        if _same_row(label_bbox, b) and _right_of(label_bbox, b) and b["text"].strip()
+        if _same_row(label_bbox, b) and _right_of(label_bbox, b) and _is_value_candidate(b["text"])
     ]
     if same_row_right:
         # Nearest right
         nearest = min(same_row_right, key=lambda b: b["x"])
-        return nearest["text"].strip()
+        return _clean_value(nearest["text"])
 
     below_bboxes = [
         b for b in all_bboxes
-        if _below(label_bbox, b) and b["text"].strip()
+        if _below(label_bbox, b) and _is_value_candidate(b["text"])
     ]
     if below_bboxes:
         nearest = min(below_bboxes, key=lambda b: b["y"])
-        return nearest["text"].strip()
+        return _clean_value(nearest["text"])
 
     return ""
 
@@ -136,8 +146,17 @@ def extract_header_fields(bboxes: list[dict]) -> dict[str, Any]:
                 if value:
                     result[field_name] = value
                     break
-            # Prefix match (label text starts with variant)
+            # Prefix/substring match — skip for single-word variants (e.g. "vendor",
+            # "from", "date"), which collide with unrelated multi-word labels like
+            # "Vendor GSTIN" or "Invoice Date" and grab the wrong nearby value.
+            if " " not in label_norm:
+                continue
             for norm_text, bbox in label_bbox_map.items():
+                # Skip long sentences (>5 words) — they are body text, not labels.
+                # Guards against e.g. "All Invoices needs to contain PO Number & PO Date"
+                # or footer disclaimers containing "order no".
+                if len(norm_text.split()) > 5:
+                    continue
                 if norm_text.startswith(label_norm) or label_norm in norm_text:
                     value = _find_value(bbox, bboxes)
                     if value:
