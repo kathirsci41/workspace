@@ -34,6 +34,7 @@ from __future__ import annotations
 import importlib.metadata
 import importlib.util
 import multiprocessing
+import queue as queue_module
 import time
 from typing import Any
 
@@ -197,14 +198,26 @@ def _run_paddle_ocr_in_subprocess(
 
     started = time.perf_counter()
     process.start()
-    process.join(timeout_seconds)
 
-    if process.is_alive():
-        process.terminate()
-        process.join(_TERMINATE_GRACE_SECONDS)
+    # Drain the result queue BEFORE joining. A multiprocessing.Queue keeps the
+    # child process alive until its buffered items have been flushed to the
+    # underlying pipe; joining first therefore deadlocks until the timeout even
+    # when the worker has already finished (the parent only reads after join).
+    # Reading with a timeout lets the child flush and exit cleanly, and still
+    # enforces the OS-level timeout. See the Python docs note on Queue.cancel_join_thread.
+    try:
+        result = result_queue.get(timeout=timeout_seconds)
+    except queue_module.Empty:
+        result = None
+
+    if result is None:
+        # Timed out waiting for any result: terminate (then kill) the child.
         if process.is_alive():
-            process.kill()
-            process.join()
+            process.terminate()
+            process.join(_TERMINATE_GRACE_SECONDS)
+            if process.is_alive():
+                process.kill()
+                process.join()
         return {
             "success": False,
             "raw_text": "",
@@ -212,15 +225,12 @@ def _run_paddle_ocr_in_subprocess(
             "duration_ms": round((time.perf_counter() - started) * 1000),
         }
 
-    if not result_queue.empty():
-        return result_queue.get()
-
-    return {
-        "success": False,
-        "raw_text": "",
-        "error": "PaddleOCR subprocess exited without a result",
-        "duration_ms": round((time.perf_counter() - started) * 1000),
-    }
+    # Got a result; let the (now-drained) child exit and reap it.
+    process.join(_TERMINATE_GRACE_SECONDS)
+    if process.is_alive():
+        process.terminate()
+        process.join()
+    return result
 
 
 class PaddleOcrProvider(OcrProviderBase):

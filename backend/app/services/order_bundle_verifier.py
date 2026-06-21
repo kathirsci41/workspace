@@ -11,6 +11,8 @@ from app.services.document_normalizer import NormalizedDocument
 def verify_order_bundle(documents: list[NormalizedDocument]) -> dict[str, Any]:
     docs_by_type: dict[str, list[NormalizedDocument]] = {}
     for document in documents:
+        if not document.fields:
+            continue
         docs_by_type.setdefault(document.document_type, []).append(document)
 
     checks: list[dict[str, Any]] = []

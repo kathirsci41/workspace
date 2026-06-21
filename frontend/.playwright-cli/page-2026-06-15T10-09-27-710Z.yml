@@ -1,0 +1,368 @@
+- generic [ref=e521]:
+  - banner [ref=e522]:
+    - link "Order Assurance bundles" [ref=e523] [cursor=pointer]:
+      - /url: /bundles
+      - generic [ref=e524]: OA
+      - generic [ref=e525]:
+        - strong [ref=e526]: Order Assurance
+        - emphasis [ref=e527]: Build 1
+    - search [ref=e528]:
+      - generic [ref=e529]: Search
+      - searchbox "Search" [ref=e530]
+    - generic [ref=e531]:
+      - link "Current bundle Trade-001" [ref=e532] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+        - generic [ref=e533]: Current bundle
+        - strong [ref=e534]: Trade-001
+      - group [ref=e535]:
+        - generic "More" [ref=e536] [cursor=pointer]
+  - main [ref=e537]:
+    - navigation "Breadcrumb" [ref=e538]:
+      - link "Bundles" [ref=e539] [cursor=pointer]:
+        - /url: /bundles
+      - link "/Trade-001" [ref=e540] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - generic [ref=e541]: /Documents
+    - generic [ref=e542]:
+      - generic [ref=e543]:
+        - heading "Documents" [level=1] [ref=e544]
+        - generic [ref=e545]: Trade-001
+      - button "Upload Document" [ref=e547] [cursor=pointer]
+    - navigation "Bundle workflow" [ref=e548]:
+      - link "Overview" [ref=e549] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - link "Documents" [ref=e550] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/documents
+      - link "Extraction Review" [ref=e551] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction
+      - link "Review Results" [ref=e552] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/verification
+      - link "Open Issues" [ref=e553] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/issues
+      - link "Export" [ref=e554] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/exports
+      - group [ref=e555]:
+        - generic "More" [ref=e556] [cursor=pointer]
+    - region "Document KPIs" [ref=e557]:
+      - article [ref=e558]:
+        - generic [ref=e559]: Required Documents
+        - strong [ref=e560]: "5"
+      - article [ref=e561]:
+        - generic [ref=e562]: Uploaded
+        - strong [ref=e563]: "9"
+      - article [ref=e564]:
+        - generic [ref=e565]: Extracted
+        - strong [ref=e566]: "6"
+      - article [ref=e567]:
+        - generic [ref=e568]: Pending Extraction
+        - strong [ref=e569]: "3"
+      - article [ref=e570]:
+        - generic [ref=e571]: Missing
+        - strong [ref=e572]: "0"
+    - region "Required document groups" [ref=e573]:
+      - region "Customer PO" [ref=e574]:
+        - generic [ref=e575]:
+          - generic [ref=e576]:
+            - heading "Customer PO" [level=3] [ref=e577]
+            - generic [ref=e578]: Required document
+          - generic [ref=e579]: 1 uploaded
+        - article "TRADE - CUSTOMER PO.pdf" [ref=e581]:
+          - generic [ref=e582]:
+            - heading "TRADE - CUSTOMER PO.pdf" [level=4] [ref=e584]
+            - generic [ref=e585]: Extracted
+          - generic [ref=e586]:
+            - generic [ref=e587]:
+              - term [ref=e588]: Document type
+              - definition [ref=e589]: Customer PO (CUSTOMER_PO)
+            - generic [ref=e590]:
+              - term [ref=e591]: Status
+              - definition [ref=e592]: Needs Review
+            - generic [ref=e593]:
+              - term [ref=e594]: Extraction status
+              - definition [ref=e595]: Extracted
+            - generic [ref=e596]:
+              - term [ref=e597]: Extraction route
+              - definition [ref=e598]: Digital
+            - generic [ref=e599]:
+              - term [ref=e600]: Uploaded
+              - definition [ref=e601]: 15 Jun 2026, 8:42 am
+          - generic [ref=e602]:
+            - button "Re-extract TRADE - CUSTOMER PO.pdf" [ref=e603] [cursor=pointer]: Re-extract
+            - link "Review TRADE - CUSTOMER PO.pdf" [ref=e604] [cursor=pointer]:
+              - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/b6c8f2f8-4fe0-4e96-8448-0e968b01ea09
+              - text: Review
+            - link "Preview TRADE - CUSTOMER PO.pdf" [ref=e605] [cursor=pointer]:
+              - /url: /api/documents/b6c8f2f8-4fe0-4e96-8448-0e968b01ea09/preview
+              - text: Preview
+            - button "Delete TRADE - CUSTOMER PO.pdf" [ref=e606] [cursor=pointer]: Delete
+        - button "Add another Customer PO" [ref=e607] [cursor=pointer]
+      - region "Company Invoice / Customer Invoice" [ref=e608]:
+        - generic [ref=e609]:
+          - generic [ref=e610]:
+            - heading "Company Invoice / Customer Invoice" [level=3] [ref=e611]
+            - generic [ref=e612]: Required document
+          - generic [ref=e613]: 2 uploaded
+        - generic [ref=e614]:
+          - article "TRADE - INVOICE 1ITR2526001785.pdf" [ref=e615]:
+            - generic [ref=e616]:
+              - generic [ref=e617]:
+                - heading "TRADE - INVOICE 1ITR2526001785.pdf" [level=4] [ref=e618]
+                - generic [ref=e619]: Alias record
+              - generic [ref=e620]: Extracted
+            - generic [ref=e621]:
+              - generic [ref=e622]:
+                - term [ref=e623]: Document type
+                - definition [ref=e624]: Customer Invoice (CUSTOMER_INVOICE alias)
+              - generic [ref=e625]:
+                - term [ref=e626]: Status
+                - definition [ref=e627]: Needs Review
+              - generic [ref=e628]:
+                - term [ref=e629]: Extraction status
+                - definition [ref=e630]: Extracted
+              - generic [ref=e631]:
+                - term [ref=e632]: Extraction route
+                - definition [ref=e633]: Digital
+              - generic [ref=e634]:
+                - term [ref=e635]: Uploaded
+                - definition [ref=e636]: 15 Jun 2026, 8:42 am
+            - generic [ref=e637]:
+              - button "Re-extract TRADE - INVOICE 1ITR2526001785.pdf" [ref=e638] [cursor=pointer]: Re-extract
+              - link "Review TRADE - INVOICE 1ITR2526001785.pdf" [ref=e639] [cursor=pointer]:
+                - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/abecb912-a8ab-4aff-a356-2ab6d9a105ab
+                - text: Review
+              - link "Preview TRADE - INVOICE 1ITR2526001785.pdf" [ref=e640] [cursor=pointer]:
+                - /url: /api/documents/abecb912-a8ab-4aff-a356-2ab6d9a105ab/preview
+                - text: Preview
+              - button "Delete TRADE - INVOICE 1ITR2526001785.pdf" [ref=e641] [cursor=pointer]: Delete
+          - article "TRADE - INVOICE 1ITR2526001785.pdf" [ref=e642]:
+            - generic [ref=e643]:
+              - heading "TRADE - INVOICE 1ITR2526001785.pdf" [level=4] [ref=e645]
+              - generic [ref=e646]: Extracted
+            - generic [ref=e647]:
+              - generic [ref=e648]:
+                - term [ref=e649]: Document type
+                - definition [ref=e650]: Company Invoice (COMPANY_INVOICE)
+              - generic [ref=e651]:
+                - term [ref=e652]: Status
+                - definition [ref=e653]: Needs Review
+              - generic [ref=e654]:
+                - term [ref=e655]: Extraction status
+                - definition [ref=e656]: Extracted
+              - generic [ref=e657]:
+                - term [ref=e658]: Extraction route
+                - definition [ref=e659]: Digital
+              - generic [ref=e660]:
+                - term [ref=e661]: Uploaded
+                - definition [ref=e662]: 15 Jun 2026, 9:02 am
+            - generic [ref=e663]:
+              - button "Re-extract TRADE - INVOICE 1ITR2526001785.pdf" [ref=e664] [cursor=pointer]: Re-extract
+              - link "Review TRADE - INVOICE 1ITR2526001785.pdf" [ref=e665] [cursor=pointer]:
+                - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/35647e30-5236-4a69-89ef-e16db32db8a1
+                - text: Review
+              - link "Preview TRADE - INVOICE 1ITR2526001785.pdf" [ref=e666] [cursor=pointer]:
+                - /url: /api/documents/35647e30-5236-4a69-89ef-e16db32db8a1/preview
+                - text: Preview
+              - button "Delete TRADE - INVOICE 1ITR2526001785.pdf" [ref=e667] [cursor=pointer]: Delete
+        - button "Add another Company Invoice / Customer Invoice" [ref=e668] [cursor=pointer]
+      - region "Company Delivery Challan / DC" [ref=e669]:
+        - generic [ref=e670]:
+          - generic [ref=e671]:
+            - heading "Company Delivery Challan / DC" [level=3] [ref=e672]
+            - generic [ref=e673]: Required document
+          - generic [ref=e674]: 2 uploaded
+        - generic [ref=e675]:
+          - article "TRADE - DC 1DNT2526DC2915.pdf" [ref=e676]:
+            - generic [ref=e677]:
+              - generic [ref=e678]:
+                - heading "TRADE - DC 1DNT2526DC2915.pdf" [level=4] [ref=e679]
+                - generic [ref=e680]: Alias record
+              - generic [ref=e681]: Pending
+            - generic [ref=e682]:
+              - generic [ref=e683]:
+                - term [ref=e684]: Document type
+                - definition [ref=e685]: Delivery Challan (DELIVERY_CHALLAN alias)
+              - generic [ref=e686]:
+                - term [ref=e687]: Status
+                - definition [ref=e688]: Uploaded
+              - generic [ref=e689]:
+                - term [ref=e690]: Extraction status
+                - definition [ref=e691]: Pending
+              - generic [ref=e692]:
+                - term [ref=e693]: Extraction route
+                - definition [ref=e694]: "-"
+              - generic [ref=e695]:
+                - term [ref=e696]: Uploaded
+                - definition [ref=e697]: 15 Jun 2026, 8:42 am
+            - generic [ref=e698]:
+              - button "Extract TRADE - DC 1DNT2526DC2915.pdf" [ref=e699] [cursor=pointer]: Extract
+              - link "Review TRADE - DC 1DNT2526DC2915.pdf" [ref=e700] [cursor=pointer]:
+                - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/27002832-c439-437b-bbb2-a05f3461ce7b
+                - text: Review
+              - link "Preview TRADE - DC 1DNT2526DC2915.pdf" [ref=e701] [cursor=pointer]:
+                - /url: /api/documents/27002832-c439-437b-bbb2-a05f3461ce7b/preview
+                - text: Preview
+              - button "Delete TRADE - DC 1DNT2526DC2915.pdf" [ref=e702] [cursor=pointer]: Delete
+          - article "TRADE - DC 1DNT2526DC2915.pdf" [ref=e703]:
+            - generic [ref=e704]:
+              - heading "TRADE - DC 1DNT2526DC2915.pdf" [level=4] [ref=e706]
+              - generic [ref=e707]: Extracted
+            - generic [ref=e708]:
+              - generic [ref=e709]:
+                - term [ref=e710]: Document type
+                - definition [ref=e711]: Company Delivery Challan / DC (COMPANY_DC)
+              - generic [ref=e712]:
+                - term [ref=e713]: Status
+                - definition [ref=e714]: Needs Review
+              - generic [ref=e715]:
+                - term [ref=e716]: Extraction status
+                - definition [ref=e717]: Extracted
+              - generic [ref=e718]:
+                - term [ref=e719]: Extraction route
+                - definition [ref=e720]: Digital
+              - generic [ref=e721]:
+                - term [ref=e722]: Uploaded
+                - definition [ref=e723]: 15 Jun 2026, 9:02 am
+            - generic [ref=e724]:
+              - button "Re-extract TRADE - DC 1DNT2526DC2915.pdf" [ref=e725] [cursor=pointer]: Re-extract
+              - link "Review TRADE - DC 1DNT2526DC2915.pdf" [ref=e726] [cursor=pointer]:
+                - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/f0555809-dd9a-46a6-ad1c-b65a3c847e6c
+                - text: Review
+              - link "Preview TRADE - DC 1DNT2526DC2915.pdf" [ref=e727] [cursor=pointer]:
+                - /url: /api/documents/f0555809-dd9a-46a6-ad1c-b65a3c847e6c/preview
+                - text: Preview
+              - button "Delete TRADE - DC 1DNT2526DC2915.pdf" [ref=e728] [cursor=pointer]: Delete
+        - button "Add another Company Delivery Challan / DC" [ref=e729] [cursor=pointer]
+      - region "Company PO to Vendor" [ref=e730]:
+        - generic [ref=e731]:
+          - generic [ref=e732]:
+            - heading "Company PO to Vendor" [level=3] [ref=e733]
+            - generic [ref=e734]: Required document
+          - generic [ref=e735]: 2 uploaded
+        - generic [ref=e736]:
+          - article "TRADE - PURCHASE ORDER.pdf" [ref=e737]:
+            - generic [ref=e738]:
+              - generic [ref=e739]:
+                - heading "TRADE - PURCHASE ORDER.pdf" [level=4] [ref=e740]
+                - generic [ref=e741]: Alias record
+              - generic [ref=e742]: Pending
+            - generic [ref=e743]:
+              - generic [ref=e744]:
+                - term [ref=e745]: Document type
+                - definition [ref=e746]: Vendor PO (VENDOR_PO alias)
+              - generic [ref=e747]:
+                - term [ref=e748]: Status
+                - definition [ref=e749]: Uploaded
+              - generic [ref=e750]:
+                - term [ref=e751]: Extraction status
+                - definition [ref=e752]: Pending
+              - generic [ref=e753]:
+                - term [ref=e754]: Extraction route
+                - definition [ref=e755]: "-"
+              - generic [ref=e756]:
+                - term [ref=e757]: Uploaded
+                - definition [ref=e758]: 15 Jun 2026, 8:42 am
+            - generic [ref=e759]:
+              - button "Extract TRADE - PURCHASE ORDER.pdf" [ref=e760] [cursor=pointer]: Extract
+              - link "Review TRADE - PURCHASE ORDER.pdf" [ref=e761] [cursor=pointer]:
+                - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/62997383-7f72-480f-b8de-6a1f3d3c112c
+                - text: Review
+              - link "Preview TRADE - PURCHASE ORDER.pdf" [ref=e762] [cursor=pointer]:
+                - /url: /api/documents/62997383-7f72-480f-b8de-6a1f3d3c112c/preview
+                - text: Preview
+              - button "Delete TRADE - PURCHASE ORDER.pdf" [ref=e763] [cursor=pointer]: Delete
+          - article "TRADE - PURCHASE ORDER.pdf" [ref=e764]:
+            - generic [ref=e765]:
+              - heading "TRADE - PURCHASE ORDER.pdf" [level=4] [ref=e767]
+              - generic [ref=e768]: Extracted
+            - generic [ref=e769]:
+              - generic [ref=e770]:
+                - term [ref=e771]: Document type
+                - definition [ref=e772]: Company PO to Vendor (COMPANY_PO)
+              - generic [ref=e773]:
+                - term [ref=e774]: Status
+                - definition [ref=e775]: Needs Review
+              - generic [ref=e776]:
+                - term [ref=e777]: Extraction status
+                - definition [ref=e778]: Extracted
+              - generic [ref=e779]:
+                - term [ref=e780]: Extraction route
+                - definition [ref=e781]: Digital
+              - generic [ref=e782]:
+                - term [ref=e783]: Uploaded
+                - definition [ref=e784]: 15 Jun 2026, 9:02 am
+            - generic [ref=e785]:
+              - button "Re-extract TRADE - PURCHASE ORDER.pdf" [ref=e786] [cursor=pointer]: Re-extract
+              - link "Review TRADE - PURCHASE ORDER.pdf" [ref=e787] [cursor=pointer]:
+                - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/641e4a19-44d4-4950-b936-df28201ce862
+                - text: Review
+              - link "Preview TRADE - PURCHASE ORDER.pdf" [ref=e788] [cursor=pointer]:
+                - /url: /api/documents/641e4a19-44d4-4950-b936-df28201ce862/preview
+                - text: Preview
+              - button "Delete TRADE - PURCHASE ORDER.pdf" [ref=e789] [cursor=pointer]: Delete
+        - button "Add another Company PO to Vendor" [ref=e790] [cursor=pointer]
+      - region "Vendor Invoice" [ref=e791]:
+        - generic [ref=e792]:
+          - generic [ref=e793]:
+            - heading "Vendor Invoice" [level=3] [ref=e794]
+            - generic [ref=e795]: Required document
+          - generic [ref=e796]: 2 uploaded
+        - generic [ref=e797]:
+          - article "TRADE - VENDOR BILL -C190224826.pdf" [ref=e798]:
+            - generic [ref=e799]:
+              - heading "TRADE - VENDOR BILL -C190224826.pdf" [level=4] [ref=e801]
+              - generic [ref=e802]: Extracted
+            - generic [ref=e803]:
+              - generic [ref=e804]:
+                - term [ref=e805]: Document type
+                - definition [ref=e806]: Vendor Invoice (VENDOR_INVOICE)
+              - generic [ref=e807]:
+                - term [ref=e808]: Status
+                - definition [ref=e809]: Needs Review
+              - generic [ref=e810]:
+                - term [ref=e811]: Extraction status
+                - definition [ref=e812]: Extracted
+              - generic [ref=e813]:
+                - term [ref=e814]: Extraction route
+                - definition [ref=e815]: Digital
+              - generic [ref=e816]:
+                - term [ref=e817]: Uploaded
+                - definition [ref=e818]: 15 Jun 2026, 8:42 am
+            - generic [ref=e819]:
+              - button "Re-extract TRADE - VENDOR BILL -C190224826.pdf" [ref=e820] [cursor=pointer]: Re-extract
+              - link "Review TRADE - VENDOR BILL -C190224826.pdf" [ref=e821] [cursor=pointer]:
+                - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/688a3ad7-dc85-46c0-b180-c1f5cd69b756
+                - text: Review
+              - link "Preview TRADE - VENDOR BILL -C190224826.pdf" [ref=e822] [cursor=pointer]:
+                - /url: /api/documents/688a3ad7-dc85-46c0-b180-c1f5cd69b756/preview
+                - text: Preview
+              - button "Delete TRADE - VENDOR BILL -C190224826.pdf" [ref=e823] [cursor=pointer]: Delete
+          - article "TRADE -VENDOR BILL - C190224835.pdf" [ref=e824]:
+            - generic [ref=e825]:
+              - heading "TRADE -VENDOR BILL - C190224835.pdf" [level=4] [ref=e827]
+              - generic [ref=e828]: Pending
+            - generic [ref=e829]:
+              - generic [ref=e830]:
+                - term [ref=e831]: Document type
+                - definition [ref=e832]: Vendor Invoice (VENDOR_INVOICE)
+              - generic [ref=e833]:
+                - term [ref=e834]: Status
+                - definition [ref=e835]: Uploaded
+              - generic [ref=e836]:
+                - term [ref=e837]: Extraction status
+                - definition [ref=e838]: Pending
+              - generic [ref=e839]:
+                - term [ref=e840]: Extraction route
+                - definition [ref=e841]: "-"
+              - generic [ref=e842]:
+                - term [ref=e843]: Uploaded
+                - definition [ref=e844]: 15 Jun 2026, 8:42 am
+            - generic [ref=e845]:
+              - button "Extract TRADE -VENDOR BILL - C190224835.pdf" [ref=e846] [cursor=pointer]: Extract
+              - link "Review TRADE -VENDOR BILL - C190224835.pdf" [ref=e847] [cursor=pointer]:
+                - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/4778d270-7041-4a0f-b52b-b75fbc97b327
+                - text: Review
+              - link "Preview TRADE -VENDOR BILL - C190224835.pdf" [ref=e848] [cursor=pointer]:
+                - /url: /api/documents/4778d270-7041-4a0f-b52b-b75fbc97b327/preview
+                - text: Preview
+              - button "Delete TRADE -VENDOR BILL - C190224835.pdf" [ref=e849] [cursor=pointer]: Delete
+        - button "Add another Vendor Invoice" [ref=e850] [cursor=pointer]

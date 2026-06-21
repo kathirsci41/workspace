@@ -1,0 +1,192 @@
+- generic [ref=e348]:
+  - banner [ref=e349]:
+    - link "Order Assurance bundles" [ref=e350] [cursor=pointer]:
+      - /url: /bundles
+      - generic [ref=e351]: OA
+      - generic [ref=e352]:
+        - strong [ref=e353]: Order Assurance
+        - emphasis [ref=e354]: Build 1
+    - search [ref=e355]:
+      - generic [ref=e356]: Search
+      - searchbox "Search" [ref=e357]
+    - generic [ref=e358]:
+      - link "Current bundle Trade-001" [ref=e359] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+        - generic [ref=e360]: Current bundle
+        - strong [ref=e361]: Trade-001
+      - group [ref=e362]:
+        - generic "More" [ref=e363] [cursor=pointer]
+  - main [ref=e364]:
+    - navigation "Breadcrumb" [ref=e365]:
+      - link "Bundles" [ref=e366] [cursor=pointer]:
+        - /url: /bundles
+      - link "/Trade-001" [ref=e367] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - generic [ref=e368]: /Extraction Review
+    - generic [ref=e369]:
+      - generic [ref=e370]:
+        - heading "Extraction Review" [level=1] [ref=e371]
+        - generic [ref=e372]: Trade-001
+      - button "Re-extract" [ref=e374] [cursor=pointer]
+    - navigation "Bundle workflow" [ref=e375]:
+      - link "Overview" [ref=e376] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - link "Documents" [ref=e377] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/documents
+      - link "Extraction Review" [ref=e378] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction
+      - link "Review Results" [ref=e379] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/verification
+      - link "Open Issues" [ref=e380] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/issues
+      - link "Export" [ref=e381] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/exports
+      - group [ref=e382]:
+        - generic "More" [ref=e383] [cursor=pointer]
+    - generic [ref=e384]:
+      - complementary [ref=e385]:
+        - heading "Documents in Bundle" [level=2] [ref=e386]
+        - generic [ref=e387]:
+          - text: Document selector
+          - combobox "Document selector" [ref=e388]:
+            - option "Customer PO - TRADE - CUSTOMER PO.pdf" [selected]
+            - option "Customer Invoice - TRADE - INVOICE 1ITR2526001785.pdf"
+            - option "Delivery Challan - TRADE - DC 1DNT2526DC2915.pdf"
+            - option "Vendor PO - TRADE - PURCHASE ORDER.pdf"
+            - option "Vendor Invoice - TRADE - VENDOR BILL -C190224826.pdf"
+            - option "Vendor Invoice - TRADE -VENDOR BILL - C190224835.pdf"
+            - option "Company Invoice - TRADE - INVOICE 1ITR2526001785.pdf"
+            - option "Company Delivery Challan / DC - TRADE - DC 1DNT2526DC2915.pdf"
+            - option "Company PO to Vendor - TRADE - PURCHASE ORDER.pdf"
+        - generic [ref=e389]:
+          - generic [ref=e390]:
+            - term [ref=e391]: Document type
+            - definition [ref=e392]: Customer PO
+          - generic [ref=e393]:
+            - term [ref=e394]: Filename
+            - definition [ref=e395]: TRADE - CUSTOMER PO.pdf
+          - generic [ref=e396]:
+            - term [ref=e397]: Updated
+            - definition [ref=e398]: 15 Jun 2026, 8:42 am
+          - generic [ref=e399]:
+            - term [ref=e400]: Primary reference
+            - definition [ref=e401]: PWFA251127016
+      - region "PDF preview" [ref=e403]:
+        - generic [ref=e404]:
+          - button "Preview PDF" [ref=e405] [cursor=pointer]
+          - button "Fit width" [ref=e406] [cursor=pointer]
+          - button "−" [ref=e407] [cursor=pointer]
+          - generic [ref=e408]: 100%
+          - button "+" [ref=e409] [cursor=pointer]
+          - button "↻ Rotate" [ref=e410] [cursor=pointer]
+          - generic [ref=e411]: 4 pages
+        - generic [ref=e412]:
+          - generic [ref=e413]:
+            - generic [ref=e414]: Page 1 / 4
+            - img "PDF page 1 preview" [ref=e416]
+          - generic [ref=e417]:
+            - generic [ref=e418]: Page 2 / 4
+            - img "PDF page 2 preview" [ref=e420]
+          - generic [ref=e421]:
+            - generic [ref=e422]: Page 3 / 4
+            - img "PDF page 3 preview" [ref=e424]
+          - generic [ref=e425]:
+            - generic [ref=e426]: Page 4 / 4
+            - img "PDF page 4 preview" [ref=e428]
+      - generic [ref=e429]:
+        - paragraph [ref=e430]: Click a field name to locate it in the PDF.
+        - region "Extracted fields" [ref=e431]:
+          - generic [ref=e432]:
+            - generic [ref=e433]:
+              - heading "Extracted Fields" [level=2] [ref=e434]
+              - paragraph [ref=e435]: TRADE - CUSTOMER PO.pdf
+            - generic "Status Extracted" [ref=e436]: Extracted
+          - generic [ref=e437]:
+            - region "Critical Fields" [ref=e438]:
+              - heading "Critical Fields" [level=3] [ref=e439]
+              - table "Critical Fields fields" [ref=e440]:
+                - 'row "Jump to Customer PO Number in PDF PWFA251127016 Confidence: 90% Correct Customer PO Number Evidence PWFA251127016" [ref=e441]':
+                  - cell "Jump to Customer PO Number in PDF" [ref=e442] [cursor=pointer]:
+                    - text: Customer PO Number
+                    - emphasis [ref=e443]: Used in Review Results
+                  - cell "PWFA251127016" [ref=e444]
+                  - 'cell "Confidence: 90%" [ref=e445]'
+                  - cell "Correct Customer PO Number" [ref=e446]:
+                    - button "Correct Customer PO Number" [ref=e447] [cursor=pointer]: Edit
+                  - generic [ref=e448]:
+                    - generic [ref=e449]: Evidence
+                    - generic [ref=e450]: PWFA251127016
+                - 'row "Jump to Customer PO Date in PDF 27 November 2025 Confidence: 90% Correct Customer PO Date Evidence 27 November 2025" [ref=e451]':
+                  - cell "Jump to Customer PO Date in PDF" [ref=e452] [cursor=pointer]:
+                    - text: Customer PO Date
+                    - emphasis [ref=e453]: Used in Review Results
+                  - cell "27 November 2025" [ref=e454]
+                  - 'cell "Confidence: 90%" [ref=e455]'
+                  - cell "Correct Customer PO Date" [ref=e456]:
+                    - button "Correct Customer PO Date" [ref=e457] [cursor=pointer]: Edit
+                  - generic [ref=e458]:
+                    - generic [ref=e459]: Evidence
+                    - generic [ref=e460]: 27 November 2025
+                - 'row "Jump to Customer Name in PDF SHRIRAM FINANCE LIMITED Confidence: 90% Correct Customer Name Evidence SHRIRAM FINANCE LIMITED" [ref=e461]':
+                  - cell "Jump to Customer Name in PDF" [ref=e462] [cursor=pointer]:
+                    - text: Customer Name
+                    - emphasis [ref=e463]: Used in Review Results
+                  - cell "SHRIRAM FINANCE LIMITED" [ref=e464]
+                  - 'cell "Confidence: 90%" [ref=e465]'
+                  - cell "Correct Customer Name" [ref=e466]:
+                    - button "Correct Customer Name" [ref=e467] [cursor=pointer]: Edit
+                  - generic [ref=e468]:
+                    - generic [ref=e469]: Evidence
+                    - generic [ref=e470]: SHRIRAM FINANCE LIMITED
+                - 'row "Jump to Grand Total in PDF ₹5,03,137 Confidence: 90% Correct Grand Total Evidence 503137" [ref=e471]':
+                  - cell "Jump to Grand Total in PDF" [ref=e472] [cursor=pointer]:
+                    - text: Grand Total
+                    - emphasis [ref=e473]: Used in Review Results
+                  - cell "₹5,03,137" [ref=e474]
+                  - 'cell "Confidence: 90%" [ref=e475]'
+                  - cell "Correct Grand Total" [ref=e476]:
+                    - button "Correct Grand Total" [ref=e477] [cursor=pointer]: Edit
+                  - generic [ref=e478]:
+                    - generic [ref=e479]: Evidence
+                    - generic [ref=e480]: "503137"
+                - 'row "Jump to PO Number in PDF PWFA251127016 Confidence: 90% Correct PO Number Evidence PWFA251127016" [ref=e481]':
+                  - cell "Jump to PO Number in PDF" [ref=e482] [cursor=pointer]:
+                    - text: PO Number
+                    - emphasis [ref=e483]: Used in Review Results
+                  - cell "PWFA251127016" [ref=e484]
+                  - 'cell "Confidence: 90%" [ref=e485]'
+                  - cell "Correct PO Number" [ref=e486]:
+                    - button "Correct PO Number" [ref=e487] [cursor=pointer]: Edit
+                  - generic [ref=e488]:
+                    - generic [ref=e489]: Evidence
+                    - generic [ref=e490]: PWFA251127016
+            - region "Supporting Fields" [ref=e491]:
+              - heading "Supporting Fields" [level=3] [ref=e492]
+              - table "Supporting Fields fields" [ref=e493]:
+                - 'row "Jump to Customer Order Number in PDF PWFA251127016 Confidence: 90% Correct Customer Order Number Evidence PWFA251127016" [ref=e494]':
+                  - cell "Jump to Customer Order Number in PDF" [ref=e495] [cursor=pointer]: Customer Order Number
+                  - cell "PWFA251127016" [ref=e496]
+                  - 'cell "Confidence: 90%" [ref=e497]'
+                  - cell "Correct Customer Order Number" [ref=e498]:
+                    - button "Correct Customer Order Number" [ref=e499] [cursor=pointer]: Edit
+                  - generic [ref=e500]:
+                    - generic [ref=e501]: Evidence
+                    - generic [ref=e502]: PWFA251127016
+                - 'row "Jump to Primary Reference in PDF PWFA251127016 Confidence: 90% Correct Primary Reference Evidence PWFA251127016" [ref=e503]':
+                  - cell "Jump to Primary Reference in PDF" [ref=e504] [cursor=pointer]: Primary Reference
+                  - cell "PWFA251127016" [ref=e505]
+                  - 'cell "Confidence: 90%" [ref=e506]'
+                  - cell "Correct Primary Reference" [ref=e507]:
+                    - button "Correct Primary Reference" [ref=e508] [cursor=pointer]: Edit
+                  - generic [ref=e509]:
+                    - generic [ref=e510]: Evidence
+                    - generic [ref=e511]: PWFA251127016
+                - 'row "Jump to Total Amount in PDF ₹5,03,137 Confidence: 90% Correct Total Amount Evidence 503137" [ref=e512]':
+                  - cell "Jump to Total Amount in PDF" [ref=e513] [cursor=pointer]: Total Amount
+                  - cell "₹5,03,137" [ref=e514]
+                  - 'cell "Confidence: 90%" [ref=e515]'
+                  - cell "Correct Total Amount" [ref=e516]:
+                    - button "Correct Total Amount" [ref=e517] [cursor=pointer]: Edit
+                  - generic [ref=e518]:
+                    - generic [ref=e519]: Evidence
+                    - generic [ref=e520]: "503137"

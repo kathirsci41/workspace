@@ -151,3 +151,40 @@ def test_multiple_vendor_bills_for_same_vendor_po_sum_coverage():
         for check in summary["checks"]
     )
     assert not any(issue.get("code") == "VENDOR_PARTIAL_BILLING_REVIEW_REQUIRED" for issue in summary["issues"])
+
+
+def test_empty_extracted_alias_vendor_po_does_not_create_missing_bill_issue():
+    summary = verify_order_bundle(
+        [
+            doc("empty-vpo", "VENDOR_PO"),
+            doc("vpo", "VENDOR_PO", vendor_po_no="PO-1", vendor_name="Alpha Systems", grand_total=1000),
+            doc("bill", "VENDOR_INVOICE", vendor_invoice_no="BILL-1", po_reference="PO-1", vendor_name="Alpha Systems", invoice_total=1000),
+        ]
+    )
+
+    assert not any(
+        issue["code"] == "VENDOR_BILL_MISSING_FOR_PO" and issue.get("vendor_po_no") in (None, "")
+        for issue in summary["issues"]
+    )
+    assert any(
+        check["check_id"] == "VENDOR_BILLING_COVERAGE" and check["result"] == "PASS"
+        for check in summary["checks"]
+    )
+
+
+def test_empty_extracted_alias_dc_does_not_become_primary_comparison_document():
+    summary = verify_order_bundle(
+        [
+            doc("po", "CUSTOMER_PO", customer_po_no="PO-1", grand_total=1000),
+            doc("invoice", "CUSTOMER_INVOICE", invoice_no="INV-1", customer_order_no="PO-1", so_no="SO-1", customer_name="Acme", taxable_amount=1000, grand_total=1000),
+            doc("empty-dc", "DELIVERY_CHALLAN"),
+            doc("dc", "DELIVERY_CHALLAN", dc_no="DC-1", customer_order_no="PO-1", so_no="SO-1", customer_name="Acme", estimated_amount=1000),
+        ]
+    )
+
+    assert any(
+        check["check_id"] == "CUSTOMER_PO_DC_ORDER_MATCH"
+        and check["right_document_id"] == "dc"
+        and check["result"] == "PASS"
+        for check in summary["checks"]
+    )

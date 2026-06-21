@@ -1,0 +1,103 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "Order Assurance bundles" [ref=e5] [cursor=pointer]:
+      - /url: /bundles
+      - generic [ref=e6]: OA
+      - generic [ref=e7]:
+        - strong [ref=e8]: Order Assurance
+        - emphasis [ref=e9]: Build 1
+    - search [ref=e10]:
+      - generic [ref=e11]: Search
+      - searchbox "Search" [ref=e12]
+    - generic [ref=e13]:
+      - link "Current bundle 746537ad-206d-4f04-a53c-a156692202ce" [ref=e14] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+        - generic [ref=e15]: Current bundle
+        - strong [ref=e16]: 746537ad-206d-4f04-a53c-a156692202ce
+      - group [ref=e17]:
+        - generic "More" [ref=e18] [cursor=pointer]
+  - main [ref=e19]:
+    - navigation "Breadcrumb" [ref=e20]:
+      - link "Bundles" [ref=e21] [cursor=pointer]:
+        - /url: /bundles
+      - link "/746537ad-206d-4f04-a53c-a156692202ce" [ref=e22] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - generic [ref=e23]: /Documents
+    - generic [ref=e24]:
+      - generic [ref=e25]:
+        - heading "Documents" [level=1] [ref=e26]
+        - generic [ref=e27]: Upload and manage the required PDFs.
+      - button "Upload Document" [ref=e29] [cursor=pointer]
+    - navigation "Bundle workflow" [ref=e30]:
+      - link "Overview" [ref=e31] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - link "Documents" [ref=e32] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/documents
+      - link "Extraction Review" [ref=e33] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction
+      - link "Review Results" [ref=e34] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/verification
+      - link "Open Issues" [ref=e35] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/issues
+      - link "Export" [ref=e36] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/exports
+      - group [ref=e37]:
+        - generic "More" [ref=e38] [cursor=pointer]
+    - status [ref=e39]: Loading documents...
+    - region "Document KPIs" [ref=e40]:
+      - article [ref=e41]:
+        - generic [ref=e42]: Required Documents
+        - strong [ref=e43]: "5"
+      - article [ref=e44]:
+        - generic [ref=e45]: Uploaded
+        - strong [ref=e46]: "0"
+      - article [ref=e47]:
+        - generic [ref=e48]: Extracted
+        - strong [ref=e49]: "0"
+      - article [ref=e50]:
+        - generic [ref=e51]: Pending Extraction
+        - strong [ref=e52]: "0"
+      - article [ref=e53]:
+        - generic [ref=e54]: Missing
+        - strong [ref=e55]: "5"
+    - region "Required document groups" [ref=e56]:
+      - region "Customer PO" [ref=e57]:
+        - generic [ref=e58]:
+          - generic [ref=e59]:
+            - heading "Customer PO" [level=3] [ref=e60]
+            - generic [ref=e61]: Required document
+          - generic [ref=e62]: 0 uploaded
+        - paragraph [ref=e63]: No Customer PO uploaded.
+        - button "Upload Customer PO" [ref=e64] [cursor=pointer]: Upload
+      - region "Company Invoice" [ref=e65]:
+        - generic [ref=e66]:
+          - generic [ref=e67]:
+            - heading "Company Invoice" [level=3] [ref=e68]
+            - generic [ref=e69]: Required document
+          - generic [ref=e70]: 0 uploaded
+        - paragraph [ref=e71]: No Company Invoice uploaded.
+        - button "Upload Company Invoice" [ref=e72] [cursor=pointer]: Upload
+      - region "Company Delivery Challan / DC" [ref=e73]:
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - heading "Company Delivery Challan / DC" [level=3] [ref=e76]
+            - generic [ref=e77]: Required document
+          - generic [ref=e78]: 0 uploaded
+        - paragraph [ref=e79]: No Company Delivery Challan / DC uploaded.
+        - button "Upload Company Delivery Challan / DC" [ref=e80] [cursor=pointer]: Upload
+      - region "Company PO to Vendor" [ref=e81]:
+        - generic [ref=e82]:
+          - generic [ref=e83]:
+            - heading "Company PO to Vendor" [level=3] [ref=e84]
+            - generic [ref=e85]: Required document
+          - generic [ref=e86]: 0 uploaded
+        - paragraph [ref=e87]: No Company PO to Vendor uploaded.
+        - button "Upload Company PO to Vendor" [ref=e88] [cursor=pointer]: Upload
+      - region "Vendor Invoice" [ref=e89]:
+        - generic [ref=e90]:
+          - generic [ref=e91]:
+            - heading "Vendor Invoice" [level=3] [ref=e92]
+            - generic [ref=e93]: Required document
+          - generic [ref=e94]: 0 uploaded
+        - paragraph [ref=e95]: No Vendor Invoice uploaded.
+        - button "Upload Vendor Invoice" [ref=e96] [cursor=pointer]: Upload

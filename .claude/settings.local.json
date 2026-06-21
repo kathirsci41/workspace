@@ -3,7 +3,9 @@
     "allow": [
       "Bash(python -m pytest backend/tests -q --tb=short --no-header)",
       "Bash(docker compose *)",
-      "Bash(npm test *)"
+      "Bash(npm test *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   }
 }

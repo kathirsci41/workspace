@@ -413,6 +413,20 @@ def _slow_worker_for_test(payload, queue):
     queue.put({"success": True, "raw_text": "SHOULD NOT ARRIVE", "error": None, "duration_ms": 1})
 
 
+def _large_payload_worker_for_test(payload, queue):
+    """Returns immediately with a payload large enough to exceed the OS pipe
+    buffer. Reproduces the multiprocessing.Queue join-before-drain deadlock: a
+    child blocks until its buffered items are flushed to the pipe, so a parent
+    that joins before reading hangs until the timeout. The helper must drain
+    the queue first and return this result quickly."""
+    queue.put({
+        "success": True,
+        "raw_text": "X" * 200_000,
+        "error": None,
+        "duration_ms": 1,
+    })
+
+
 class TestPaddleOcrProviderTimeoutEnforcement:
     """Phase 1xB: real process-level timeout via multiprocessing subprocess isolation."""
 
@@ -589,6 +603,20 @@ class TestPaddleOcrProviderTimeoutEnforcement:
         result = _run_paddle_ocr_in_subprocess("f.pdf", None, 10, worker=_fast_worker_for_test)
         assert result["success"] is True
         assert result["raw_text"] == "FAST WORKER TEXT"
+
+    def test_subprocess_helper_drains_large_payload_without_deadlock(self):
+        """Regression: a worker returning a payload larger than the OS pipe
+        buffer must not deadlock. With the previous join-before-drain logic this
+        hung until the timeout and returned a failure; draining the queue first
+        returns the result quickly. This is the exact condition that broke real
+        PaddleOCR extraction (a multi-KB result deadlocked the subprocess)."""
+        from app.services.extraction.ocr_providers.paddle_provider import _run_paddle_ocr_in_subprocess
+        started = time.perf_counter()
+        result = _run_paddle_ocr_in_subprocess("f.pdf", None, 30, worker=_large_payload_worker_for_test)
+        wall_seconds = time.perf_counter() - started
+        assert result["success"] is True, f"deadlocked or failed: {result.get('error')!r}"
+        assert len(result["raw_text"]) == 200_000
+        assert wall_seconds < 25  # must not hang until the 30s timeout
 
     def test_subprocess_helper_real_process_timeout_terminates_child(self):
         """Real spawned subprocess with a worker that sleeps past the timeout.

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.order_bundle import OrderBundleRecord
 from app.schemas.bundle import BundleCreate
@@ -22,3 +22,10 @@ class BundleRepository:
 
     def get(self, bundle_id: str) -> OrderBundleRecord | None:
         return self.db.get(OrderBundleRecord, bundle_id)
+
+    def get_with_documents(self, bundle_id: str) -> OrderBundleRecord | None:
+        stmt = select(OrderBundleRecord).where(OrderBundleRecord.id == bundle_id).options(selectinload(OrderBundleRecord.documents))
+        return self.db.scalars(stmt).first()
+
+    def delete(self, bundle: OrderBundleRecord) -> None:
+        self.db.delete(bundle)

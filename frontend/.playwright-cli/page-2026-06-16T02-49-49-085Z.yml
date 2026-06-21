@@ -1,0 +1,54 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "Order Assurance bundles" [ref=e5] [cursor=pointer]:
+      - /url: /bundles
+      - generic [ref=e6]: OA
+      - generic [ref=e7]:
+        - strong [ref=e8]: Order Assurance
+        - emphasis [ref=e9]: Build 1
+    - search [ref=e10]:
+      - generic [ref=e11]: Search
+      - searchbox "Search" [ref=e12]
+    - generic [ref=e13]:
+      - link "Current bundle 95e0a84e-5b91-4166-be15-e39bda6b9e4d" [ref=e14] [cursor=pointer]:
+        - /url: /bundles/95e0a84e-5b91-4166-be15-e39bda6b9e4d/overview
+        - generic [ref=e15]: Current bundle
+        - strong [ref=e16]: 95e0a84e-5b91-4166-be15-e39bda6b9e4d
+      - group [ref=e17]:
+        - generic "More" [ref=e18] [cursor=pointer]
+  - main [ref=e19]:
+    - navigation "Breadcrumb" [ref=e20]:
+      - link "Bundles" [ref=e21] [cursor=pointer]:
+        - /url: /bundles
+      - link "/95e0a84e-5b91-4166-be15-e39bda6b9e4d" [ref=e22] [cursor=pointer]:
+        - /url: /bundles/95e0a84e-5b91-4166-be15-e39bda6b9e4d/overview
+      - generic [ref=e23]: /Extraction Review
+    - generic [ref=e24]:
+      - generic [ref=e25]:
+        - heading "Extraction Review" [level=1] [ref=e26]
+        - generic [ref=e27]: Review extracted values against PDF evidence.
+      - button "Re-extract" [disabled] [ref=e29]
+    - navigation "Bundle workflow" [ref=e30]:
+      - link "Overview" [ref=e31] [cursor=pointer]:
+        - /url: /bundles/95e0a84e-5b91-4166-be15-e39bda6b9e4d/overview
+      - link "Documents" [ref=e32] [cursor=pointer]:
+        - /url: /bundles/95e0a84e-5b91-4166-be15-e39bda6b9e4d/documents
+      - link "Extraction Review" [ref=e33] [cursor=pointer]:
+        - /url: /bundles/95e0a84e-5b91-4166-be15-e39bda6b9e4d/extraction
+      - link "Review Results" [ref=e34] [cursor=pointer]:
+        - /url: /bundles/95e0a84e-5b91-4166-be15-e39bda6b9e4d/verification
+      - link "Open Issues" [ref=e35] [cursor=pointer]:
+        - /url: /bundles/95e0a84e-5b91-4166-be15-e39bda6b9e4d/issues
+      - link "Export" [ref=e36] [cursor=pointer]:
+        - /url: /bundles/95e0a84e-5b91-4166-be15-e39bda6b9e4d/exports
+      - group [ref=e37]:
+        - generic "More" [ref=e38] [cursor=pointer]
+    - status [ref=e39]: Loading extraction review...
+    - generic [ref=e40]:
+      - complementary [ref=e41]:
+        - heading "Documents in Bundle" [level=2] [ref=e42]
+        - generic [ref=e43]:
+          - text: Document selector
+          - combobox "Document selector" [ref=e44]
+      - paragraph [ref=e46]: Upload a document to preview extracted evidence.
+      - paragraph [ref=e48]: No document selected.

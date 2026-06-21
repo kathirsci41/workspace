@@ -4,7 +4,7 @@ import {
   isNeedsReviewSource,
   sourceLabel,
   criticalFieldsForDocType,
-} from './ExtractedFieldsPanel';
+} from './extractedFieldsUtils';
 
 describe('groupFieldsByDocType', () => {
   const emptyMeta = {};

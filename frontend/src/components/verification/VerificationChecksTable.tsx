@@ -29,8 +29,8 @@ export function VerificationChecksTable({
         </tr>
       </thead>
       <tbody>
-        {checks.map((check) => (
-          <tr key={check.check_id} className={selectedCheckId === check.check_id ? 'is-selected' : undefined}>
+        {checks.map((check, index) => (
+          <tr key={checkRowKey(check, index)} className={selectedCheckId === check.check_id ? 'is-selected' : undefined}>
             <td>
               <button className="link-button" type="button" onClick={() => onSelect(check)}>
                 {checkDisplayName(check)}
@@ -61,6 +61,15 @@ export function VerificationChecksTable({
       </tbody>
     </DataTable>
   );
+}
+
+function checkRowKey(check: VerificationCheck, index: number): string {
+  return [
+    check.check_id,
+    check.left_document_id ?? 'no-left-document',
+    check.right_document_id ?? 'no-right-document',
+    index,
+  ].join(':');
 }
 
 function compactResultLabel(result: string): string {

@@ -203,7 +203,18 @@ def test_manual_patch_and_audit_rollback_together(client: TestClient, monkeypatc
     with SessionLocal() as db:
         document = db.get(DocumentRecord, document_id)
         assert document.metadata_record.extracted_data == {}
-        assert list(db.scalars(select(AuditEventRecord).where(AuditEventRecord.document_id == document_id))) == []
+        # The manual-correction audit event must roll back together with the patch.
+        # (The earlier ``document_uploaded`` lifecycle event from the successful
+        # upload step is unrelated and is expected to remain.)
+        patch_events = list(
+            db.scalars(
+                select(AuditEventRecord).where(
+                    AuditEventRecord.document_id == document_id,
+                    AuditEventRecord.event_type == "manual_extracted_data_patched",
+                )
+            )
+        )
+        assert patch_events == []
 
 
 def test_export_includes_reference_provenance_and_audit_request_id(client: TestClient):
@@ -235,12 +246,13 @@ def test_export_includes_reference_provenance_and_audit_request_id(client: TestC
     assert export.status_code == 200, export.text
     workbook = load_workbook(BytesIO(export.content))
     refs_sheet = workbook["References"]
-    headers = [cell.value for cell in next(refs_sheet.iter_rows(min_row=1, max_row=1))]
+    # Row 1 = sheet title, row 3 = table header, row 4+ = data
+    headers = [cell.value for cell in next(refs_sheet.iter_rows(min_row=3, max_row=3))]
     assert "Source Type" in headers
     assert "Evidence Text" in headers
-    rows = list(refs_sheet.iter_rows(min_row=2, values_only=True))
+    rows = list(refs_sheet.iter_rows(min_row=4, values_only=True))
     assert any("po_reference" in row and "manual_entry" in row for row in rows)
-    audit_headers = [cell.value for cell in next(workbook["Audit Trail"].iter_rows(min_row=1, max_row=1))]
+    audit_headers = [cell.value for cell in next(workbook["Audit Trail"].iter_rows(min_row=3, max_row=3))]
     assert "Request ID" in audit_headers
-    audit_rows = list(workbook["Audit Trail"].iter_rows(min_row=2, values_only=True))
+    audit_rows = list(workbook["Audit Trail"].iter_rows(min_row=4, values_only=True))
     assert any("field missing" in row and "req-export" in row for row in audit_rows)

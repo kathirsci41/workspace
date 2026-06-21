@@ -1,0 +1,315 @@
+- generic [ref=e852]:
+  - banner [ref=e853]:
+    - link "Order Assurance bundles" [ref=e854] [cursor=pointer]:
+      - /url: /bundles
+      - generic [ref=e855]: OA
+      - generic [ref=e856]:
+        - strong [ref=e857]: Order Assurance
+        - emphasis [ref=e858]: Build 1
+    - search [ref=e859]:
+      - generic [ref=e860]: Search
+      - searchbox "Search" [ref=e861]
+    - generic [ref=e862]:
+      - link "Current bundle Trade-001" [ref=e863] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+        - generic [ref=e864]: Current bundle
+        - strong [ref=e865]: Trade-001
+      - group [ref=e866]:
+        - generic "More" [ref=e867] [cursor=pointer]
+  - main [ref=e868]:
+    - navigation "Breadcrumb" [ref=e869]:
+      - link "Bundles" [ref=e870] [cursor=pointer]:
+        - /url: /bundles
+      - link "/Trade-001" [ref=e871] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - generic [ref=e872]: /Review Results
+    - generic [ref=e874]:
+      - heading "Review Results" [level=1] [ref=e875]
+      - generic [ref=e876]: Trade-001
+    - navigation "Bundle workflow" [ref=e877]:
+      - link "Overview" [ref=e878] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - link "Documents" [ref=e879] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/documents
+      - link "Extraction Review" [ref=e880] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction
+      - link "Review Results" [ref=e881] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/verification
+      - link "Open Issues" [ref=e882] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/issues
+      - link "Export" [ref=e883] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/exports
+      - group [ref=e884]:
+        - generic "More" [ref=e885] [cursor=pointer]
+    - region "Review result KPIs" [ref=e886]:
+      - article [ref=e887]:
+        - generic [ref=e888]: Total Checks
+        - strong [ref=e889]: "12"
+      - article [ref=e890]:
+        - generic [ref=e891]: Passed
+        - strong [ref=e892]: "5"
+      - article [ref=e893]:
+        - generic [ref=e894]: Mismatches
+        - strong [ref=e895]: "0"
+      - article [ref=e896]:
+        - generic [ref=e897]: Missing Data
+        - strong [ref=e898]: "5"
+      - article [ref=e899]:
+        - generic [ref=e900]: Not Checked
+        - strong [ref=e901]: "7"
+    - tablist "Review category filters" [ref=e903]:
+      - button "All" [ref=e904] [cursor=pointer]
+      - button "Customer Side" [ref=e905] [cursor=pointer]
+      - button "Vendor Side" [ref=e906] [cursor=pointer]
+      - button "Amounts" [ref=e907] [cursor=pointer]
+      - button "References" [ref=e908] [cursor=pointer]
+    - generic [ref=e909]:
+      - generic [ref=e910]:
+        - region "Customer Side" [ref=e911]:
+          - heading "Customer Side" [level=2] [ref=e912]
+          - table "Review checks" [ref=e914]:
+            - rowgroup [ref=e915]:
+              - row "Review check Expected Found Status Impact if failed Action" [ref=e916]:
+                - columnheader "Review check" [ref=e917]
+                - columnheader "Expected" [ref=e918]
+                - columnheader "Found" [ref=e919]
+                - columnheader "Status" [ref=e920]
+                - columnheader "Impact if failed" [ref=e921]
+                - columnheader "Action" [ref=e922]
+            - rowgroup [ref=e923]:
+              - row "Customer order number differs between invoice and DC Customer Invoice shows -; Delivery Challan shows PWFA251127016. - Customer Invoice PWFA251127016 Delivery Challan Status Needs Review High Review" [ref=e924]:
+                - cell "Customer order number differs between invoice and DC Customer Invoice shows -; Delivery Challan shows PWFA251127016." [ref=e925]:
+                  - button "Customer order number differs between invoice and DC" [ref=e926] [cursor=pointer]
+                  - generic [ref=e927]: Customer Invoice shows -; Delivery Challan shows PWFA251127016.
+                - cell "- Customer Invoice" [ref=e928]:
+                  - text: "-"
+                  - generic [ref=e929]: Customer Invoice
+                - cell "PWFA251127016 Delivery Challan" [ref=e930]:
+                  - text: PWFA251127016
+                  - generic [ref=e931]: Delivery Challan
+                - cell "Status Needs Review" [ref=e932]:
+                  - generic "Status Needs Review" [ref=e933]: Needs Review
+                - cell "High" [ref=e934]
+                - cell "Review" [ref=e935]:
+                  - link "Review" [ref=e936] [cursor=pointer]:
+                    - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/abecb912-a8ab-4aff-a356-2ab6d9a105ab
+              - row "SO number differs between invoice and DC Customer Invoice shows -; Delivery Challan shows 1OTM2526001429. - Customer Invoice 1OTM2526001429 Delivery Challan Status Needs Review High Review" [ref=e937]:
+                - cell "SO number differs between invoice and DC Customer Invoice shows -; Delivery Challan shows 1OTM2526001429." [ref=e938]:
+                  - button "SO number differs between invoice and DC" [ref=e939] [cursor=pointer]
+                  - generic [ref=e940]: Customer Invoice shows -; Delivery Challan shows 1OTM2526001429.
+                - cell "- Customer Invoice" [ref=e941]:
+                  - text: "-"
+                  - generic [ref=e942]: Customer Invoice
+                - cell "1OTM2526001429 Delivery Challan" [ref=e943]:
+                  - text: 1OTM2526001429
+                  - generic [ref=e944]: Delivery Challan
+                - cell "Status Needs Review" [ref=e945]:
+                  - generic "Status Needs Review" [ref=e946]: Needs Review
+                - cell "High" [ref=e947]
+                - cell "Review" [ref=e948]:
+                  - link "Review" [ref=e949] [cursor=pointer]:
+                    - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/abecb912-a8ab-4aff-a356-2ab6d9a105ab
+              - 'row "Mismatch: Customer name comparison Customer Invoice shows -; Delivery Challan shows SHRIRAM FINANCE LIMITED-HYDERABAD. - Customer Invoice SHRIRAM FINANCE LIMITED-HYDERABAD Delivery Challan Status Needs Review Medium Review" [ref=e950]':
+                - 'cell "Mismatch: Customer name comparison Customer Invoice shows -; Delivery Challan shows SHRIRAM FINANCE LIMITED-HYDERABAD." [ref=e951]':
+                  - 'button "Mismatch: Customer name comparison" [ref=e952] [cursor=pointer]'
+                  - generic [ref=e953]: Customer Invoice shows -; Delivery Challan shows SHRIRAM FINANCE LIMITED-HYDERABAD.
+                - cell "- Customer Invoice" [ref=e954]:
+                  - text: "-"
+                  - generic [ref=e955]: Customer Invoice
+                - cell "SHRIRAM FINANCE LIMITED-HYDERABAD Delivery Challan" [ref=e956]:
+                  - text: SHRIRAM FINANCE LIMITED-HYDERABAD
+                  - generic [ref=e957]: Delivery Challan
+                - cell "Status Needs Review" [ref=e958]:
+                  - generic "Status Needs Review" [ref=e959]: Needs Review
+                - cell "Medium" [ref=e960]
+                - cell "Review" [ref=e961]:
+                  - link "Review" [ref=e962] [cursor=pointer]:
+                    - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/abecb912-a8ab-4aff-a356-2ab6d9a105ab
+              - row "Customer PO number does not mismatch customer invoice order number Customer PO shows PWFA251127016; Customer Invoice shows -. PWFA251127016 Customer PO - Customer Invoice Status Needs Review High Review" [ref=e963]:
+                - cell "Customer PO number does not mismatch customer invoice order number Customer PO shows PWFA251127016; Customer Invoice shows -." [ref=e964]:
+                  - button "Customer PO number does not mismatch customer invoice order number" [ref=e965] [cursor=pointer]
+                  - generic [ref=e966]: Customer PO shows PWFA251127016; Customer Invoice shows -.
+                - cell "PWFA251127016 Customer PO" [ref=e967]:
+                  - text: PWFA251127016
+                  - generic [ref=e968]: Customer PO
+                - cell "- Customer Invoice" [ref=e969]:
+                  - text: "-"
+                  - generic [ref=e970]: Customer Invoice
+                - cell "Status Needs Review" [ref=e971]:
+                  - generic "Status Needs Review" [ref=e972]: Needs Review
+                - cell "High" [ref=e973]
+                - cell "Review" [ref=e974]:
+                  - link "Review" [ref=e975] [cursor=pointer]:
+                    - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/b6c8f2f8-4fe0-4e96-8448-0e968b01ea09
+              - row "Customer PO number matches DC order number PWFA251127016 Customer PO PWFA251127016 Delivery Challan Status Passed - Review" [ref=e976]:
+                - cell "Customer PO number matches DC order number" [ref=e977]:
+                  - button "Customer PO number matches DC order number" [ref=e978] [cursor=pointer]
+                - cell "PWFA251127016 Customer PO" [ref=e979]:
+                  - text: PWFA251127016
+                  - generic [ref=e980]: Customer PO
+                - cell "PWFA251127016 Delivery Challan" [ref=e981]:
+                  - text: PWFA251127016
+                  - generic [ref=e982]: Delivery Challan
+                - cell "Status Passed" [ref=e983]:
+                  - generic "Status Passed" [ref=e984]: Passed
+                - cell "-" [ref=e985]
+                - cell "Review" [ref=e986]:
+                  - link "Review" [ref=e987] [cursor=pointer]:
+                    - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/b6c8f2f8-4fe0-4e96-8448-0e968b01ea09
+        - region "Vendor Side" [ref=e988]:
+          - heading "Vendor Side" [level=2] [ref=e989]
+          - table "Review checks" [ref=e991]:
+            - rowgroup [ref=e992]:
+              - row "Review check Expected Found Status Impact if failed Action" [ref=e993]:
+                - columnheader "Review check" [ref=e994]
+                - columnheader "Expected" [ref=e995]
+                - columnheader "Found" [ref=e996]
+                - columnheader "Status" [ref=e997]
+                - columnheader "Impact if failed" [ref=e998]
+                - columnheader "Action" [ref=e999]
+            - rowgroup [ref=e1000]:
+              - row "Vendor PO reference matches vendor invoice 1PTR2526000400 Vendor PO 1PTR2526000400 Vendor Invoice Status Passed - Review" [ref=e1001]:
+                - cell "Vendor PO reference matches vendor invoice" [ref=e1002]:
+                  - button "Vendor PO reference matches vendor invoice" [ref=e1003] [cursor=pointer]
+                - cell "1PTR2526000400 Vendor PO" [ref=e1004]:
+                  - text: 1PTR2526000400
+                  - generic [ref=e1005]: Vendor PO
+                - cell "1PTR2526000400 Vendor Invoice" [ref=e1006]:
+                  - text: 1PTR2526000400
+                  - generic [ref=e1007]: Vendor Invoice
+                - cell "Status Passed" [ref=e1008]:
+                  - generic "Status Passed" [ref=e1009]: Passed
+                - cell "-" [ref=e1010]
+                - cell "Review" [ref=e1011]:
+                  - link "Review" [ref=e1012] [cursor=pointer]:
+                    - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/641e4a19-44d4-4950-b936-df28201ce862
+              - row "Vendor name comparison REDINGTON LIMITED Vendor PO REDINGTON LIMITED Vendor Invoice Status Passed - Review" [ref=e1013]:
+                - cell "Vendor name comparison" [ref=e1014]:
+                  - button "Vendor name comparison" [ref=e1015] [cursor=pointer]
+                - cell "REDINGTON LIMITED Vendor PO" [ref=e1016]:
+                  - text: REDINGTON LIMITED
+                  - generic [ref=e1017]: Vendor PO
+                - cell "REDINGTON LIMITED Vendor Invoice" [ref=e1018]:
+                  - text: REDINGTON LIMITED
+                  - generic [ref=e1019]: Vendor Invoice
+                - cell "Status Passed" [ref=e1020]:
+                  - generic "Status Passed" [ref=e1021]: Passed
+                - cell "-" [ref=e1022]
+                - cell "Review" [ref=e1023]:
+                  - link "Review" [ref=e1024] [cursor=pointer]:
+                    - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/641e4a19-44d4-4950-b936-df28201ce862
+              - row "Vendor PO reference matches vendor invoice 1PTR2526000400 Vendor PO 1PTR2526000400 Vendor Invoice Status Passed - Review" [ref=e1025]:
+                - cell "Vendor PO reference matches vendor invoice" [ref=e1026]:
+                  - button "Vendor PO reference matches vendor invoice" [ref=e1027] [cursor=pointer]
+                - cell "1PTR2526000400 Vendor PO" [ref=e1028]:
+                  - text: 1PTR2526000400
+                  - generic [ref=e1029]: Vendor PO
+                - cell "1PTR2526000400 Vendor Invoice" [ref=e1030]:
+                  - text: 1PTR2526000400
+                  - generic [ref=e1031]: Vendor Invoice
+                - cell "Status Passed" [ref=e1032]:
+                  - generic "Status Passed" [ref=e1033]: Passed
+                - cell "-" [ref=e1034]
+                - cell "Review" [ref=e1035]:
+                  - link "Review" [ref=e1036] [cursor=pointer]:
+                    - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/641e4a19-44d4-4950-b936-df28201ce862
+              - row "Vendor name comparison REDINGTON LIMITED Vendor PO REDINGTON LIMITED Vendor Invoice Status Passed - Review" [ref=e1037]:
+                - cell "Vendor name comparison" [ref=e1038]:
+                  - button "Vendor name comparison" [ref=e1039] [cursor=pointer]
+                - cell "REDINGTON LIMITED Vendor PO" [ref=e1040]:
+                  - text: REDINGTON LIMITED
+                  - generic [ref=e1041]: Vendor PO
+                - cell "REDINGTON LIMITED Vendor Invoice" [ref=e1042]:
+                  - text: REDINGTON LIMITED
+                  - generic [ref=e1043]: Vendor Invoice
+                - cell "Status Passed" [ref=e1044]:
+                  - generic "Status Passed" [ref=e1045]: Passed
+                - cell "-" [ref=e1046]
+                - cell "Review" [ref=e1047]:
+                  - link "Review" [ref=e1048] [cursor=pointer]:
+                    - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/641e4a19-44d4-4950-b936-df28201ce862
+        - region "Amounts" [ref=e1049]:
+          - heading "Amounts" [level=2] [ref=e1050]
+          - table "Review checks" [ref=e1052]:
+            - rowgroup [ref=e1053]:
+              - row "Review check Expected Found Status Impact if failed Action" [ref=e1054]:
+                - columnheader "Review check" [ref=e1055]
+                - columnheader "Expected" [ref=e1056]
+                - columnheader "Found" [ref=e1057]
+                - columnheader "Status" [ref=e1058]
+                - columnheader "Impact if failed" [ref=e1059]
+                - columnheader "Action" [ref=e1060]
+            - rowgroup [ref=e1061]:
+              - 'row "Mismatch: Amount comparison Amount comparison needs review because one amount is missing. - Customer Invoice - Delivery Challan Status Needs Review Medium Review" [ref=e1062]':
+                - 'cell "Mismatch: Amount comparison Amount comparison needs review because one amount is missing." [ref=e1063]':
+                  - 'button "Mismatch: Amount comparison" [ref=e1064] [cursor=pointer]'
+                  - generic [ref=e1065]: Amount comparison needs review because one amount is missing.
+                - cell "- Customer Invoice" [ref=e1066]:
+                  - text: "-"
+                  - generic [ref=e1067]: Customer Invoice
+                - cell "- Delivery Challan" [ref=e1068]:
+                  - text: "-"
+                  - generic [ref=e1069]: Delivery Challan
+                - cell "Status Needs Review" [ref=e1070]:
+                  - generic "Status Needs Review" [ref=e1071]: Needs Review
+                - cell "Medium" [ref=e1072]
+                - cell "Review" [ref=e1073]:
+                  - link "Review" [ref=e1074] [cursor=pointer]:
+                    - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/abecb912-a8ab-4aff-a356-2ab6d9a105ab
+              - 'row "Mismatch: Amount comparison Customer PO shows ₹5,03,137; Customer Invoice shows -. ₹5,03,137 Customer PO - Customer Invoice Status Needs Review Medium Review" [ref=e1075]':
+                - 'cell "Mismatch: Amount comparison Customer PO shows ₹5,03,137; Customer Invoice shows -." [ref=e1076]':
+                  - 'button "Mismatch: Amount comparison" [ref=e1077] [cursor=pointer]'
+                  - generic [ref=e1078]: Customer PO shows ₹5,03,137; Customer Invoice shows -.
+                - cell "₹5,03,137 Customer PO" [ref=e1079]:
+                  - text: ₹5,03,137
+                  - generic [ref=e1080]: Customer PO
+                - cell "- Customer Invoice" [ref=e1081]:
+                  - text: "-"
+                  - generic [ref=e1082]: Customer Invoice
+                - cell "Status Needs Review" [ref=e1083]:
+                  - generic "Status Needs Review" [ref=e1084]: Needs Review
+                - cell "Medium" [ref=e1085]
+                - cell "Review" [ref=e1086]:
+                  - link "Review" [ref=e1087] [cursor=pointer]:
+                    - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/b6c8f2f8-4fe0-4e96-8448-0e968b01ea09
+              - row "Vendor invoice total is lower than Vendor PO total Vendor PO shows ₹5,12,741; Vendor Invoice shows ₹5,13,377. ₹5,12,741 Vendor PO ₹5,13,377 Vendor Invoice Status Needs Review High Review" [ref=e1088]:
+                - cell "Vendor invoice total is lower than Vendor PO total Vendor PO shows ₹5,12,741; Vendor Invoice shows ₹5,13,377." [ref=e1089]:
+                  - button "Vendor invoice total is lower than Vendor PO total" [ref=e1090] [cursor=pointer]
+                  - generic [ref=e1091]: Vendor PO shows ₹5,12,741; Vendor Invoice shows ₹5,13,377.
+                - cell "₹5,12,741 Vendor PO" [ref=e1092]:
+                  - text: ₹5,12,741
+                  - generic [ref=e1093]: Vendor PO
+                - cell "₹5,13,377 Vendor Invoice" [ref=e1094]:
+                  - text: ₹5,13,377
+                  - generic [ref=e1095]: Vendor Invoice
+                - cell "Status Needs Review" [ref=e1096]:
+                  - generic "Status Needs Review" [ref=e1097]: Needs Review
+                - cell "High" [ref=e1098]
+                - cell "Review" [ref=e1099]:
+                  - link "Review" [ref=e1100] [cursor=pointer]:
+                    - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/641e4a19-44d4-4950-b936-df28201ce862
+      - complementary "Review check detail" [ref=e1101]:
+        - heading "Check Detail" [level=2] [ref=e1102]
+        - generic "Status Needs Review" [ref=e1103]: Needs Review
+        - heading "Customer order number differs between invoice and DC" [level=3] [ref=e1104]
+        - paragraph [ref=e1105]: "Customer order number differs between invoice and DC: one side is missing."
+        - generic [ref=e1106]:
+          - generic [ref=e1107]:
+            - term [ref=e1108]: Expected value/source
+            - definition [ref=e1109]: "- from Customer Invoice"
+          - generic [ref=e1110]:
+            - term [ref=e1111]: Found value/source
+            - definition [ref=e1112]: PWFA251127016 from Delivery Challan
+          - generic [ref=e1113]:
+            - term [ref=e1114]: Impact if failed
+            - definition [ref=e1115]: High
+          - generic [ref=e1116]:
+            - term [ref=e1117]: What differs
+            - definition [ref=e1118]: Customer Invoice shows -; Delivery Challan shows PWFA251127016.
+        - generic [ref=e1119]:
+          - link "Review Customer Invoice" [ref=e1120] [cursor=pointer]:
+            - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/abecb912-a8ab-4aff-a356-2ab6d9a105ab
+          - link "Review Delivery Challan" [ref=e1121] [cursor=pointer]:
+            - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction/f0555809-dd9a-46a6-ad1c-b65a3c847e6c
+        - group [ref=e1122]:
+          - generic "Technical Details" [ref=e1123] [cursor=pointer]

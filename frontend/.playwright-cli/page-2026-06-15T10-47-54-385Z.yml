@@ -1,0 +1,59 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "Order Assurance bundles" [ref=e5] [cursor=pointer]:
+      - /url: /bundles
+      - generic [ref=e6]: OA
+      - generic [ref=e7]:
+        - strong [ref=e8]: Order Assurance
+        - emphasis [ref=e9]: Build 1
+    - search [ref=e10]:
+      - generic [ref=e11]: Search
+      - searchbox "Search" [ref=e12]
+    - generic [ref=e13]:
+      - link "Current bundle 746537ad-206d-4f04-a53c-a156692202ce" [ref=e14] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+        - generic [ref=e15]: Current bundle
+        - strong [ref=e16]: 746537ad-206d-4f04-a53c-a156692202ce
+      - group [ref=e17]:
+        - generic "More" [ref=e18] [cursor=pointer]
+  - main [ref=e19]:
+    - navigation "Breadcrumb" [ref=e20]:
+      - link "Bundles" [ref=e21] [cursor=pointer]:
+        - /url: /bundles
+      - link "/746537ad-206d-4f04-a53c-a156692202ce" [ref=e22] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - generic [ref=e23]: /Manual Correction History
+    - generic [ref=e25]:
+      - heading "Manual Correction History" [level=1] [ref=e26]
+      - generic [ref=e27]: Field-level correction history.
+    - navigation "Bundle workflow" [ref=e28]:
+      - link "Overview" [ref=e29] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - link "Documents" [ref=e30] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/documents
+      - link "Extraction Review" [ref=e31] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction
+      - link "Review Results" [ref=e32] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/verification
+      - link "Open Issues" [ref=e33] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/issues
+      - link "Export" [ref=e34] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/exports
+      - group [ref=e35]:
+        - generic "More" [ref=e36] [cursor=pointer]
+    - status [ref=e37]: Loading audit trail...
+    - region "Manual correction scope" [ref=e38]: This section records manual corrections. Upload, extraction, review, and export events are available in system logs.
+    - generic [ref=e40]:
+      - generic [ref=e41]:
+        - text: Correction type
+        - combobox "Correction type" [ref=e42]:
+          - option "All" [selected]
+      - generic [ref=e43]:
+        - text: Document
+        - combobox "Document" [ref=e44]:
+          - option "All" [selected]
+    - generic [ref=e45]:
+      - paragraph [ref=e47]: No manual corrections recorded.
+      - complementary "Manual correction detail" [ref=e48]:
+        - heading "Correction Detail" [level=2] [ref=e49]
+        - paragraph [ref=e50]: Select a manual correction to see details.

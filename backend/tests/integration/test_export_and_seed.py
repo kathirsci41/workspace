@@ -200,33 +200,37 @@ def test_audit_trail_has_events_for_seeded_bundle(workbook):
     assert len(values) > 0
 
 
-def test_audit_trail_empty_state_text_when_no_events(client, tmp_path):
-    """A bundle with no audit events must show the empty-state message in the sheet."""
-    configure_database(f"sqlite:///{tmp_path / 'audit_empty_test.db'}")
-    init_db(drop_existing=True)
-    empty_client = TestClient(app)
+def test_audit_trail_shows_lifecycle_events(client, tmp_path):
+    """Lifecycle audit events (bundle_created, export_generated) are now persisted,
+    so the Audit Trail sheet must surface them rather than the empty state.
 
-    # Create a minimal bundle with no documents and no audit events
-    resp = empty_client.post(
+    (Build 1 live-hardening change: ``bundle_created`` is recorded on create and
+    ``export_generated`` on export, so a created+exported bundle is never truly
+    event-free via the public API.)"""
+    configure_database(f"sqlite:///{tmp_path / 'audit_lifecycle_test.db'}")
+    init_db(drop_existing=True)
+    lifecycle_client = TestClient(app)
+
+    resp = lifecycle_client.post(
         "/api/bundles",
-        json={"bundle_number": "AUDIT-EMPTY-001", "customer_name": "Test"},
+        json={"bundle_number": "AUDIT-LIFECYCLE-001", "customer_name": "Test"},
     )
     assert resp.status_code == 201
     bundle_id = resp.json()["id"]
 
-    export_resp = empty_client.get(f"/api/bundles/{bundle_id}/export.xlsx")
+    export_resp = lifecycle_client.get(f"/api/bundles/{bundle_id}/export.xlsx")
     assert export_resp.status_code == 200
     wb = load_workbook(BytesIO(export_resp.content), data_only=True)
     ws = wb["Audit Trail"]
     all_values = [
-        cell.value
+        str(cell.value).lower()
         for row in ws.iter_rows()
         for cell in row
         if cell.value is not None
     ]
-    assert any(
-        "no audit events" in str(v).lower() for v in all_values
-    ), "Expected empty-state text in Audit Trail sheet"
+    joined = " ".join(all_values)
+    assert "bundle_created" in joined, "Expected bundle_created in Audit Trail sheet"
+    assert "no audit events" not in joined, "Audit Trail should no longer be empty-state for a created bundle"
 
 
 # ── Extracted Fields sheet ───────────────────────────────────────────────────

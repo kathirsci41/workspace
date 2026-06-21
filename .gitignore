@@ -3,6 +3,7 @@ __pycache__/
 .pytest_cache/
 .venv/
 .venv-*/
+.venvs/
 
 frontend/node_modules/
 frontend/dist/
@@ -10,6 +11,7 @@ frontend/playwright-report/
 frontend/test-results/
 
 runtime/
+.runtime/
 logs/
 output/
 *.log

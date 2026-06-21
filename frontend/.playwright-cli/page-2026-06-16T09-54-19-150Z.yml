@@ -1,0 +1,218 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "Order Assurance bundles" [ref=e5] [cursor=pointer]:
+      - /url: /bundles
+      - generic [ref=e6]: OA
+      - generic [ref=e7]:
+        - strong [ref=e8]: Order Assurance
+        - emphasis [ref=e9]: Build 1
+    - search [ref=e10]:
+      - generic [ref=e11]: Search
+      - searchbox "Search" [ref=e12]
+    - generic [ref=e13]:
+      - link "Current bundle Panimalar-001" [ref=e51] [cursor=pointer]:
+        - /url: /bundles/d50fed21-c4c5-40bd-a600-d024b65e70fc/overview
+        - generic [ref=e15]: Current bundle
+        - strong [ref=e16]: Panimalar-001
+      - group [ref=e17]:
+        - generic "More" [ref=e18] [cursor=pointer]
+  - main [ref=e19]:
+    - navigation "Breadcrumb" [ref=e20]:
+      - link "Bundles" [ref=e21] [cursor=pointer]:
+        - /url: /bundles
+      - link "/Panimalar-001" [ref=e52] [cursor=pointer]:
+        - /url: /bundles/d50fed21-c4c5-40bd-a600-d024b65e70fc/overview
+      - generic [ref=e23]: /Extraction Review
+    - generic [ref=e24]:
+      - generic [ref=e25]:
+        - heading "Extraction Review" [level=1] [ref=e26]
+        - generic [ref=e27]: Panimalar-001
+      - generic [ref=e29]:
+        - generic [ref=e30]: "OCR Rotation: 90deg"
+        - button "Re-extract" [ref=e31] [cursor=pointer]
+    - navigation "Bundle workflow" [ref=e32]:
+      - link "Overview" [ref=e33] [cursor=pointer]:
+        - /url: /bundles/d50fed21-c4c5-40bd-a600-d024b65e70fc/overview
+      - link "Documents" [ref=e34] [cursor=pointer]:
+        - /url: /bundles/d50fed21-c4c5-40bd-a600-d024b65e70fc/documents
+      - link "Extraction Review" [ref=e35] [cursor=pointer]:
+        - /url: /bundles/d50fed21-c4c5-40bd-a600-d024b65e70fc/extraction
+      - link "Review Results" [ref=e36] [cursor=pointer]:
+        - /url: /bundles/d50fed21-c4c5-40bd-a600-d024b65e70fc/verification
+      - link "Open Issues" [ref=e37] [cursor=pointer]:
+        - /url: /bundles/d50fed21-c4c5-40bd-a600-d024b65e70fc/issues
+      - link "Export" [ref=e38] [cursor=pointer]:
+        - /url: /bundles/d50fed21-c4c5-40bd-a600-d024b65e70fc/exports
+      - group [ref=e39]:
+        - generic "More" [ref=e40] [cursor=pointer]
+    - generic [ref=e42]:
+      - complementary [ref=e43]:
+        - heading "Documents in Bundle" [level=2] [ref=e44]
+        - generic [ref=e45]:
+          - text: Document selector
+          - combobox "Document selector" [ref=e46]:
+            - option "Customer PO - Customer PO_.pdf"
+            - option "Customer Invoice - Customer Invoice 1ITR2526001878.pdf" [selected]
+            - option "Delivery Challan - DC 1DNT2526DC3100.pdf"
+            - option "Vendor PO - Vendor PO 1PTR2526000467.pdf"
+            - option "Vendor Invoice - Vendor Bill 2526PSI25087738.pdf"
+        - generic [ref=e53]:
+          - generic [ref=e54]:
+            - term [ref=e55]: Document type
+            - definition [ref=e56]: Customer Invoice
+          - generic [ref=e57]:
+            - term [ref=e58]: Filename
+            - definition [ref=e59]: Customer Invoice 1ITR2526001878.pdf
+          - generic [ref=e60]:
+            - term [ref=e61]: Updated
+            - definition [ref=e62]: 15 Jun 2026, 8:41 am
+          - generic [ref=e63]:
+            - term [ref=e64]: Primary reference
+            - definition [ref=e65]: PMCH&RI/024/2025-2026
+      - region "PDF preview" [ref=e66]:
+        - generic [ref=e67]:
+          - button "Preview PDF" [ref=e68] [cursor=pointer]
+          - button "Fit width" [ref=e69] [cursor=pointer]
+          - button "-" [ref=e70] [cursor=pointer]
+          - generic [ref=e71]: 100%
+          - button "+" [ref=e72] [cursor=pointer]
+          - button "Rotate left" [ref=e73] [cursor=pointer]: ↺
+          - 'generic "Current rotation: 90°" [ref=e209]': 90°
+          - button "Rotate right" [ref=e75] [cursor=pointer]: ↻
+          - button "Reset rotation" [ref=e210] [cursor=pointer]: Reset
+          - generic [ref=e76]:
+            - generic [ref=e77]: OCR Rotation
+            - combobox "OCR rotation" [ref=e78]:
+              - option "Auto"
+              - option "0deg"
+              - option "90deg" [selected]
+              - option "180deg"
+              - option "270deg"
+          - button "Use current preview rotation for OCR" [active] [ref=e79] [cursor=pointer]
+          - generic [ref=e80]: "OCR: 90deg"
+          - generic [ref=e81]: 2 pages
+        - generic [ref=e82]:
+          - generic [ref=e83]:
+            - generic [ref=e84]: Page 1 / 2
+            - img "PDF page 1 preview" [ref=e87]
+          - generic [ref=e88]:
+            - generic [ref=e89]: Page 2 / 2
+            - img "PDF page 2 preview" [ref=e92]
+      - generic [ref=e49]:
+        - paragraph [ref=e50]: Click a field name to locate it in the PDF.
+        - region "Extracted fields" [ref=e93]:
+          - generic [ref=e94]:
+            - generic [ref=e95]:
+              - heading "Extracted Fields" [level=2] [ref=e96]
+              - paragraph [ref=e97]: Customer Invoice 1ITR2526001878.pdf
+            - generic "Status Extracted" [ref=e98]: Extracted
+          - region "Supporting Fields" [ref=e100]:
+            - heading "Supporting Fields" [level=3] [ref=e101]
+            - table "Supporting Fields fields" [ref=e102]:
+              - 'row "Jump to Invoice Number in PDF 1ITR2526001878 Confidence: 90% Correct Invoice Number Evidence 1ITR2526001878" [ref=e103]':
+                - cell "Jump to Invoice Number in PDF" [ref=e104] [cursor=pointer]:
+                  - text: Invoice Number
+                  - emphasis [ref=e105]: Used in Review Results
+                - cell "1ITR2526001878" [ref=e106]
+                - 'cell "Confidence: 90%" [ref=e107]'
+                - cell "Correct Invoice Number" [ref=e108]:
+                  - button "Correct Invoice Number" [ref=e109] [cursor=pointer]: Edit
+                - generic [ref=e110]:
+                  - generic [ref=e111]: Evidence
+                  - generic [ref=e112]: 1ITR2526001878
+              - 'row "Jump to SO Number in PDF 1OTM2526001611 Confidence: 90% Correct SO Number Evidence 1OTM2526001611" [ref=e113]':
+                - cell "Jump to SO Number in PDF" [ref=e114] [cursor=pointer]:
+                  - text: SO Number
+                  - emphasis [ref=e115]: Used in Review Results
+                - cell "1OTM2526001611" [ref=e116]
+                - 'cell "Confidence: 90%" [ref=e117]'
+                - cell "Correct SO Number" [ref=e118]:
+                  - button "Correct SO Number" [ref=e119] [cursor=pointer]: Edit
+                - generic [ref=e120]:
+                  - generic [ref=e121]: Evidence
+                  - generic [ref=e122]: 1OTM2526001611
+              - 'row "Jump to PO Reference in PDF PMCH&RI/024/2025-2026 Confidence: 90% Correct PO Reference Evidence PMCH&RI/024/2025-2026" [ref=e123]':
+                - cell "Jump to PO Reference in PDF" [ref=e124] [cursor=pointer]:
+                  - text: PO Reference
+                  - emphasis [ref=e125]: Used in Review Results
+                - cell "PMCH&RI/024/2025-2026" [ref=e126]
+                - 'cell "Confidence: 90%" [ref=e127]'
+                - cell "Correct PO Reference" [ref=e128]:
+                  - button "Correct PO Reference" [ref=e129] [cursor=pointer]: Edit
+                - generic [ref=e130]:
+                  - generic [ref=e131]: Evidence
+                  - generic [ref=e132]: PMCH&RI/024/2025-2026
+              - 'row "Jump to Invoice Date in PDF 13/02/2026 Confidence: 90% Correct Invoice Date Evidence 13/02/2026" [ref=e133]':
+                - cell "Jump to Invoice Date in PDF" [ref=e134] [cursor=pointer]:
+                  - text: Invoice Date
+                  - emphasis [ref=e135]: Used in Review Results
+                - cell "13/02/2026" [ref=e136]
+                - 'cell "Confidence: 90%" [ref=e137]'
+                - cell "Correct Invoice Date" [ref=e138]:
+                  - button "Correct Invoice Date" [ref=e139] [cursor=pointer]: Edit
+                - generic [ref=e140]:
+                  - generic [ref=e141]: Evidence
+                  - generic [ref=e142]: 13/02/2026
+              - 'row "Jump to Customer Name in PDF PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE Confidence: 90% Correct Customer Name Evidence PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE" [ref=e143]':
+                - cell "Jump to Customer Name in PDF" [ref=e144] [cursor=pointer]: Customer Name
+                - cell "PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE" [ref=e145]
+                - 'cell "Confidence: 90%" [ref=e146]'
+                - cell "Correct Customer Name" [ref=e147]:
+                  - button "Correct Customer Name" [ref=e148] [cursor=pointer]: Edit
+                - generic [ref=e149]:
+                  - generic [ref=e150]: Evidence
+                  - generic [ref=e151]: PANIMALAR MEDICAL HOSPITAL & RESEARCH INSTITUTE
+              - 'row "Jump to Customer Address in PDF Panimalar Medical Hospital & Research Institute varadharajapuram Poonamallee Chennai 600123, Tamilnadu, PH : 9884036215 Confidence: 90% Correct Customer Address Evidence Panimalar Medical Hospital & Research Institute varadharajapuram Poonamallee Chennai 600123, Tamilnadu, PH : 9884036215" [ref=e152]':
+                - cell "Jump to Customer Address in PDF" [ref=e153] [cursor=pointer]: Customer Address
+                - 'cell "Panimalar Medical Hospital & Research Institute varadharajapuram Poonamallee Chennai 600123, Tamilnadu, PH : 9884036215" [ref=e154]'
+                - 'cell "Confidence: 90%" [ref=e155]'
+                - cell "Correct Customer Address" [ref=e156]:
+                  - button "Correct Customer Address" [ref=e157] [cursor=pointer]: Edit
+                - generic [ref=e158]:
+                  - generic [ref=e159]: Evidence
+                  - generic [ref=e160]: "Panimalar Medical Hospital & Research Institute varadharajapuram Poonamallee Chennai 600123, Tamilnadu, PH : 9884036215"
+              - 'row "Jump to Total Amount in PDF ₹8,74,439 Confidence: 90% Correct Total Amount Evidence 874439" [ref=e161]':
+                - cell "Jump to Total Amount in PDF" [ref=e162] [cursor=pointer]: Total Amount
+                - cell "₹8,74,439" [ref=e163]
+                - 'cell "Confidence: 90%" [ref=e164]'
+                - cell "Correct Total Amount" [ref=e165]:
+                  - button "Correct Total Amount" [ref=e166] [cursor=pointer]: Edit
+                - generic [ref=e167]:
+                  - generic [ref=e168]: Evidence
+                  - generic [ref=e169]: "874439"
+              - 'row "Jump to Net Amount in PDF ₹8,74,439 Confidence: 90% Correct Net Amount Evidence 874439" [ref=e170]':
+                - cell "Jump to Net Amount in PDF" [ref=e171] [cursor=pointer]: Net Amount
+                - cell "₹8,74,439" [ref=e172]
+                - 'cell "Confidence: 90%" [ref=e173]'
+                - cell "Correct Net Amount" [ref=e174]:
+                  - button "Correct Net Amount" [ref=e175] [cursor=pointer]: Edit
+                - generic [ref=e176]:
+                  - generic [ref=e177]: Evidence
+                  - generic [ref=e178]: "874439"
+              - 'row "Jump to Taxable Amount in PDF ₹7,41,050 Confidence: 90% Correct Taxable Amount Evidence 741050" [ref=e179]':
+                - cell "Jump to Taxable Amount in PDF" [ref=e180] [cursor=pointer]: Taxable Amount
+                - cell "₹7,41,050" [ref=e181]
+                - 'cell "Confidence: 90%" [ref=e182]'
+                - cell "Correct Taxable Amount" [ref=e183]:
+                  - button "Correct Taxable Amount" [ref=e184] [cursor=pointer]: Edit
+                - generic [ref=e185]:
+                  - generic [ref=e186]: Evidence
+                  - generic [ref=e187]: "741050"
+              - 'row "Jump to Tax Amount in PDF ₹1,33,389 Confidence: 90% Correct Tax Amount Evidence 133389" [ref=e188]':
+                - cell "Jump to Tax Amount in PDF" [ref=e189] [cursor=pointer]: Tax Amount
+                - cell "₹1,33,389" [ref=e190]
+                - 'cell "Confidence: 90%" [ref=e191]'
+                - cell "Correct Tax Amount" [ref=e192]:
+                  - button "Correct Tax Amount" [ref=e193] [cursor=pointer]: Edit
+                - generic [ref=e194]:
+                  - generic [ref=e195]: Evidence
+                  - generic [ref=e196]: "133389"
+              - 'row "Jump to Customer Order Number in PDF PMCH&RI/024/2025-2026 Confidence: 90% Correct Customer Order Number Evidence PMCH&RI/024/2025-2026" [ref=e197]':
+                - cell "Jump to Customer Order Number in PDF" [ref=e198] [cursor=pointer]: Customer Order Number
+                - cell "PMCH&RI/024/2025-2026" [ref=e199]
+                - 'cell "Confidence: 90%" [ref=e200]'
+                - cell "Correct Customer Order Number" [ref=e201]:
+                  - button "Correct Customer Order Number" [ref=e202] [cursor=pointer]: Edit
+                - generic [ref=e203]:
+                  - generic [ref=e204]: Evidence
+                  - generic [ref=e205]: PMCH&RI/024/2025-2026

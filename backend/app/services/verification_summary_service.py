@@ -10,11 +10,16 @@ from app.services.document_normalizer import normalize_document
 from app.services.order_bundle_verifier import verify_order_bundle
 
 
+VERIFICATION_READY_METADATA_STATUSES = {"EXTRACTED", "MANUAL_ENTRY"}
+
+
 def build_verification_summary(db: Session, bundle_id: str) -> dict:
     documents = DocumentRepository(db).list_for_bundle(bundle_id)
     normalized = [
         normalize_document(document, document.metadata_record.extracted_data if document.metadata_record else {})
         for document in documents
+        if document.metadata_record
+        and document.metadata_record.status in VERIFICATION_READY_METADATA_STATUSES
     ]
     return verify_order_bundle(normalized)
 

@@ -27,14 +27,38 @@ export async function getHealth(): Promise<{ status: string; service: string }> 
   return response.json();
 }
 
+export function extractErrorMessage(rawBody: string, status: number): string {
+  if (rawBody) {
+    try {
+      const parsed = JSON.parse(rawBody);
+      const detail = parsed?.detail ?? parsed?.message;
+      if (typeof detail === 'string' && detail.trim()) return detail;
+      if (Array.isArray(detail) && detail.length) {
+        const first = detail[0];
+        if (typeof first?.msg === 'string') return first.msg;
+      }
+    } catch {
+      // not JSON — fall through to raw text
+    }
+    return rawBody;
+  }
+  return `Request failed: ${status}`;
+}
+
 export async function requestJson<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
   const { timeoutMs, ...fetchInit } = init ?? {};
   const signal = timeoutMs != null ? AbortSignal.timeout(timeoutMs) : undefined;
-  const response = await fetch(apiUrl(path), {
-    ...fetchInit,
-    signal,
-    headers: fetchInit?.body instanceof FormData ? fetchInit.headers : { 'Content-Type': 'application/json', ...fetchInit?.headers },
-  });
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(path), {
+      ...fetchInit,
+      signal,
+      headers: fetchInit?.body instanceof FormData ? fetchInit.headers : { 'Content-Type': 'application/json', ...fetchInit?.headers },
+    });
+  } catch (networkError) {
+    debugLog('api_request_network_error', { method: init?.method ?? 'GET', path, error: String(networkError) });
+    throw new Error('Unable to reach the server. Please check that the backend is running and try again.');
+  }
   if (!response.ok) {
     const text = await response.text();
     debugLog('api_request_failed', {
@@ -44,7 +68,7 @@ export async function requestJson<T>(path: string, init?: RequestInit & { timeou
       request_id: response.headers.get('X-Request-ID'),
       error: text,
     });
-    throw new Error(text || `Request failed: ${response.status}`);
+    throw new Error(extractErrorMessage(text, response.status));
   }
   return response.json();
 }

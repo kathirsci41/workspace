@@ -1,8 +1,61 @@
 # Order Assurance
 
-Order Assurance is a new independent application extracted from the proven ODMP Order Bundle Verification MVP.
+Order Assurance is a standalone document assurance application extracted from the proven ODMP Order Bundle Verification MVP.
 
 The app runs independently from the existing ODMP backend/frontend. It does not import old ODMP frontend pages, PO detail chain widgets, billing widgets, or validation-agent placeholders.
+
+## Application Shape
+
+- Backend: FastAPI, SQLAlchemy, SQLite for local runs, Postgres for Docker Compose.
+- Frontend: React 18, Vite, TypeScript, React Router, Vitest, and Playwright.
+- Storage: uploaded PDFs are stored on local disk or a Docker-managed volume; database rows keep the storage path.
+- Extraction: digital PDF text first, then OCR text acquisition for scanned or low-text PDFs, then deterministic structured parsing.
+- Verification: the computed verification summary is the source of truth; persisted bundle status fields are mutation-time snapshots.
+- Review model: uncertain fields stay blank for manual correction instead of being filled with unchecked model guesses.
+
+## Architecture Diagrams
+
+Runtime architecture:
+
+```mermaid
+flowchart LR
+  user["User browser"] --> frontend["React frontend<br/>Vite dev server or Nginx"]
+  frontend --> api["FastAPI backend<br/>/api"]
+  api --> routes["API routes<br/>bundles, documents, dev, health"]
+  routes --> services["Services<br/>extraction, verification, export, audit"]
+  services --> repos["Repositories"]
+  repos --> db[("SQLite local<br/>Postgres in Docker")]
+  services --> storage[("PDF storage<br/>local disk or Docker volume")]
+  services --> ollama["Ollama OCR runtime<br/>glm-ocr:latest"]
+  services --> workbook["XLSX export"]
+```
+
+Document assurance flow:
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant UI as React UI
+  participant API as FastAPI
+  participant Extract as Extraction service
+  participant Verify as Verification summary
+  participant Audit as Audit log
+
+  User->>UI: Create bundle and upload PDFs
+  UI->>API: POST bundle documents
+  API->>Audit: Record upload event
+  User->>UI: Extract or re-extract document
+  UI->>API: POST document extract
+  API->>Extract: Acquire text and parse fields
+  Extract-->>API: Extracted fields, diagnostics, references
+  API->>Verify: Refresh computed status snapshot
+  API->>Audit: Record extraction result
+  User->>UI: Review fields and correct blanks
+  UI->>API: PATCH extracted data with reason
+  API->>Audit: Record manual correction
+  User->>UI: Export workbook
+  UI->>API: GET export.xlsx
+```
 
 ## Local Ports
 
@@ -22,8 +75,33 @@ The app runs independently from the existing ODMP backend/frontend. It does not 
 - `/bundles/:bundleId/issues`
 - `/bundles/:bundleId/audit`
 - `/bundles/:bundleId/exports`
+- `/health`
 
 `/bundles/:bundleId` is a compatibility redirect to the canonical overview route.
+
+## Backend API Surface
+
+The backend is mounted under `/api`.
+
+- `GET /api/health`
+- `POST /api/bundles`
+- `GET /api/bundles`
+- `GET /api/bundles/{bundle_id}`
+- `POST /api/bundles/{bundle_id}/documents`
+- `GET /api/bundles/{bundle_id}/documents`
+- `GET /api/bundles/{bundle_id}/verification-summary`
+- `GET /api/bundles/{bundle_id}/audit-events`
+- `GET /api/bundles/{bundle_id}/export.xlsx`
+- `GET /api/documents/{document_id}`
+- `GET /api/documents/{document_id}/preview`
+- `GET /api/documents/{document_id}/preview/pages/{page_number}.png`
+- `DELETE /api/documents/{document_id}`
+- `POST /api/documents/{document_id}/extract`
+- `POST /api/documents/{document_id}/re-extract`
+- `PATCH /api/documents/{document_id}/extracted-data`
+- `POST /api/dev/seed-panimalar` when development tools are enabled
+- `GET /api/dev/documents/{document_id}/evidence` when development tools are enabled
+- `GET /api/dev/bundles/{bundle_id}/evidence` when development tools are enabled
 
 ## Environment
 
@@ -93,6 +171,8 @@ The current review/demo scope is locked in [`docs/current-scope-lock.md`](docs/c
 
 ## Run Backend
 
+Install backend dependencies in your active Python environment before starting the service. Runtime dependencies are declared in `backend/pyproject.toml`; tests also require `pytest`.
+
 ```powershell
 cd order-assurance/backend
 python -m app.migrations.runner up
@@ -115,23 +195,31 @@ cd order-assurance
 .\scripts\run-local.ps1
 ```
 
-The script runs migrations, starts the backend on `127.0.0.1:8100`, starts the frontend on
-`127.0.0.1:5180`, and configures the frontend to call the backend through the local `/api` proxy.
-Logs are written under `runtime/logs`. Press `Ctrl+C` in the script terminal to stop processes that
-the script started.
+The script runs migrations, installs frontend dependencies when `node_modules` is missing, starts the
+FastAPI backend on `127.0.0.1:8100`, and starts the Vite frontend on `127.0.0.1:5180`. It streams both
+services' stdout/stderr to the same terminal in real time with color-coded prefixes:
+
+```text
+[BACKEND ] INFO:     Application startup complete.
+[BACKEND ] INFO:     127.0.0.1 - "POST /api/documents/.../extract" 200
+[FRONTEND] VITE v5.x  ready in 312 ms
+[FRONTEND] Local:   http://127.0.0.1:5180/
+```
+
+Press `Ctrl+C` to stop both services cleanly. If a service is already running on its port the script
+reuses it instead of starting a duplicate.
 
 Options:
 
 ```powershell
-.\scripts\run-local.ps1 -InstallFrontendDeps
-.\scripts\run-local.ps1 -SkipMigrations
-.\scripts\run-local.ps1 -OpenBrowser
-.\scripts\run-local.ps1 -Detach
+.\scripts\run-local.ps1 -SkipMigrations   # skip DB migration step (faster restart)
+.\scripts\run-local.ps1 -OpenBrowser      # open http://127.0.0.1:5180/bundles in the browser
 ```
 
-Local development uses the absolute backend base URL above. The Docker frontend is built with
-`VITE_API_BASE_URL=/api`; Nginx proxies `/api` to `backend:8100` and serves `index.html` for direct
-SPA route requests.
+Manual frontend runs can use the absolute backend base URL shown above. `scripts/run-local.ps1` sets
+`VITE_API_BASE_URL=/api` and `VITE_PROXY_API_TARGET=http://127.0.0.1:8100` so browser requests go
+through Vite's local proxy. The Docker frontend is also built with `VITE_API_BASE_URL=/api`; Nginx
+proxies `/api` to `backend:8100` and serves `index.html` for direct SPA route requests.
 
 If Windows cannot use the default npm cache or temp directory, point both at a writable drive before
 running `npm ci`:

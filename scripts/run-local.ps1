@@ -1,222 +1,284 @@
+#Requires -Version 5.1
+<#
+.SYNOPSIS
+    Start Order Assurance (backend + frontend) locally with live terminal logs.
+
+.DESCRIPTION
+    Runs migrations, then launches the FastAPI backend (port 8100) and Vite
+    frontend (port 5180) as background jobs whose output is streamed to this
+    terminal in real time with colour-coded prefixes.
+
+    Press Ctrl+C at any time to stop both services.
+
+.PARAMETER BackendPort
+    Port for the FastAPI backend. Default: 8100
+
+.PARAMETER FrontendPort
+    Port for the Vite dev server. Default: 5180
+
+.PARAMETER SkipMigrations
+    Skip the database migration step.
+
+.PARAMETER OpenBrowser
+    Open the app in the default browser once ready.
+
+.EXAMPLE
+    .\scripts\run-local.ps1
+    .\scripts\run-local.ps1 -OpenBrowser
+    .\scripts\run-local.ps1 -SkipMigrations
+#>
 param(
-    [int]$BackendPort = 8100,
-    [int]$FrontendPort = 5180,
+    [int]   $BackendPort      = 8100,
+    [int]   $FrontendPort     = 5180,
     [switch]$SkipMigrations,
-    [switch]$InstallFrontendDeps,
-    [switch]$OpenBrowser,
-    [switch]$Detach
+    [switch]$OpenBrowser
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 'Stop'
 
-$RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$BackendDir = Join-Path $RepoRoot "backend"
-$FrontendDir = Join-Path $RepoRoot "frontend"
-$RuntimeDir = Join-Path $RepoRoot "runtime"
-$LogDir = Join-Path $RuntimeDir "logs"
+# Paths
+$RepoRoot   = Resolve-Path (Join-Path $PSScriptRoot '..')
+$BackendDir = Join-Path $RepoRoot 'backend'
+$FrontendDir= Join-Path $RepoRoot 'frontend'
 
-New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+$BackendUrl = "http://127.0.0.1:$BackendPort/api/health"
+$FrontendUrl= "http://127.0.0.1:$FrontendPort"
+$AppUrl     = "http://127.0.0.1:$FrontendPort/bundles"
 
-$StartedProcesses = New-Object System.Collections.Generic.List[System.Diagnostics.Process]
-
-function Write-Step {
-    param([string]$Message)
-    Write-Host "[order-assurance] $Message"
+# Helpers
+function Write-Banner {
+    Write-Host ''
+    Write-Host '  Order Assurance - Local Dev Server' -ForegroundColor White
+    Write-Host "  Backend  : $BackendUrl"             -ForegroundColor DarkGray
+    Write-Host "  Frontend : $AppUrl"                 -ForegroundColor DarkGray
+    Write-Host '  Press Ctrl+C to stop.'              -ForegroundColor DarkGray
+    Write-Host ''
 }
 
-function Test-HttpOk {
-    param(
-        [string]$Url,
-        [int]$TimeoutSeconds = 3
-    )
+function Write-Step([string]$Msg) {
+    Write-Host "==> $Msg" -ForegroundColor Cyan
+}
 
+function Write-Ok([string]$Msg) {
+    Write-Host "OK  $Msg" -ForegroundColor Green
+}
+
+function Write-Fail([string]$Msg) {
+    Write-Host "ERR $Msg" -ForegroundColor Red
+}
+
+function Test-Port([int]$Port) {
+    $conn = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+    if ($conn) {
+        $proc = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
+        return if ($proc) { "$($proc.ProcessName) (PID $($proc.Id))" } else { "PID $($conn.OwningProcess)" }
+    }
+    return $null
+}
+
+function Test-Http([string]$Url) {
     try {
-        $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec $TimeoutSeconds
-        return [int]$response.StatusCode -ge 200 -and [int]$response.StatusCode -lt 500
-    } catch {
-        return $false
-    }
+        $r = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
+        return ($r.StatusCode -eq 200)
+    } catch { return $false }
 }
 
-function Get-PortOwner {
-    param([int]$Port)
-
-    $connection = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if (-not $connection) {
-        return $null
-    }
-
-    $process = Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue
-    if (-not $process) {
-        return "PID $($connection.OwningProcess)"
-    }
-    return "$($process.ProcessName) PID $($process.Id)"
-}
-
-function Wait-ForHttp {
-    param(
-        [string]$Name,
-        [string]$Url,
-        [int]$TimeoutSeconds = 45
-    )
-
-    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+function Wait-Http([string]$Name, [string]$Url, [int]$Timeout = 60) {
+    Write-Step "Waiting for $Name to be ready..."
+    $deadline = (Get-Date).AddSeconds($Timeout)
     while ((Get-Date) -lt $deadline) {
-        if (Test-HttpOk -Url $Url) {
-            Write-Step "$Name is ready: $Url"
-            return
-        }
+        if (Test-Http $Url) { Write-Ok "$Name is ready"; return }
         Start-Sleep -Seconds 1
     }
-    throw "$Name did not become ready within $TimeoutSeconds seconds: $Url"
+    throw "$Name did not start within ${Timeout}s. Check logs above."
 }
 
-function Start-LoggedProcess {
-    param(
-        [string]$Name,
-        [string]$FilePath,
-        [string[]]$ArgumentList,
-        [string]$WorkingDirectory,
-        [string]$StdOutPath,
-        [string]$StdErrPath
-    )
-
-    Write-Step "Starting $Name"
-    $process = Start-Process `
-        -FilePath $FilePath `
-        -ArgumentList $ArgumentList `
-        -WorkingDirectory $WorkingDirectory `
-        -RedirectStandardOutput $StdOutPath `
-        -RedirectStandardError $StdErrPath `
-        -WindowStyle Hidden `
-        -PassThru
-    $StartedProcesses.Add($process) | Out-Null
-    Write-Step "$Name PID $($process.Id)"
-    return $process
-}
-
-function Stop-StartedProcesses {
-    foreach ($process in $StartedProcesses) {
-        try {
-            if ($process -and -not $process.HasExited) {
-                Write-Step "Stopping PID $($process.Id)"
-                Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-            }
-        } catch {
-            Write-Warning "Could not stop PID $($process.Id): $($_.Exception.Message)"
+function Stop-Jobs([System.Collections.Generic.List[object]]$Jobs) {
+    foreach ($j in $Jobs) {
+        if ($j -and $j.State -ne 'Completed') {
+            Stop-Job  $j -ErrorAction SilentlyContinue
+            Remove-Job $j -Force -ErrorAction SilentlyContinue
         }
     }
 }
 
+function Drain-Job([object]$Job, [string]$Prefix, [ConsoleColor]$Color) {
+    $lines = Receive-Job $Job -ErrorAction SilentlyContinue
+    foreach ($line in $lines) {
+        if ($null -ne $line) {
+            Write-Host "$Prefix $line" -ForegroundColor $Color
+        }
+    }
+}
+
+# Pre-flight checks
+Write-Banner
+
+# Optional interpreter override (e.g. a PaddleOCR venv). Defaults to 'python'
+# on PATH so existing behavior is unchanged when BACKEND_PYTHON is not set.
+$BackendPython = if ($env:BACKEND_PYTHON) { $env:BACKEND_PYTHON } else { 'python' }
+if ($env:BACKEND_PYTHON) {
+    if (-not (Test-Path $env:BACKEND_PYTHON)) {
+        Write-Fail "BACKEND_PYTHON is set but not found: $env:BACKEND_PYTHON"
+        exit 1
+    }
+    Write-Step "Using BACKEND_PYTHON: $env:BACKEND_PYTHON"
+} elseif (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+    Write-Fail 'python not found on PATH. Install Python 3.11+ or activate your virtual environment.'
+    exit 1
+}
+if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    Write-Fail 'npm not found on PATH. Install Node.js before starting the frontend.'
+    exit 1
+}
+if (-not (Test-Path (Join-Path $FrontendDir 'node_modules'))) {
+    Write-Step 'node_modules missing - running npm ci...'
+    Push-Location $FrontendDir
+    npm ci
+    Pop-Location
+}
+
+# Check ports
+$existingBackend  = Test-Http $BackendUrl
+$existingFrontend = Test-Http $FrontendUrl
+
+if (-not $existingBackend) {
+    $owner = Test-Port $BackendPort
+    if ($owner) {
+        Write-Fail "Port $BackendPort already used by $owner but backend health check failed."
+        exit 1
+    }
+}
+if (-not $existingFrontend) {
+    $owner = Test-Port $FrontendPort
+    if ($owner) {
+        Write-Fail "Port $FrontendPort already used by $owner but frontend is not responding."
+        exit 1
+    }
+}
+
+# Migrations
+if (-not $SkipMigrations -and -not $existingBackend) {
+    Write-Step 'Running database migrations...'
+    Push-Location $BackendDir
+    & $BackendPython -m app.migrations.runner up
+    if ($LASTEXITCODE -ne 0) {
+        Pop-Location
+        Write-Fail 'Migrations failed.'
+        exit 1
+    }
+    Pop-Location
+    Write-Ok 'Migrations complete'
+}
+
+# Launch jobs
+$jobs = [System.Collections.Generic.List[object]]::new()
+$backendJob = $null
+$frontendJob = $null
+
+if ($existingBackend) {
+    Write-Step "Backend already running - reusing :$BackendPort"
+}
+if (-not $existingBackend) {
+    Write-Step "Starting backend on :$BackendPort ..."
+    $backendJob = Start-Job -Name 'backend' -ScriptBlock {
+        param($Dir, $Port, $Python)
+        Set-Location $Dir
+        $env:APP_ENV           = if ($env:APP_ENV)           { $env:APP_ENV }           else { 'development' }
+        $env:ENABLE_DEV_TOOLS  = if ($env:ENABLE_DEV_TOOLS)  { $env:ENABLE_DEV_TOOLS }  else { 'true' }
+        $env:BACKEND_PORT      = "$Port"
+        & $Python -m uvicorn app.main:app `
+            --host 127.0.0.1 `
+            --port $Port `
+            --reload `
+            2>&1
+    } -ArgumentList $BackendDir, $BackendPort, $BackendPython
+    $jobs.Add($backendJob) | Out-Null
+}
+
+if ($existingFrontend) {
+    Write-Step "Frontend already running - reusing :$FrontendPort"
+}
+if (-not $existingFrontend) {
+    Write-Step "Starting frontend on :$FrontendPort ..."
+    $frontendJob = Start-Job -Name 'frontend' -ScriptBlock {
+        param($Dir, $ApiPort)
+        Set-Location $Dir
+        $env:VITE_API_BASE_URL      = '/api'
+        $env:VITE_PROXY_API_TARGET  = "http://127.0.0.1:$ApiPort"
+        npm run dev 2>&1
+    } -ArgumentList $FrontendDir, $BackendPort
+    $jobs.Add($frontendJob) | Out-Null
+}
+
+# Wait for ready
 try {
-    Write-Step "Repository: $RepoRoot"
-
-    if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
-        throw "python was not found on PATH. Install Python 3.11+ or activate the backend virtual environment."
-    }
-    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-        throw "npm was not found on PATH. Install Node.js/npm before running the frontend."
-    }
-
-    if ($InstallFrontendDeps) {
-        Write-Step "Installing frontend dependencies with npm ci"
-        Push-Location $FrontendDir
-        try {
-            npm ci
-        } finally {
-            Pop-Location
+    if ($backendJob) {
+        # Stream early backend output while waiting
+        $deadline = (Get-Date).AddSeconds(60)
+        while ((Get-Date) -lt $deadline) {
+            if ($backendJob) { Drain-Job $backendJob '[BACKEND ]' Cyan }
+            if (Test-Http $BackendUrl) { Write-Ok "Backend ready at $BackendUrl"; break }
+            Start-Sleep -Milliseconds 500
         }
-    } elseif (-not (Test-Path (Join-Path $FrontendDir "node_modules"))) {
-        throw "frontend/node_modules is missing. Run with -InstallFrontendDeps or run npm ci in frontend first."
-    }
-
-    $backendHealthUrl = "http://127.0.0.1:$BackendPort/api/health"
-    $frontendUrl = "http://127.0.0.1:$FrontendPort/bundles"
-
-    $backendAlreadyRunning = Test-HttpOk -Url $backendHealthUrl
-    if ($backendAlreadyRunning) {
-        Write-Step "Reusing existing backend: $backendHealthUrl"
-    } else {
-        $owner = Get-PortOwner -Port $BackendPort
-        if ($owner) {
-            throw "Backend port $BackendPort is already in use by $owner, but $backendHealthUrl is not healthy."
+        if (-not (Test-Http $BackendUrl)) {
+            throw "Backend did not become ready within 60s."
         }
+    }
 
-        if (-not $SkipMigrations) {
-            Write-Step "Running backend migrations"
-            Push-Location $BackendDir
-            try {
-                python -m app.migrations.runner up
-            } finally {
-                Pop-Location
-            }
+    if ($frontendJob) {
+        $deadline = (Get-Date).AddSeconds(60)
+        while ((Get-Date) -lt $deadline) {
+            if ($backendJob)  { Drain-Job $backendJob  '[BACKEND ]' Cyan  }
+            if ($frontendJob) { Drain-Job $frontendJob '[FRONTEND]' Green }
+            if (Test-Http $FrontendUrl) { Write-Ok "Frontend ready at $AppUrl"; break }
+            Start-Sleep -Milliseconds 500
         }
-
-        $env:BACKEND_PORT = "$BackendPort"
-        if (-not $env:APP_ENV) { $env:APP_ENV = "development" }
-        if (-not $env:ENABLE_DEV_TOOLS) { $env:ENABLE_DEV_TOOLS = "true" }
-
-        Start-LoggedProcess `
-            -Name "backend" `
-            -FilePath "python" `
-            -ArgumentList @("-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "$BackendPort") `
-            -WorkingDirectory $BackendDir `
-            -StdOutPath (Join-Path $LogDir "backend.stdout.log") `
-            -StdErrPath (Join-Path $LogDir "backend.stderr.log") | Out-Null
-
-        Wait-ForHttp -Name "Backend" -Url $backendHealthUrl
-    }
-
-    $frontendAlreadyRunning = Test-HttpOk -Url $frontendUrl
-    if ($frontendAlreadyRunning) {
-        Write-Step "Reusing existing frontend: $frontendUrl"
-    } else {
-        $owner = Get-PortOwner -Port $FrontendPort
-        if ($owner) {
-            throw "Frontend port $FrontendPort is already in use by $owner, but $frontendUrl is not responding."
+        if (-not (Test-Http $FrontendUrl)) {
+            throw "Frontend did not become ready within 60s."
         }
-
-        $env:VITE_API_BASE_URL = "/api"
-        $env:VITE_PROXY_API_TARGET = "http://127.0.0.1:$BackendPort"
-
-        Start-LoggedProcess `
-            -Name "frontend" `
-            -FilePath "npm.cmd" `
-            -ArgumentList @("run", "dev", "--", "--host", "127.0.0.1", "--port", "$FrontendPort") `
-            -WorkingDirectory $FrontendDir `
-            -StdOutPath (Join-Path $LogDir "frontend.stdout.log") `
-            -StdErrPath (Join-Path $LogDir "frontend.stderr.log") | Out-Null
-
-        Wait-ForHttp -Name "Frontend" -Url $frontendUrl
     }
+} catch {
+    Write-Fail $_
+    Stop-Jobs $jobs
+    exit 1
+}
 
-    Write-Host ""
-    Write-Step "Application is running without Docker"
-    Write-Host "Frontend: $frontendUrl"
-    Write-Host "Backend:  $backendHealthUrl"
-    Write-Host "Logs:     $LogDir"
-    Write-Host ""
-    Write-Host "Press Ctrl+C to stop processes started by this script."
+# Ready banner
+Write-Host ''
+Write-Host '  Application is running.' -ForegroundColor White
+Write-Host "  Open : $AppUrl"          -ForegroundColor Green
+Write-Host "  API  : $BackendUrl"      -ForegroundColor Green
+Write-Host '  Ctrl+C to stop.'         -ForegroundColor DarkGray
+Write-Host ''
 
-    if ($OpenBrowser) {
-        Start-Process $frontendUrl
-    }
+if ($OpenBrowser) { Start-Process $AppUrl }
 
-    if ($Detach) {
-        Write-Step "Detached mode: leaving started processes running."
-        $StartedProcesses.Clear()
-        return
-    }
-
+# Live log loop
+try {
     while ($true) {
-        foreach ($process in $StartedProcesses) {
-            if ($process.HasExited) {
-                throw "Started process PID $($process.Id) exited with code $($process.ExitCode). Check logs in $LogDir."
+        if ($backendJob) {
+            if ($backendJob.State -eq 'Failed') {
+                Write-Fail 'Backend process exited unexpectedly.'
+                Drain-Job $backendJob '[BACKEND ]' Red
+                break
             }
+            Drain-Job $backendJob '[BACKEND ]' Cyan
         }
-        Start-Sleep -Seconds 2
+        if ($frontendJob) {
+            if ($frontendJob.State -eq 'Failed') {
+                Write-Fail 'Frontend process exited unexpectedly.'
+                Drain-Job $frontendJob '[FRONTEND]' Red
+                break
+            }
+            Drain-Job $frontendJob '[FRONTEND]' Green
+        }
+        Start-Sleep -Milliseconds 300
     }
 } finally {
-    Stop-StartedProcesses
+    Write-Host ''
+    Write-Step 'Stopping services...'
+    Stop-Jobs $jobs
+    Write-Ok 'Stopped.'
 }

@@ -26,6 +26,7 @@ class Settings:
     digital_text_max_pages: int = int(os.getenv("DIGITAL_TEXT_MAX_PAGES", "10"))
     ocr_enabled: bool = os.getenv("OCR_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     ocr_provider: str = os.getenv("OCR_PROVIDER", "glm_ocr")
+    ocr_require_paddle_provider: bool = os.getenv("OCR_REQUIRE_PADDLE_PROVIDER", "false").lower() in {"1", "true", "yes", "on"}
     ocr_model: str = os.getenv("OCR_MODEL", "glm-ocr:latest")
     ocr_base_url: str = os.getenv("OCR_BASE_URL", "http://localhost:11434")
     ocr_dpi: int = int(os.getenv("OCR_DPI", "200"))
@@ -37,6 +38,10 @@ class Settings:
     ocr_paddle_device: str = os.getenv("OCR_PADDLE_DEVICE", "gpu:0")
     ocr_paddle_timeout_seconds: int = int(os.getenv("OCR_PADDLE_TIMEOUT_SECONDS", "60"))
     ocr_paddle_fallback_to_glm: bool = os.getenv("OCR_PADDLE_FALLBACK_TO_GLM", "true").lower() in {"1", "true", "yes", "on"}
+    # Comma-separated allowlist of document types that may use PaddleOCR when
+    # OCR_PROVIDER=paddleocr_gpu. Conservative default keeps only VENDOR_INVOICE
+    # so unset-env behavior is unchanged; local validation can widen it.
+    ocr_paddle_document_types: str = os.getenv("OCR_PADDLE_DOCUMENT_TYPES", "VENDOR_INVOICE")
     ocr_auto_rotate_enabled: bool = os.getenv("OCR_AUTO_ROTATE_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
     ocr_auto_rotate_timeout_seconds: int = int(os.getenv("OCR_AUTO_ROTATE_TIMEOUT_SECONDS", "30"))
     extraction_queue_enabled: bool = os.getenv("EXTRACTION_QUEUE_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
@@ -58,6 +63,16 @@ class Settings:
 
 
 settings = Settings()
+
+
+def validate_ocr_runtime_settings(current_settings: Settings | None = None) -> None:
+    current = current_settings or settings
+    if current.ocr_require_paddle_provider and current.ocr_provider != "paddleocr_gpu":
+        raise RuntimeError(
+            "OCR_REQUIRE_PADDLE_PROVIDER=true but "
+            f"OCR_PROVIDER='{current.ocr_provider}'. "
+            "Set OCR_PROVIDER=paddleocr_gpu or disable OCR_REQUIRE_PADDLE_PROVIDER."
+        )
 
 
 def replace_settings(new_settings: Settings) -> None:

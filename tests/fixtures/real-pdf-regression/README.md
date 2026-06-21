@@ -2,6 +2,10 @@
 
 This folder supports optional, skip-safe regression testing with approved redacted documents. Do not commit private client PDFs.
 
+The checked-in JSON files describe approved expectations. The PDFs themselves
+must stay local unless they have been explicitly redacted and approved for source
+control.
+
 ## Expected Layout
 
 ```text
@@ -55,7 +59,14 @@ To run without committing PDFs, place redacted files in a local folder and set:
 
 ```powershell
 $env:ORDER_ASSURANCE_REAL_PDF_FIXTURE_DIR="E:\path\to\redacted\panimalar"
-python -m pytest order-assurance/backend/tests -q -k real_pdf
+python -m pytest backend/tests -q -k real_pdf
 ```
 
 `glm-ocr` is used only for OCR text acquisition; the parser extracts fields and the verifier calculates business status.
+
+Run from `order-assurance` when using the relative command above. From the
+workspace parent, keep the project prefix:
+
+```powershell
+python -m pytest order-assurance/backend/tests -q -k real_pdf
+```

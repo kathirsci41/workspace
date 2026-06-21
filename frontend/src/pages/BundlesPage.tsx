@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createBundle, listBundles } from '../api/bundles';
+import { createBundle, deleteBundle, listBundles } from '../api/bundles';
 import { BundleTable } from '../components/bundles/BundleTable';
 import { CreateBundleModal } from '../components/bundles/CreateBundleModal';
 import { EmptyState } from '../components/common/EmptyState';
@@ -25,6 +25,8 @@ export function BundlesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletingBundleId, setDeletingBundleId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
   const queueBundles = useMemo(() => (bundles.data ?? []).filter((bundle) => !isAutomatedTestBundle(bundle)), [bundles.data]);
@@ -73,6 +75,24 @@ export function BundlesPage() {
     }
   }
 
+  async function handleDelete(bundle: OrderBundle) {
+    const confirmed = window.confirm(
+      `Delete bundle ${bundle.bundle_number}? This removes the bundle and all uploaded documents. This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setDeleteError(null);
+    setDeletingBundleId(bundle.id);
+    try {
+      await deleteBundle(bundle.id);
+      await bundles.reload();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setDeletingBundleId(null);
+    }
+  }
+
   return (
     <AppShell
       title="Bundles"
@@ -115,7 +135,7 @@ export function BundlesPage() {
         </div>
 
         {bundles.isLoading ? <LoadingState label="Loading bundles..." /> : null}
-        <ErrorState message={bundles.error} />
+        <ErrorState message={bundles.error ?? deleteError} />
         {!bundles.isLoading && !bundles.error && visibleBundles.length === 0 ? (
           <EmptyState title="No bundles found" action={<button type="button" className="button button--primary" onClick={() => setIsCreateOpen(true)}>Create Bundle</button>}>
             Create a bundle to upload the five required documents and start verification.
@@ -123,7 +143,7 @@ export function BundlesPage() {
         ) : null}
         {visibleBundles.length > 0 ? (
           <>
-            <BundleTable bundles={pagedBundles} />
+            <BundleTable bundles={pagedBundles} deletingBundleId={deletingBundleId} onDelete={handleDelete} />
             <div className="pagination" aria-label="Bundle pagination">
               <span>Showing {pageStart + 1}-{Math.min(pageStart + PAGE_SIZE, visibleBundles.length)} of {visibleBundles.length} bundles</span>
               <div className="button-row">

@@ -5,7 +5,15 @@ import { bundleStatus } from '../../lib/build1';
 import { formatDateTime } from '../../lib/format';
 import type { OrderBundle } from '../../types/api';
 
-export function BundleTable({ bundles }: { bundles: OrderBundle[] }) {
+export function BundleTable({
+  bundles,
+  deletingBundleId = null,
+  onDelete,
+}: {
+  bundles: OrderBundle[];
+  deletingBundleId?: string | null;
+  onDelete?: (bundle: OrderBundle) => void;
+}) {
   return (
     <DataTable label="Bundles table" className="bundles-table">
       <thead>
@@ -31,9 +39,22 @@ export function BundleTable({ bundles }: { bundles: OrderBundle[] }) {
             <td><StatusBadge status={bundleStatus(bundle)} /></td>
             <td>{formatDateTime(bundle.updated_at)}</td>
             <td>
-              <Link className="button button--ghost" to={`/bundles/${bundle.id}/overview`} aria-label={`Open Bundle ${bundle.bundle_number}`}>
-                Open
-              </Link>
+              <div className="button-row">
+                <Link className="button button--ghost" to={`/bundles/${bundle.id}/overview`} aria-label={`Open Bundle ${bundle.bundle_number}`}>
+                  Open
+                </Link>
+                {onDelete ? (
+                  <button
+                    className="button button--danger"
+                    type="button"
+                    aria-label={`Delete Bundle ${bundle.bundle_number}`}
+                    disabled={deletingBundleId === bundle.id}
+                    onClick={() => onDelete(bundle)}
+                  >
+                    {deletingBundleId === bundle.id ? 'Deleting...' : 'Delete'}
+                  </button>
+                ) : null}
+              </div>
             </td>
           </tr>
         ))}

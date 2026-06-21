@@ -1,4 +1,4 @@
-import { requestJson } from './client';
+import { apiUrl, extractErrorMessage, requestJson } from './client';
 import type { OrderBundle } from '../types/api';
 
 export interface BundleCreatePayload {
@@ -18,4 +18,12 @@ export function getBundle(bundleId: string): Promise<OrderBundle> {
 
 export function createBundle(payload: BundleCreatePayload): Promise<OrderBundle> {
   return requestJson<OrderBundle>('/bundles', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function deleteBundle(bundleId: string): Promise<void> {
+  const response = await fetch(apiUrl(`/bundles/${bundleId}`), { method: 'DELETE' });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(extractErrorMessage(text, response.status));
+  }
 }

@@ -1,0 +1,186 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "Order Assurance bundles" [ref=e5] [cursor=pointer]:
+      - /url: /bundles
+      - generic [ref=e6]: OA
+      - generic [ref=e7]:
+        - strong [ref=e8]: Order Assurance
+        - emphasis [ref=e9]: Build 1
+    - search [ref=e10]:
+      - generic [ref=e11]: Search
+      - searchbox "Search" [ref=e12]
+    - generic [ref=e13]:
+      - link "Current bundle 746537ad-206d-4f04-a53c-a156692202ce" [ref=e14] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+        - generic [ref=e15]: Current bundle
+        - strong [ref=e16]: 746537ad-206d-4f04-a53c-a156692202ce
+      - group [ref=e17]:
+        - generic "More" [ref=e18] [cursor=pointer]
+  - main [ref=e19]:
+    - navigation "Breadcrumb" [ref=e20]:
+      - link "Bundles" [ref=e21] [cursor=pointer]:
+        - /url: /bundles
+      - generic [ref=e22]: /746537ad-206d-4f04-a53c-a156692202ce
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - heading "Bundle Workspace" [level=1] [ref=e25]
+        - generic [ref=e26]: Loading bundle metadata...
+      - button "Export Excel" [ref=e28] [cursor=pointer]
+    - navigation "Bundle workflow" [ref=e29]:
+      - link "Overview" [ref=e30] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - link "Documents" [ref=e31] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/documents
+      - link "Extraction Review" [ref=e32] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction
+      - link "Review Results" [ref=e33] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/verification
+      - link "Open Issues" [ref=e34] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/issues
+      - link "Export" [ref=e35] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/exports
+      - group [ref=e36]:
+        - generic "More" [ref=e37] [cursor=pointer]
+    - status [ref=e38]: Loading bundle workspace...
+    - region "Outcome summary" [ref=e39]:
+      - generic [ref=e40]:
+        - paragraph [ref=e41]: Outcome Summary
+        - generic "Status Needs Review" [ref=e42]: Needs Review
+        - 'heading "Needs Review: Missing Document: Customer PO" [level=2] [ref=e43]'
+        - paragraph [ref=e44]: Customer PO has not been uploaded.
+        - paragraph [ref=e45]:
+          - strong [ref=e46]: "Next recommended action:"
+          - text: Upload Customer PO.
+      - link "Upload missing document Customer PO" [ref=e47] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/documents
+    - region "Bundle overview KPIs" [ref=e48]:
+      - article [ref=e49]:
+        - generic [ref=e50]: Overall Status
+        - strong [ref=e51]:
+          - generic "Status Extraction Pending" [ref=e52]: Extraction Pending
+      - article [ref=e53]:
+        - generic [ref=e54]: Documents uploaded
+        - strong [ref=e55]: 0/5
+        - generic [ref=e56]: 5 missing
+      - article [ref=e57]:
+        - generic [ref=e58]: Extraction progress
+        - strong [ref=e59]: 0/5
+        - generic [ref=e60]: Extracted
+      - article [ref=e61]:
+        - generic [ref=e62]: Review checks
+        - strong [ref=e63]: "0"
+        - generic [ref=e64]: 0 mismatches
+      - article [ref=e65]:
+        - generic [ref=e66]: Extraction confidence
+        - strong [ref=e67]: "-"
+        - generic [ref=e68]: Average if available
+    - generic [ref=e69]:
+      - generic [ref=e70]:
+        - generic [ref=e71]:
+          - heading "Document Inventory" [level=2] [ref=e72]
+          - link "Manage Documents" [ref=e73] [cursor=pointer]:
+            - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/documents
+        - generic [ref=e74]:
+          - article [ref=e75]:
+            - generic [ref=e76]:
+              - strong [ref=e77]: Customer PO
+              - generic [ref=e78]: Not uploaded
+            - generic [ref=e79]:
+              - generic [ref=e80]:
+                - generic [ref=e81]: Document
+                - text: Missing
+              - generic [ref=e82]:
+                - generic [ref=e83]: Extraction
+                - text: Pending
+              - generic [ref=e84]:
+                - generic [ref=e85]: Review
+                - text: Needs Review
+          - article [ref=e86]:
+            - generic [ref=e87]:
+              - strong [ref=e88]: Company Invoice
+              - generic [ref=e89]: Not uploaded
+            - generic [ref=e90]:
+              - generic [ref=e91]:
+                - generic [ref=e92]: Document
+                - text: Missing
+              - generic [ref=e93]:
+                - generic [ref=e94]: Extraction
+                - text: Pending
+              - generic [ref=e95]:
+                - generic [ref=e96]: Review
+                - text: Needs Review
+          - article [ref=e97]:
+            - generic [ref=e98]:
+              - strong [ref=e99]: Company Delivery Challan / DC
+              - generic [ref=e100]: Not uploaded
+            - generic [ref=e101]:
+              - generic [ref=e102]:
+                - generic [ref=e103]: Document
+                - text: Missing
+              - generic [ref=e104]:
+                - generic [ref=e105]: Extraction
+                - text: Pending
+              - generic [ref=e106]:
+                - generic [ref=e107]: Review
+                - text: Needs Review
+          - article [ref=e108]:
+            - generic [ref=e109]:
+              - strong [ref=e110]: Company PO to Vendor
+              - generic [ref=e111]: Not uploaded
+            - generic [ref=e112]:
+              - generic [ref=e113]:
+                - generic [ref=e114]: Document
+                - text: Missing
+              - generic [ref=e115]:
+                - generic [ref=e116]: Extraction
+                - text: Pending
+              - generic [ref=e117]:
+                - generic [ref=e118]: Review
+                - text: Needs Review
+          - article [ref=e119]:
+            - generic [ref=e120]:
+              - strong [ref=e121]: Vendor Invoice
+              - generic [ref=e122]: Not uploaded
+            - generic [ref=e123]:
+              - generic [ref=e124]:
+                - generic [ref=e125]: Document
+                - text: Missing
+              - generic [ref=e126]:
+                - generic [ref=e127]: Extraction
+                - text: Pending
+              - generic [ref=e128]:
+                - generic [ref=e129]: Review
+                - text: Needs Review
+      - complementary [ref=e130]:
+        - heading "Next Action" [level=2] [ref=e131]
+        - generic [ref=e132]: Critical
+        - 'heading "Missing Document: Customer PO" [level=3] [ref=e133]'
+        - paragraph [ref=e134]: Customer PO has not been uploaded.
+        - link "Upload missing document Customer PO" [ref=e135] [cursor=pointer]:
+          - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/documents
+    - generic [ref=e137]:
+      - heading "Review Results" [level=2] [ref=e138]
+      - link "View Review Results" [ref=e139] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/verification
+    - generic [ref=e140]:
+      - generic [ref=e141]:
+        - heading "Open Issues" [level=2] [ref=e142]
+        - link "View Open Issues" [ref=e143] [cursor=pointer]:
+          - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/issues
+      - list [ref=e144]:
+        - listitem [ref=e145]:
+          - strong [ref=e146]: "Missing Document: Customer PO"
+          - generic [ref=e147]: Customer PO has not been uploaded.
+        - listitem [ref=e148]:
+          - strong [ref=e149]: "Missing Document: Company Invoice"
+          - generic [ref=e150]: Company Invoice has not been uploaded.
+        - listitem [ref=e151]:
+          - strong [ref=e152]: "Missing Document: Company Delivery Challan / DC"
+          - generic [ref=e153]: Company Delivery Challan / DC has not been uploaded.
+        - listitem [ref=e154]:
+          - strong [ref=e155]: "Missing Document: Company PO to Vendor"
+          - generic [ref=e156]: Company PO to Vendor has not been uploaded.
+    - generic [ref=e158]:
+      - heading "Manual Correction History" [level=2] [ref=e159]
+      - link "View Manual Corrections" [ref=e160] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/audit

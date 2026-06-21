@@ -98,6 +98,12 @@ def extract_document(
     }
 
     diagnostics: dict[str, Any] = dict(metadata.diagnostics or {})
+    # A fresh extraction attempt must not inherit failure markers from a previous
+    # run; otherwise a successful re-extraction (e.g. after a transient OCR
+    # failure) is still flagged FAILED because pre_parse_failure_code below reads
+    # the stale value. Each run sets its own failure_code only when it fails.
+    diagnostics.pop("failure_code", None)
+    diagnostics.pop("failure_reason", None)
     diagnostics["force"] = force
     diagnostics["filename"] = document.filename
     diagnostics.update(_mode_diagnostics())
@@ -134,6 +140,10 @@ def extract_document(
     if len(raw_text.strip()) < MIN_DIGITAL_TEXT_LENGTH:
         diagnostics["digital_text_used"] = False
         doc_type = str(document.document_type)
+        if settings.ocr_provider == _PADDLE_GPU_PROVIDER_NAME:
+            diagnostics["ocr_paddle_document_types"] = sorted(_paddle_document_type_allowlist())
+            diagnostics["ocr_paddle_fallback_to_glm"] = settings.ocr_paddle_fallback_to_glm
+            diagnostics["ocr_paddle_document_type_allowed"] = _paddleocr_route_enabled(doc_type)
         if _paddleocr_route_enabled(doc_type):
             raw_ocr_text, text_for_parse, extraction_route = _run_queued_ocr(
                 db,
@@ -164,13 +174,27 @@ def extract_document(
             )
         elif settings.ocr_enabled:
             extraction_route = "scanned"
+            if (
+                settings.ocr_provider == _PADDLE_GPU_PROVIDER_NAME
+                and not settings.ocr_paddle_fallback_to_glm
+            ):
+                # Document type is outside the PaddleOCR allowlist and GLM
+                # fallback is disabled: do not silently run GLM.
+                failure_reason = (
+                    f"Document type {doc_type} is not in the PaddleOCR allowlist "
+                    f"({', '.join(sorted(_paddle_document_type_allowlist())) or 'none'}) "
+                    "and GLM fallback is disabled."
+                )
+            else:
+                failure_reason = f"Unsupported OCR provider: {settings.ocr_provider}"
             diagnostics.update(
                 {
                     "ocr_text_length": 0,
                     "raw_ocr_text_length": 0,
                     "ocr_status": "provider_error",
                     "failure_code": FailureCode.OCR_FAILED.value,
-                    "failure_reason": f"Unsupported OCR provider: {settings.ocr_provider}",
+                    "failure_reason": failure_reason,
+                    "fallback_used": False,
                 }
             )
             text_for_parse = ""
@@ -354,7 +378,8 @@ def extract_document(
     failure_code = diagnostics.get("failure_code")
     if failure_code:
         metadata.status = "FAILED" if failure_code in {FailureCode.TEXT_EXTRACTION_FAILED.value, FailureCode.OCR_EMPTY.value, FailureCode.OCR_FAILED.value, FailureCode.STRUCTURED_PARSE_FAILED.value} else "MANUAL_ENTRY"
-        metadata.last_error = f"{failure_code}: {diagnostics.get('failure_reason') or 'Extraction requires review.'}"
+        failure_code_label = getattr(failure_code, "value", failure_code)
+        metadata.last_error = f"{failure_code_label}: {diagnostics.get('failure_reason') or 'Extraction requires review.'}"
         document.status = "EXTRACTION_FAILED"
         document.last_error = metadata.last_error
     else:
@@ -439,11 +464,16 @@ def _canonical_extraction_document_type(document_type: Any) -> str:
     return PARSER_DOCUMENT_TYPE_ALIASES.get(doc_type, doc_type)
 
 
+def _paddle_document_type_allowlist() -> set[str]:
+    raw = settings.ocr_paddle_document_types or ""
+    return {item.strip().upper() for item in raw.split(",") if item.strip()}
+
+
 def _paddleocr_route_enabled(document_type: str) -> bool:
     return (
         settings.ocr_enabled
         and settings.ocr_provider == _PADDLE_GPU_PROVIDER_NAME
-        and document_type.upper() == "VENDOR_INVOICE"
+        and document_type.upper() in _paddle_document_type_allowlist()
     )
 
 
@@ -453,7 +483,10 @@ def _glm_route_enabled(document_type: str) -> bool:
     if settings.ocr_provider in _GLM_OCR_PROVIDER_NAMES:
         return True
     if settings.ocr_provider == _PADDLE_GPU_PROVIDER_NAME:
-        return not _paddleocr_route_enabled(document_type)
+        # PaddleOCR provider: a document type outside the allowlist may only use
+        # GLM when fallback is explicitly enabled. Otherwise we do NOT silently
+        # route it to GLM.
+        return not _paddleocr_route_enabled(document_type) and settings.ocr_paddle_fallback_to_glm
     return False
 
 
@@ -645,6 +678,7 @@ def _run_paddleocr_route(
     diagnostics["ocr_paddle_device"] = settings.ocr_paddle_device
     diagnostics["ocr_paddle_timeout_seconds"] = settings.ocr_paddle_timeout_seconds
     diagnostics["paddle_device"] = settings.ocr_paddle_device
+    diagnostics.setdefault("fallback_used", False)
 
     if not provider.is_available():
         success, raw_text, error, duration_ms = False, "", "PaddleOCR is not installed", 0
@@ -774,6 +808,8 @@ def _run_paddleocr_route(
     )
 
     if settings.ocr_paddle_fallback_to_glm:
+        diagnostics["fallback_used"] = True
+        diagnostics["fallback_provider"] = "glm_ocr"
         raw_ocr_text, text_for_parse = _run_glm_ocr_route(
             db,
             document,
@@ -788,6 +824,7 @@ def _run_paddleocr_route(
     diagnostics["ocr_text_length"] = 0
     diagnostics["raw_ocr_text_length"] = 0
     diagnostics["ocr_status"] = "provider_error"
+    diagnostics["fallback_used"] = False
     diagnostics["failure_code"] = FailureCode.OCR_FAILED.value
     diagnostics["failure_reason"] = f"paddleocr_gpu failed: {error or 'no text returned'}"
     return "", "", "scanned"
@@ -1022,7 +1059,7 @@ def _refresh_vendor_invoice_parse_result(parsed: dict[str, Any]) -> None:
     )
     diagnostics["missing_required_fields"] = missing
     if missing:
-        diagnostics["failure_code"] = FailureCode.REQUIRED_FIELDS_MISSING
+        diagnostics["failure_code"] = FailureCode.REQUIRED_FIELDS_MISSING.value
         diagnostics["failure_reason"] = (
             "OCR text was acquired but required fields are missing: "
             + ", ".join(missing)

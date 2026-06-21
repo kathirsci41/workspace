@@ -91,6 +91,7 @@ def _make_session(
     *,
     ocr_provider: str = "glm_ocr",
     ocr_paddle_fallback_to_glm: bool = True,
+    ocr_paddle_document_types: str = "VENDOR_INVOICE",
     ocr_enabled: bool = True,
     ocr_auto_rotate_enabled: bool = False,
 ) -> Session:
@@ -107,6 +108,7 @@ def _make_session(
         ocr_paddle_device="gpu:0",
         ocr_paddle_timeout_seconds=60,
         ocr_paddle_fallback_to_glm=ocr_paddle_fallback_to_glm,
+        ocr_paddle_document_types=ocr_paddle_document_types,
         ocr_auto_rotate_enabled=ocr_auto_rotate_enabled,
     )
     replace_settings(current)
@@ -151,6 +153,35 @@ def _setup_document(
 # ---------------------------------------------------------------------------
 # 1. Default config / no env uses existing GLM path.
 # ---------------------------------------------------------------------------
+def test_reextraction_clears_stale_failure_code_on_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Regression: a document that previously FAILED must not stay FAILED after a
+    successful re-extraction. The prior run's failure_code/failure_reason must not
+    be inherited (they are reset at the start of each attempt)."""
+    from app.models.document_metadata import DocumentMetadataRecord
+
+    pdf = tmp_path / "vendor.pdf"
+    _make_blank_pdf(pdf)
+    db = _make_session(tmp_path, monkeypatch, "stale_failure.db")
+    document = _setup_document(db, str(pdf))
+    # Seed a prior failed extraction for this document.
+    db.add(DocumentMetadataRecord(
+        document_id=document.id,
+        status="FAILED",
+        extracted_data={},
+        diagnostics={"failure_code": "OCR_FAILED", "failure_reason": "PaddleOCR subprocess timed out after 60s"},
+    ))
+    db.flush()
+
+    with patch.object(extraction_service, "extract_text_with_ocr", return_value=_ocr_result(_VENDOR_TEXT)):
+        result = extraction_service.extract_document(db, document, force=True)
+
+    meta = result["metadata"]
+    assert meta.status == "EXTRACTED", f"stale failure not cleared: status={meta.status}"
+    assert meta.diagnostics.get("failure_code") in (None, ""), meta.diagnostics.get("failure_code")
+    assert meta.last_error in (None, "")
+    assert meta.extracted_data.get("vendor_invoice_no") == "ACME/INV/77001"
+
+
 def test_default_config_uses_glm_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     pdf = tmp_path / "vendor.pdf"
     _make_blank_pdf(pdf)
@@ -403,6 +434,168 @@ def test_paddle_success_does_not_call_glm(tmp_path: Path, monkeypatch: pytest.Mo
     ):
         extraction_service.extract_document(db, document, force=True)
 
+    glm_mock.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Phase 1xL-C1: PaddleOCR document-type allowlist routing.
+# ---------------------------------------------------------------------------
+_PADDLE_ALL_THREE = "VENDOR_INVOICE,CUSTOMER_PO,CUSTOMER_INVOICE"
+
+
+def test_customer_po_routes_to_paddle_when_allowlisted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """A: CUSTOMER_PO uses PaddleOCR (not GLM) when it is in the allowlist."""
+    pdf = tmp_path / "po.pdf"
+    _make_blank_pdf(pdf)
+    db = _make_session(
+        tmp_path, monkeypatch, "paddle_custpo.db",
+        ocr_provider="paddleocr_gpu", ocr_paddle_document_types=_PADDLE_ALL_THREE,
+    )
+    document = _setup_document(db, str(pdf), document_type="CUSTOMER_PO", filename="Customer PO.pdf")
+    provider = _mock_paddle_provider(result=_paddle_result(success=True, raw_text=_VENDOR_TEXT))
+
+    with (
+        patch.object(extraction_service, "PaddleOcrProvider", return_value=provider),
+        patch.object(extraction_service, "extract_text_with_ocr") as glm_mock,
+    ):
+        result = extraction_service.extract_document(db, document, force=True)
+
+    diagnostics = result["metadata"].diagnostics
+    assert diagnostics["extraction_route"] == "ocr_paddleocr_gpu"
+    assert diagnostics["ocr_provider"] == "paddleocr_gpu"
+    assert diagnostics["ocr_paddle_document_type_allowed"] is True
+    assert diagnostics["fallback_used"] is False
+    glm_mock.assert_not_called()
+
+
+def test_customer_invoice_routes_to_paddle_when_allowlisted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """B: CUSTOMER_INVOICE uses PaddleOCR (not GLM) when it is in the allowlist."""
+    pdf = tmp_path / "inv.pdf"
+    _make_blank_pdf(pdf)
+    db = _make_session(
+        tmp_path, monkeypatch, "paddle_custinv.db",
+        ocr_provider="paddleocr_gpu", ocr_paddle_document_types=_PADDLE_ALL_THREE,
+    )
+    document = _setup_document(db, str(pdf), document_type="CUSTOMER_INVOICE", filename="Customer Invoice.pdf")
+    provider = _mock_paddle_provider(result=_paddle_result(success=True, raw_text=_VENDOR_TEXT))
+
+    with (
+        patch.object(extraction_service, "PaddleOcrProvider", return_value=provider),
+        patch.object(extraction_service, "extract_text_with_ocr") as glm_mock,
+    ):
+        result = extraction_service.extract_document(db, document, force=True)
+
+    diagnostics = result["metadata"].diagnostics
+    assert diagnostics["extraction_route"] == "ocr_paddleocr_gpu"
+    assert diagnostics["ocr_paddle_document_type_allowed"] is True
+    assert diagnostics["fallback_used"] is False
+    glm_mock.assert_not_called()
+
+
+def test_customer_invoice_not_routed_to_paddle_when_excluded_no_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """C + D: CUSTOMER_INVOICE outside the allowlist with fallback disabled does
+    NOT use PaddleOCR and does NOT silently call GLM."""
+    pdf = tmp_path / "inv.pdf"
+    _make_blank_pdf(pdf)
+    db = _make_session(
+        tmp_path, monkeypatch, "paddle_excluded.db",
+        ocr_provider="paddleocr_gpu",
+        ocr_paddle_document_types="VENDOR_INVOICE",
+        ocr_paddle_fallback_to_glm=False,
+    )
+    document = _setup_document(db, str(pdf), document_type="CUSTOMER_INVOICE", filename="Customer Invoice.pdf")
+
+    with (
+        patch.object(extraction_service, "PaddleOcrProvider") as paddle_cls,
+        patch.object(extraction_service, "extract_text_with_ocr") as glm_mock,
+    ):
+        result = extraction_service.extract_document(db, document, force=True)
+
+    paddle_cls.assert_not_called()
+    glm_mock.assert_not_called()
+    diagnostics = result["metadata"].diagnostics
+    assert diagnostics["extraction_route"] == "scanned"
+    assert diagnostics["ocr_paddle_document_type_allowed"] is False
+    assert diagnostics["fallback_used"] is False
+    assert diagnostics["failure_code"] == FailureCode.OCR_FAILED.value
+    assert "not in the PaddleOCR allowlist" in diagnostics["failure_reason"]
+
+
+def test_customer_invoice_allowlisted_paddle_unavailable_no_fallback_skips_glm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """D: allowlisted CUSTOMER_INVOICE, PaddleOCR unavailable, fallback disabled
+    -> GLM is NOT called; a controlled failure is recorded."""
+    pdf = tmp_path / "inv.pdf"
+    _make_blank_pdf(pdf)
+    db = _make_session(
+        tmp_path, monkeypatch, "paddle_unavail_nofb.db",
+        ocr_provider="paddleocr_gpu",
+        ocr_paddle_document_types=_PADDLE_ALL_THREE,
+        ocr_paddle_fallback_to_glm=False,
+    )
+    document = _setup_document(db, str(pdf), document_type="CUSTOMER_INVOICE", filename="Customer Invoice.pdf")
+    provider = _mock_paddle_provider(available=False)
+
+    with (
+        patch.object(extraction_service, "PaddleOcrProvider", return_value=provider),
+        patch.object(extraction_service, "extract_text_with_ocr") as glm_mock,
+    ):
+        result = extraction_service.extract_document(db, document, force=True)
+
+    glm_mock.assert_not_called()
+    diagnostics = result["metadata"].diagnostics
+    assert diagnostics["extraction_route"] == "scanned"
+    assert diagnostics["fallback_used"] is False
+    assert diagnostics["failure_code"] == FailureCode.OCR_FAILED.value
+
+
+def test_customer_invoice_allowlisted_paddle_unavailable_with_fallback_records_glm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """E: allowlisted CUSTOMER_INVOICE, PaddleOCR unavailable, fallback enabled
+    -> GLM is called once and the fallback is clearly recorded."""
+    pdf = tmp_path / "inv.pdf"
+    _make_blank_pdf(pdf)
+    db = _make_session(
+        tmp_path, monkeypatch, "paddle_unavail_fb.db",
+        ocr_provider="paddleocr_gpu",
+        ocr_paddle_document_types=_PADDLE_ALL_THREE,
+        ocr_paddle_fallback_to_glm=True,
+    )
+    document = _setup_document(db, str(pdf), document_type="CUSTOMER_INVOICE", filename="Customer Invoice.pdf")
+    provider = _mock_paddle_provider(available=False)
+
+    with (
+        patch.object(extraction_service, "PaddleOcrProvider", return_value=provider),
+        patch.object(extraction_service, "extract_text_with_ocr", return_value=_ocr_result(_VENDOR_TEXT)) as glm_mock,
+    ):
+        result = extraction_service.extract_document(db, document, force=True)
+
+    glm_mock.assert_called_once()
+    diagnostics = result["metadata"].diagnostics
+    assert diagnostics["extraction_route"] == "ocr_glm"
+    assert diagnostics["fallback_used"] is True
+    assert diagnostics["fallback_provider"] == "glm_ocr"
+
+
+def test_vendor_invoice_default_allowlist_still_uses_paddle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """F: existing VENDOR_INVOICE PaddleOCR behavior is unchanged under the
+    conservative default allowlist (VENDOR_INVOICE only)."""
+    pdf = tmp_path / "vendor.pdf"
+    _make_blank_pdf(pdf)
+    db = _make_session(
+        tmp_path, monkeypatch, "paddle_default_vendor.db",
+        ocr_provider="paddleocr_gpu",  # default ocr_paddle_document_types="VENDOR_INVOICE"
+    )
+    document = _setup_document(db, str(pdf), document_type="VENDOR_INVOICE")
+    provider = _mock_paddle_provider(result=_paddle_result(success=True, raw_text=_VENDOR_TEXT))
+
+    with (
+        patch.object(extraction_service, "PaddleOcrProvider", return_value=provider),
+        patch.object(extraction_service, "extract_text_with_ocr") as glm_mock,
+    ):
+        result = extraction_service.extract_document(db, document, force=True)
+
+    diagnostics = result["metadata"].diagnostics
+    assert diagnostics["extraction_route"] == "ocr_paddleocr_gpu"
+    assert diagnostics["ocr_paddle_document_type_allowed"] is True
     glm_mock.assert_not_called()
 
 

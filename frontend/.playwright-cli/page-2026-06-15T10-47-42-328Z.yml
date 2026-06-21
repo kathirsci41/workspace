@@ -1,0 +1,140 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "Order Assurance bundles" [ref=e5] [cursor=pointer]:
+      - /url: /bundles
+      - generic [ref=e6]: OA
+      - generic [ref=e7]:
+        - strong [ref=e8]: Order Assurance
+        - emphasis [ref=e9]: Build 1
+    - search [ref=e10]:
+      - generic [ref=e11]: Search
+      - searchbox "Search" [ref=e12]
+    - generic [ref=e13]:
+      - link "Current bundle 746537ad-206d-4f04-a53c-a156692202ce" [ref=e14] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+        - generic [ref=e15]: Current bundle
+        - strong [ref=e16]: 746537ad-206d-4f04-a53c-a156692202ce
+      - group [ref=e17]:
+        - generic "More" [ref=e18] [cursor=pointer]
+  - main [ref=e19]:
+    - navigation "Breadcrumb" [ref=e20]:
+      - link "Bundles" [ref=e21] [cursor=pointer]:
+        - /url: /bundles
+      - link "/746537ad-206d-4f04-a53c-a156692202ce" [ref=e22] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - generic [ref=e23]: /Open Issues
+    - generic [ref=e25]:
+      - heading "Open Issues" [level=1] [ref=e26]
+      - generic [ref=e27]: Action queue for items that need review.
+    - navigation "Bundle workflow" [ref=e28]:
+      - link "Overview" [ref=e29] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - link "Documents" [ref=e30] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/documents
+      - link "Extraction Review" [ref=e31] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction
+      - link "Review Results" [ref=e32] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/verification
+      - link "Open Issues" [ref=e33] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/issues
+      - link "Export" [ref=e34] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/exports
+      - group [ref=e35]:
+        - generic "More" [ref=e36] [cursor=pointer]
+    - status [ref=e37]: Loading issues...
+    - region "Issue KPIs" [ref=e38]:
+      - article [ref=e39]:
+        - generic [ref=e40]: Total Issues
+        - strong [ref=e41]: "5"
+      - article [ref=e42]:
+        - generic [ref=e43]: Critical
+        - strong [ref=e44]: "5"
+      - article [ref=e45]:
+        - generic [ref=e46]: Warnings
+        - strong [ref=e47]: "0"
+      - article [ref=e48]:
+        - generic [ref=e49]: Info
+        - strong [ref=e50]: "0"
+    - generic [ref=e52]:
+      - generic [ref=e53]:
+        - text: Severity
+        - combobox "Severity" [ref=e54]:
+          - option "All" [selected]
+          - option "Critical"
+          - option "Warning"
+          - option "Info"
+      - generic [ref=e55]:
+        - text: Status
+        - combobox "Status" [disabled] [ref=e56]:
+          - option "Open" [selected]
+      - generic [ref=e57]:
+        - text: Document
+        - combobox "Document" [ref=e58]:
+          - option "All" [selected]
+          - option "Customer PO"
+          - option "Company Invoice"
+          - option "Company Delivery Challan / DC"
+          - option "Company PO to Vendor"
+          - option "Vendor Invoice"
+      - generic [ref=e59]:
+        - text: Category
+        - combobox "Category" [ref=e60]:
+          - option "All" [selected]
+          - option "Missing Document"
+    - generic [ref=e61]:
+      - generic [ref=e62]:
+        - generic [ref=e64]:
+          - heading "Action Queue" [level=2] [ref=e65]
+          - paragraph [ref=e66]: 5 open items in this view.
+        - generic [ref=e67]:
+          - 'button "Critical Missing Document: Customer PO Customer PO has not been uploaded. Customer PO" [ref=e68] [cursor=pointer]':
+            - generic [ref=e69]: Critical
+            - strong [ref=e70]: "Missing Document: Customer PO"
+            - generic [ref=e71]: Customer PO has not been uploaded.
+            - generic [ref=e72]: Customer PO
+          - 'button "Critical Missing Document: Company Invoice Company Invoice has not been uploaded. Company Invoice" [ref=e73] [cursor=pointer]':
+            - generic [ref=e74]: Critical
+            - strong [ref=e75]: "Missing Document: Company Invoice"
+            - generic [ref=e76]: Company Invoice has not been uploaded.
+            - generic [ref=e77]: Company Invoice
+          - 'button "Critical Missing Document: Company Delivery Challan / DC Company Delivery Challan / DC has not been uploaded. Company Delivery Challan / DC" [ref=e78] [cursor=pointer]':
+            - generic [ref=e79]: Critical
+            - strong [ref=e80]: "Missing Document: Company Delivery Challan / DC"
+            - generic [ref=e81]: Company Delivery Challan / DC has not been uploaded.
+            - generic [ref=e82]: Company Delivery Challan / DC
+          - 'button "Critical Missing Document: Company PO to Vendor Company PO to Vendor has not been uploaded. Company PO to Vendor" [ref=e83] [cursor=pointer]':
+            - generic [ref=e84]: Critical
+            - strong [ref=e85]: "Missing Document: Company PO to Vendor"
+            - generic [ref=e86]: Company PO to Vendor has not been uploaded.
+            - generic [ref=e87]: Company PO to Vendor
+          - 'button "Critical Missing Document: Vendor Invoice Vendor Invoice has not been uploaded. Vendor Invoice" [ref=e88] [cursor=pointer]':
+            - generic [ref=e89]: Critical
+            - strong [ref=e90]: "Missing Document: Vendor Invoice"
+            - generic [ref=e91]: Vendor Invoice has not been uploaded.
+            - generic [ref=e92]: Vendor Invoice
+      - complementary "Issue detail" [ref=e93]:
+        - heading "Issue Detail" [level=2] [ref=e94]
+        - generic [ref=e95]: Critical
+        - 'heading "Missing Document: Customer PO" [level=3] [ref=e96]'
+        - paragraph [ref=e97]: Customer PO has not been uploaded.
+        - generic [ref=e98]:
+          - generic [ref=e99]:
+            - term [ref=e100]: Why it matters
+            - definition [ref=e101]: Required documents must be present before the bundle can be reviewed confidently.
+          - generic [ref=e102]:
+            - term [ref=e103]: Expected
+            - definition [ref=e104]: Customer PO
+          - generic [ref=e105]:
+            - term [ref=e106]: Found
+            - definition [ref=e107]: Not uploaded
+          - generic [ref=e108]:
+            - term [ref=e109]: Difference
+            - definition [ref=e110]: "-"
+          - generic [ref=e111]:
+            - term [ref=e112]: Recommended action
+            - definition [ref=e113]: Upload Customer PO.
+          - generic [ref=e114]:
+            - term [ref=e115]: Related documents
+            - definition [ref=e116]: Customer PO
+        - link "Upload missing document Customer PO" [ref=e117] [cursor=pointer]:
+          - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/documents

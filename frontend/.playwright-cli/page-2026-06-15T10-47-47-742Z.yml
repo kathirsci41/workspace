@@ -1,0 +1,113 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - link "Order Assurance bundles" [ref=e5] [cursor=pointer]:
+      - /url: /bundles
+      - generic [ref=e6]: OA
+      - generic [ref=e7]:
+        - strong [ref=e8]: Order Assurance
+        - emphasis [ref=e9]: Build 1
+    - search [ref=e10]:
+      - generic [ref=e11]: Search
+      - searchbox "Search" [ref=e12]
+    - generic [ref=e13]:
+      - link "Current bundle 746537ad-206d-4f04-a53c-a156692202ce" [ref=e14] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+        - generic [ref=e15]: Current bundle
+        - strong [ref=e16]: 746537ad-206d-4f04-a53c-a156692202ce
+      - group [ref=e17]:
+        - generic "More" [ref=e18] [cursor=pointer]
+  - main [ref=e19]:
+    - navigation "Breadcrumb" [ref=e20]:
+      - link "Bundles" [ref=e21] [cursor=pointer]:
+        - /url: /bundles
+      - link "/746537ad-206d-4f04-a53c-a156692202ce" [ref=e22] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - generic [ref=e23]: /Exports
+    - generic [ref=e25]:
+      - heading "Exports" [level=1] [ref=e26]
+      - generic [ref=e27]: Final checkpoint before downloading the Excel report.
+    - navigation "Bundle workflow" [ref=e28]:
+      - link "Overview" [ref=e29] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/overview
+      - link "Documents" [ref=e30] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/documents
+      - link "Extraction Review" [ref=e31] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/extraction
+      - link "Review Results" [ref=e32] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/verification
+      - link "Open Issues" [ref=e33] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/issues
+      - link "Export" [ref=e34] [cursor=pointer]:
+        - /url: /bundles/746537ad-206d-4f04-a53c-a156692202ce/exports
+      - group [ref=e35]:
+        - generic "More" [ref=e36] [cursor=pointer]
+    - status [ref=e37]: Loading export readiness...
+    - region "Export checkpoint" [ref=e38]:
+      - generic [ref=e39]:
+        - heading "Export with unresolved review items" [level=2] [ref=e40]
+        - paragraph [ref=e41]: The Excel report will include open issues and current extracted values.
+      - button "Download Excel Report" [ref=e42] [cursor=pointer]
+    - region "Export readiness" [ref=e43]:
+      - generic [ref=e44]:
+        - generic [ref=e45]:
+          - heading "Export Readiness" [level=2] [ref=e46]
+          - paragraph [ref=e47]: The report can be downloaded, but open review items will be included.
+        - generic "Status Needs Review" [ref=e48]: Needs Review
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - heading "Document completeness" [level=3] [ref=e51]
+          - list [ref=e52]:
+            - listitem [ref=e53]: "Customer PO: Missing Document"
+            - listitem [ref=e54]: "Company Invoice: Missing Document"
+            - listitem [ref=e55]: "Company Delivery Challan / DC: Missing Document"
+            - listitem [ref=e56]: "Company PO to Vendor: Missing Document"
+            - listitem [ref=e57]: "Vendor Invoice: Missing Document"
+        - generic [ref=e58]:
+          - heading "Extraction completeness" [level=3] [ref=e59]
+          - list [ref=e60]:
+            - listitem [ref=e61]: "Extracted: 0"
+            - listitem [ref=e62]: "Extraction Pending: 0"
+            - listitem [ref=e63]: "Failed: 0"
+        - generic [ref=e64]:
+          - heading "Open Issues" [level=3] [ref=e65]
+          - list [ref=e66]:
+            - listitem [ref=e67]: "Open issues: 5"
+            - listitem [ref=e68]: "Mismatches: 0"
+            - listitem [ref=e69]: "Missing data: 0"
+    - generic [ref=e70]:
+      - heading "Report Contents Preview" [level=2] [ref=e71]
+      - table "Report contents preview" [ref=e73]:
+        - rowgroup [ref=e74]:
+          - row "Section Included data" [ref=e75]:
+            - columnheader "Section" [ref=e76]
+            - columnheader "Included data" [ref=e77]
+        - rowgroup [ref=e78]:
+          - row "Bundle metadata 746537ad-206d-4f04-a53c-a156692202ce" [ref=e79]:
+            - cell "Bundle metadata" [ref=e80]
+            - cell "746537ad-206d-4f04-a53c-a156692202ce" [ref=e81]
+          - row "Documents -" [ref=e82]:
+            - cell "Documents" [ref=e83]
+            - cell "-" [ref=e84]
+          - row "Extracted summary -" [ref=e85]:
+            - cell "Extracted summary" [ref=e86]
+            - cell "-" [ref=e87]:
+              - definition [ref=e90]: "-"
+          - row "Vendor billing comparison Vendor PO Total - Vendor Invoice Total - Difference -" [ref=e91]:
+            - cell "Vendor billing comparison" [ref=e92]
+            - cell "Vendor PO Total - Vendor Invoice Total - Difference -" [ref=e93]:
+              - generic [ref=e94]:
+                - generic [ref=e95]:
+                  - term [ref=e96]: Vendor PO Total
+                  - definition [ref=e97]: "-"
+                - generic [ref=e98]:
+                  - term [ref=e99]: Vendor Invoice Total
+                  - definition [ref=e100]: "-"
+                - generic [ref=e101]:
+                  - term [ref=e102]: Difference
+                  - definition [ref=e103]: "-"
+          - row "Review checks 0 checks" [ref=e104]:
+            - cell "Review checks" [ref=e105]
+            - cell "0 checks" [ref=e106]
+          - row "Open issues 5 open issues" [ref=e107]:
+            - cell "Open issues" [ref=e108]
+            - cell "5 open issues" [ref=e109]

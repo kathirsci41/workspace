@@ -10,13 +10,14 @@ from app.api.routes.dev import router as dev_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.extractions import router as extractions_router
 from app.api.routes.health import router as health_router
-from app.config import settings
+from app.config import settings, validate_ocr_runtime_settings
 from app.database import init_db, wait_for_database
 from app.logging_config import configure_logging, request_logging_middleware
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    validate_ocr_runtime_settings()
     wait_for_database()
     if settings.app_env == "development":
         init_db()

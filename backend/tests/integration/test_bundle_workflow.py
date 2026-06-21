@@ -8,7 +8,14 @@ from fastapi.testclient import TestClient
 
 from app.database import SessionLocal, configure_database, init_db
 from app.main import app
+from app.models.audit_event import AuditEventRecord
+from app.models.document import DocumentRecord
+from app.models.document_metadata import DocumentMetadataRecord
+from app.models.document_page import DocumentPageRecord
+from app.models.field_candidate import FieldCandidateRecord
 from app.models.order_bundle import OrderBundleRecord
+from app.models.reference_index import ReferenceIndexRecord
+from app.models.text_source import TextSourceRecord
 
 
 @pytest.fixture()
@@ -145,3 +152,81 @@ def test_vendor_bill_amount_without_reference_is_not_counted_as_coverage(client:
     assert summary["vendor_procurement_status"] in {"REVIEW_REQUIRED", "BLOCKED"}
     assert any(issue.get("code") == "VENDOR_BILL_REFERENCE_MISSING" for issue in summary["issues"])
     assert not any(issue.get("difference") == 141600 for issue in summary["issues"])
+
+
+def test_delete_bundle_removes_documents_child_records_and_stored_files(client: TestClient):
+    bundle_id = _create_bundle(client)
+    document_id = _add_document(client, bundle_id, "CUSTOMER_PO", "customer-po.pdf")
+
+    with SessionLocal() as db:
+        document = db.get(DocumentRecord, document_id)
+        assert document is not None
+        storage_path = Path(document.storage_path or "")
+        assert storage_path.is_file()
+        db.add(
+            ReferenceIndexRecord(
+                document_id=document_id,
+                order_bundle_id=bundle_id,
+                reference_type="po_reference",
+                reference_value="PO-123",
+                source_type="manual",
+                document_type="CUSTOMER_PO",
+                field_name="customer_po_no",
+            )
+        )
+        db.add(DocumentPageRecord(document_id=document_id, page_number=1, image_path=str(storage_path)))
+        db.add(
+            TextSourceRecord(
+                document_id=document_id,
+                page_number=1,
+                source_type="digital_text",
+                provider="fitz",
+                settings_hash="settings-hash",
+                image_hash="image-hash",
+                success=True,
+            )
+        )
+        db.add(
+            FieldCandidateRecord(
+                document_id=document_id,
+                field_key="customer_po_no",
+                candidate_value="PO-123",
+                normalized_value="PO-123",
+                source_type="digital_text",
+                selection_status="selected",
+            )
+        )
+        db.add(
+            AuditEventRecord(
+                event_type="test_event",
+                document_id=document_id,
+                order_bundle_id=bundle_id,
+                payload={"source": "test"},
+            )
+        )
+        db.commit()
+
+    response = client.delete(f"/api/bundles/{bundle_id}")
+
+    assert response.status_code == 204, response.text
+    assert client.get(f"/api/bundles/{bundle_id}").status_code == 404
+    assert client.get(f"/api/bundles/{bundle_id}/documents").status_code == 404
+    assert not storage_path.exists()
+    with SessionLocal() as db:
+        assert db.get(OrderBundleRecord, bundle_id) is None
+        assert db.get(DocumentRecord, document_id) is None
+        assert db.query(DocumentMetadataRecord).filter(DocumentMetadataRecord.document_id == document_id).count() == 0
+        assert db.query(ReferenceIndexRecord).filter(ReferenceIndexRecord.document_id == document_id).count() == 0
+        assert db.query(ReferenceIndexRecord).filter(ReferenceIndexRecord.order_bundle_id == bundle_id).count() == 0
+        assert db.query(DocumentPageRecord).filter(DocumentPageRecord.document_id == document_id).count() == 0
+        assert db.query(TextSourceRecord).filter(TextSourceRecord.document_id == document_id).count() == 0
+        assert db.query(FieldCandidateRecord).filter(FieldCandidateRecord.document_id == document_id).count() == 0
+        assert db.query(AuditEventRecord).filter(AuditEventRecord.document_id == document_id).count() == 0
+        assert db.query(AuditEventRecord).filter(AuditEventRecord.order_bundle_id == bundle_id).count() == 0
+
+
+def test_delete_missing_bundle_returns_404(client: TestClient):
+    response = client.delete("/api/bundles/missing-bundle")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Bundle not found"

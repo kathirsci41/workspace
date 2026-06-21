@@ -11,6 +11,7 @@ from app.database import get_db
 from app.logging_config import log_event
 from app.repositories.documents import DocumentRepository
 from app.repositories.reference_index import ReferenceIndexRepository
+from app.schemas.audit import AuditEventCreate
 from app.schemas.document import ExtractionRequest, ManualExtractedDataPatch
 from app.services.audit_service import AuditService
 from app.services.extraction_service import extract_document
@@ -77,6 +78,14 @@ def delete_document(document_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Document not found")
     bundle_id = document.order_bundle_id
     delete_document_file(document)
+    AuditService(db).record_event(
+        AuditEventCreate(
+            event_type="document_deleted",
+            actor="system",
+            order_bundle_id=bundle_id,
+            payload={"document_id": document.id, "document_type": document.document_type, "filename": document.filename},
+        )
+    )
     repo.delete(document)
     sync_bundle_status_from_verification(db, bundle_id)
     db.commit()
@@ -101,6 +110,26 @@ def _run_extraction(
             ocr_rotation_degrees=payload.ocr_rotation_degrees if payload else None,
         )
         sync_bundle_status_from_verification(db, document.order_bundle_id)
+        _diag = (document.metadata_record.diagnostics if document.metadata_record else {}) or {}
+        _failure_code = _diag.get("failure_code")
+        AuditService(db).record_event(
+            AuditEventCreate(
+                event_type="extraction_failed" if _failure_code else "extraction_completed",
+                actor="system",
+                order_bundle_id=document.order_bundle_id,
+                document_id=document.id,
+                payload={
+                    "document_type": document.document_type,
+                    "filename": document.filename,
+                    "metadata_status": document.metadata_record.status if document.metadata_record else None,
+                    "extraction_route": _diag.get("extraction_route"),
+                    "ocr_provider": _diag.get("ocr_provider"),
+                    "fallback_used": _diag.get("fallback_used"),
+                    "failure_code": _failure_code,
+                    "failure_reason": _diag.get("failure_reason"),
+                },
+            )
+        )
         db.commit()
         db.refresh(document)
     except (OcrExtractionQueueFullError, OcrExtractionQueueTimeoutError) as exc:

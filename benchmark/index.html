@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LiteParse vs PyMuPDF — Benchmark</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+  header { background: #1a1d27; border-bottom: 1px solid #2d3748; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 18px; font-weight: 600; color: #f0f4ff; }
+  header span { font-size: 12px; background: #252b3d; color: #7c8db5; padding: 3px 8px; border-radius: 4px; }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+  /* Upload panel */
+  .upload-panel { background: #1a1d27; border: 1px solid #2d3748; border-radius: 10px; padding: 24px; margin-bottom: 24px; }
+  .upload-panel h2 { font-size: 14px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 16px; }
+  .upload-row { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12px; color: #64748b; }
+  .field select, .field input[type=file] { background: #252b3d; border: 1px solid #374151; color: #e2e8f0; padding: 8px 12px; border-radius: 6px; font-size: 14px; outline: none; }
+  .field select:focus { border-color: #4f7bff; }
+  .drop-zone { border: 2px dashed #374151; border-radius: 8px; padding: 24px 32px; text-align: center; cursor: pointer; transition: all .2s; background: #12151f; }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: #4f7bff; background: #1c2035; }
+  .drop-zone p { font-size: 14px; color: #64748b; }
+  .drop-zone .file-list { margin-top: 10px; font-size: 13px; color: #94a3b8; }
+  button.run { background: #4f7bff; color: #fff; border: none; padding: 10px 24px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background .2s; }
+  button.run:hover { background: #3d6aee; }
+  button.run:disabled { background: #374151; color: #64748b; cursor: not-allowed; }
+
+  /* Loading */
+  .loading { display: none; align-items: center; gap: 10px; font-size: 14px; color: #64748b; padding: 12px 0; }
+  .spinner { width: 18px; height: 18px; border: 2px solid #374151; border-top-color: #4f7bff; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Results */
+  #results { display: flex; flex-direction: column; gap: 28px; }
+
+  /* File card */
+  .file-card { background: #1a1d27; border: 1px solid #2d3748; border-radius: 10px; overflow: hidden; }
+  .file-card-header { background: #12151f; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2d3748; }
+  .file-card-header .fname { font-size: 15px; font-weight: 600; color: #f0f4ff; }
+  .file-card-header .doc-type-tag { font-size: 11px; background: #1e3a5f; color: #60a5fa; padding: 3px 8px; border-radius: 4px; }
+  .verdict { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 4px; }
+  .verdict.lp-wins { background: #14532d; color: #4ade80; }
+  .verdict.tie { background: #1c2535; color: #94a3b8; }
+  .verdict.pm-wins { background: #7f1d1d; color: #f87171; }
+  .verdict.scanned { background: #3b2f00; color: #fbbf24; }
+
+  .file-body { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* Summary row */
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  @media (max-width: 900px) { .summary-grid { grid-template-columns: 1fr; } }
+  .summary-card { background: #12151f; border: 1px solid #2d3748; border-radius: 8px; padding: 14px 16px; }
+  .summary-card h3 { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px; }
+
+  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #1e2535; }
+  .stat-row:last-child { border: none; }
+  .stat-label { font-size: 12px; color: #94a3b8; }
+  .stat-val { font-size: 13px; font-weight: 600; color: #e2e8f0; font-variant-numeric: tabular-nums; }
+  .stat-val.green { color: #4ade80; }
+  .stat-val.red { color: #f87171; }
+  .stat-val.yellow { color: #fbbf24; }
+  .stat-val.blue { color: #60a5fa; }
+  .delta { font-size: 11px; color: #64748b; margin-left: 4px; }
+  .delta.pos { color: #4ade80; }
+  .delta.neg { color: #f87171; }
+
+  /* Comparison table */
+  .comp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .comp-table th { text-align: left; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .05em; padding: 8px 12px; background: #12151f; border-bottom: 1px solid #2d3748; }
+  .comp-table td { padding: 8px 12px; border-bottom: 1px solid #1e2535; vertical-align: top; }
+  .comp-table tr:last-child td { border: none; }
+  .comp-table td.field-name { color: #94a3b8; font-family: monospace; font-size: 12px; }
+  .comp-table td.pm-val { color: #e2e8f0; }
+  .comp-table td.lp-val { color: #e2e8f0; }
+  .comp-table td.match { color: #4ade80; }
+  .comp-table td.mismatch { color: #f87171; }
+  .comp-table td.only-lp { background: #0d2618; color: #4ade80; }
+  .comp-table td.only-pm { background: #2b0f0f; color: #f87171; }
+  .comp-table td.empty { color: #374151; font-style: italic; }
+
+  /* Text preview */
+  .text-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 800px) { .text-compare { grid-template-columns: 1fr; } }
+  .text-box { background: #12151f; border: 1px solid #2d3748; border-radius: 6px; padding: 12px; }
+  .text-box h4 { font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; }
+  .text-box pre { font-size: 11px; color: #94a3b8; white-space: pre-wrap; word-break: break-word; line-height: 1.5; max-height: 200px; overflow-y: auto; }
+  .text-box pre.empty { color: #374151; font-style: italic; }
+
+  /* BBox table */
+  .bbox-table { width: 100%; border-collapse: collapse; font-size: 11px; font-family: monospace; }
+  .bbox-table th { text-align: left; padding: 4px 8px; color: #64748b; background: #12151f; border-bottom: 1px solid #2d3748; }
+  .bbox-table td { padding: 3px 8px; border-bottom: 1px solid #1a1d27; color: #94a3b8; }
+  .bbox-table td:first-child { color: #60a5fa; }
+
+  /* Section headers */
+  .section-title { font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .06em; padding-bottom: 8px; border-bottom: 1px solid #2d3748; margin-bottom: 12px; }
+
+  /* Tags */
+  .tag { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 3px; margin: 2px; }
+  .tag.lp { background: #14532d; color: #4ade80; }
+  .tag.pm { background: #7f1d1d; color: #f87171; }
+  .tag.both { background: #1e3a5f; color: #60a5fa; }
+
+  /* scroll hint */
+  .scroll-hint { font-size: 11px; color: #374151; margin-top: 4px; }
+
+  /* error box */
+  .error-box { background: #2b0f0f; border: 1px solid #7f1d1d; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #f87171; font-family: monospace; }
+
+  /* collapsible */
+  details summary { cursor: pointer; font-size: 12px; color: #64748b; list-style: none; display: flex; align-items: center; gap: 6px; user-select: none; padding: 6px 0; }
+  details summary::before { content: '▶'; font-size: 10px; transition: transform .2s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  details > div { margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>LiteParse vs PyMuPDF</h1>
+  <span>Benchmark — standalone, no code changes</span>
+</header>
+
+<div class="container">
+  <div class="upload-panel">
+    <h2>Upload PDFs</h2>
+    <div class="upload-row">
+      <div class="field" style="flex:0 0 auto">
+        <label>Document Type</label>
+        <select id="doc-type">
+          <option value="VENDOR_INVOICE">VENDOR_INVOICE</option>
+          <option value="COMPANY_INVOICE">COMPANY_INVOICE</option>
+          <option value="COMPANY_DC">COMPANY_DC</option>
+          <option value="COMPANY_PO">COMPANY_PO</option>
+          <option value="CUSTOMER_PO">CUSTOMER_PO</option>
+        </select>
+      </div>
+      <div class="field" style="flex:1; min-width: 260px;">
+        <label>PDFs (multi-select ok)</label>
+        <div class="drop-zone" id="drop-zone">
+          <p>Drop PDF files here or <strong>click to browse</strong></p>
+          <div class="file-list" id="file-list-label"></div>
+          <input type="file" id="file-input" multiple accept=".pdf" style="display:none">
+        </div>
+      </div>
+      <div class="field" style="flex:0 0 auto">
+        <label>&nbsp;</label>
+        <button class="run" id="run-btn" disabled>Run Benchmark</button>
+      </div>
+    </div>
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <span>Running extractors — may take a few seconds per file…</span>
+    </div>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<script>
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const fileListLabel = document.getElementById('file-list-label');
+const runBtn = document.getElementById('run-btn');
+const loading = document.getElementById('loading');
+const resultsDiv = document.getElementById('results');
+let selectedFiles = [];
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  setFiles(Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.pdf')));
+});
+fileInput.addEventListener('change', () => setFiles(Array.from(fileInput.files)));
+
+function setFiles(files) {
+  selectedFiles = files;
+  fileListLabel.textContent = files.length ? files.map(f => f.name).join(', ') : '';
+  runBtn.disabled = files.length === 0;
+}
+
+runBtn.addEventListener('click', async () => {
+  if (!selectedFiles.length) return;
+  runBtn.disabled = true;
+  loading.style.display = 'flex';
+  resultsDiv.innerHTML = '';
+
+  const formData = new FormData();
+  formData.append('doc_type', document.getElementById('doc-type').value);
+  for (const f of selectedFiles) formData.append('files', f);
+
+  try {
+    const res = await fetch('/benchmark', { method: 'POST', body: formData });
+    const data = await res.json();
+    renderResults(data);
+  } catch (e) {
+    resultsDiv.innerHTML = `<div class="error-box">Request failed: ${e.message}</div>`;
+  } finally {
+    loading.style.display = 'none';
+    runBtn.disabled = false;
+  }
+});
+
+function renderResults(data) {
+  if (!data.results || !data.results.length) {
+    resultsDiv.innerHTML = '<div class="error-box">No results returned.</div>';
+    return;
+  }
+  resultsDiv.innerHTML = data.results.map(r => renderCard(r)).join('');
+}
+
+function renderCard(r) {
+  const c = r.comparison;
+  const pm = r.pymupdf;
+  const lp = r.liteparse;
+
+  // Verdict
+  let verdictClass, verdictText;
+  if (c.scanned_doc) {
+    verdictClass = 'scanned';
+    verdictText = '⚠ Scanned — OCR server needed';
+  } else if (lp.field_count > pm.field_count) {
+    verdictClass = 'lp-wins';
+    verdictText = `✓ LiteParse +${lp.field_count - pm.field_count} fields`;
+  } else if (pm.field_count > lp.field_count) {
+    verdictClass = 'pm-wins';
+    verdictText = `PyMuPDF +${pm.field_count - lp.field_count} fields`;
+  } else {
+    verdictClass = 'tie';
+    verdictText = '= Equal fields';
+  }
+
+  // Text delta
+  const pct = c.text_length_pct;
+  const pctStr = pct >= 0 ? `+${pct}%` : `${pct}%`;
+  const pctClass = pct > 0 ? 'pos' : pct < 0 ? 'neg' : '';
+
+  // Field table rows
+  const allFields = new Set([...Object.keys(pm.fields), ...Object.keys(lp.fields)]);
+  const fieldRows = [...allFields].sort().map(f => {
+    const vPm = pm.fields[f] != null ? String(pm.fields[f]) : null;
+    const vLp = lp.fields[f] != null ? String(lp.fields[f]) : null;
+    const onlyLp = vPm == null && vLp != null;
+    const onlyPm = vPm != null && vLp == null;
+    const mismatch = vPm != null && vLp != null && vPm !== vLp;
+    return `<tr>
+      <td class="field-name">${esc(f)}</td>
+      <td class="${onlyPm ? 'only-pm' : vPm == null ? 'empty' : ''}">${vPm != null ? esc(vPm) : '<i>—</i>'}</td>
+      <td class="${onlyLp ? 'only-lp' : vLp == null ? 'empty' : ''}">${vLp != null ? esc(vLp) : '<i>—</i>'}</td>
+      <td class="${mismatch ? 'mismatch' : vPm == null && vLp == null ? 'empty' : 'match'}">${mismatch ? '≠' : vPm == null && vLp == null ? '—' : '✓'}</td>
+    </tr>`;
+  }).join('');
+
+  // Only-LiteParse fields
+  const onlyLpTags = c.fields_only_liteparse.map(f => `<span class="tag lp">${esc(f)}</span>`).join('');
+  const onlyPmTags = c.fields_only_pymupdf.map(f => `<span class="tag pm">${esc(f)}</span>`).join('');
+
+  // Bbox rows
+  const bboxRows = (lp.bboxes_sample || []).slice(0, 15).map(b =>
+    `<tr><td>p${b.page}</td><td>[${b.x},${b.y} ${b.w}×${b.h}]</td><td>${esc(b.text.substring(0, 60))}</td></tr>`
+  ).join('');
+
+  // Errors
+  const pmErr = pm.error ? `<div class="error-box" style="margin-top:8px">PyMuPDF error: ${esc(pm.error)}</div>` : '';
+  const lpErr = lp.error ? `<div class="error-box" style="margin-top:8px">LiteParse error: ${esc(lp.error)}</div>` : '';
+
+  return `
+<div class="file-card">
+  <div class="file-card-header">
+    <div style="display:flex; align-items:center; gap:10px">
+      <span class="fname">${esc(r.filename)}</span>
+      <span class="doc-type-tag">${esc(r.doc_type)}</span>
+    </div>
+    <span class="verdict ${verdictClass}">${verdictText}</span>
+  </div>
+
+  <div class="file-body">
+    <!-- Summary stats -->
+    <div class="summary-grid">
+      <div class="summary-card">
+        <h3>Extraction Stats</h3>
+        <div class="stat-row">
+          <span class="stat-label">PyMuPDF text</span>
+          <span class="stat-val">${pm.text_length.toLocaleString()} chars</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">LiteParse text</span>
+          <span class="stat-val green">${lp.text_length.toLocaleString()} chars <span class="delta ${pctClass}">(${pctStr})</span></span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Digital PDF</span>
+          <span class="stat-val ${pm.is_digital ? 'green' : 'yellow'}">${pm.is_digital ? 'Yes' : 'Scanned'}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">PyMuPDF speed</span>
+          <span class="stat-val">${pm.ms} ms</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">LiteParse speed</span>
+          <span class="stat-val">${lp.ms} ms <span class="delta ${c.speed_delta_ms > 5 ? 'neg' : 'pos'}">(${c.speed_delta_ms >= 0 ? '+' : ''}${c.speed_delta_ms} ms)</span></span>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <h3>Field Extraction</h3>
+        <div class="stat-row">
+          <span class="stat-label">PyMuPDF fields</span>
+          <span class="stat-val">${pm.field_count}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">LiteParse fields</span>
+          <span class="stat-val ${lp.field_count >= pm.field_count ? 'green' : 'red'}">${lp.field_count}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">PyMuPDF missing req</span>
+          <span class="stat-val ${pm.missing.length ? 'red' : 'green'}">${pm.missing.length ? pm.missing.join(', ') : 'none'}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">LiteParse missing req</span>
+          <span class="stat-val ${lp.missing.length ? 'red' : 'green'}">${lp.missing.length ? lp.missing.join(', ') : 'none'}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Field disagreements</span>
+          <span class="stat-val ${c.field_disagreements.length ? 'yellow' : 'green'}">${c.field_disagreements.length}</span>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <h3>Bounding Boxes</h3>
+        <div class="stat-row">
+          <span class="stat-label">PyMuPDF bbox</span>
+          <span class="stat-val red">0 (none)</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">LiteParse bbox</span>
+          <span class="stat-val ${lp.bbox_count > 0 ? 'green' : 'red'}">${lp.bbox_count.toLocaleString()}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Exclusive to LP</span>
+          <span class="stat-val green">${c.fields_only_liteparse.length} fields</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Exclusive to PM</span>
+          <span class="stat-val ${c.fields_only_pymupdf.length ? 'red' : 'green'}">${c.fields_only_pymupdf.length} fields</span>
+        </div>
+      </div>
+    </div>
+
+    ${pmErr}${lpErr}
+
+    <!-- Field diff tags -->
+    ${c.fields_only_liteparse.length || c.fields_only_pymupdf.length ? `
+    <div>
+      <div class="section-title">Field Coverage Difference</div>
+      ${c.fields_only_liteparse.length ? `<div style="margin-bottom:6px"><span style="font-size:12px;color:#64748b">Only LiteParse finds: </span>${onlyLpTags}</div>` : ''}
+      ${c.fields_only_pymupdf.length ? `<div><span style="font-size:12px;color:#64748b">Only PyMuPDF finds: </span>${onlyPmTags}</div>` : ''}
+    </div>` : ''}
+
+    <!-- Disagreements -->
+    ${c.field_disagreements.length ? `
+    <div>
+      <div class="section-title">Value Disagreements (${c.field_disagreements.length})</div>
+      <table class="comp-table">
+        <thead><tr><th>Field</th><th>PyMuPDF value</th><th>LiteParse value</th></tr></thead>
+        <tbody>${c.field_disagreements.map(d => `<tr>
+          <td class="field-name">${esc(d.field)}</td>
+          <td class="pm-val">${esc(d.pymupdf)}</td>
+          <td class="lp-val">${esc(d.liteparse)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>` : ''}
+
+    <!-- Full field table -->
+    <details>
+      <summary>All extracted fields (${[...allFields].length} total)</summary>
+      <div>
+        <table class="comp-table">
+          <thead><tr><th>Field</th><th>PyMuPDF</th><th>LiteParse</th><th>Match</th></tr></thead>
+          <tbody>${fieldRows}</tbody>
+        </table>
+      </div>
+    </details>
+
+    <!-- BBox sample -->
+    ${lp.bbox_count > 0 ? `
+    <details>
+      <summary>LiteParse bounding boxes (first 15 of ${lp.bbox_count})</summary>
+      <div>
+        <table class="bbox-table">
+          <thead><tr><th>Page</th><th>BBox [x,y w×h]</th><th>Text</th></tr></thead>
+          <tbody>${bboxRows}</tbody>
+        </table>
+        <p class="scroll-hint">Bboxes = field_locations for free. Current system = all null.</p>
+      </div>
+    </details>` : ''}
+
+    <!-- Text preview -->
+    <details>
+      <summary>Raw text preview (first 400 chars)</summary>
+      <div class="text-compare">
+        <div class="text-box">
+          <h4>PyMuPDF</h4>
+          <pre class="${pm.text_preview ? '' : 'empty'}">${pm.text_preview ? esc(pm.text_preview) : 'No text extracted (scanned doc)'}</pre>
+        </div>
+        <div class="text-box">
+          <h4>LiteParse</h4>
+          <pre class="${lp.text_preview ? '' : 'empty'}">${lp.text_preview ? esc(lp.text_preview) : 'No text extracted (scanned doc — needs OCR server)'}</pre>
+        </div>
+      </div>
+    </details>
+
+  </div>
+</div>`;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
