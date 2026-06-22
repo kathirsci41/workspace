@@ -12,6 +12,7 @@ from app.models.reference_index import ReferenceIndexRecord
 from app.models.document_page import DocumentPageRecord
 from app.models.text_source import TextSourceRecord
 from app.models.field_candidate import FieldCandidateRecord
+from app.models.vendor_master import VendorMasterRecord
 
 __all__ = [
     "AuditEventRecord",
@@ -22,4 +23,5 @@ __all__ = [
     "DocumentPageRecord",
     "TextSourceRecord",
     "FieldCandidateRecord",
+    "VendorMasterRecord",
 ]

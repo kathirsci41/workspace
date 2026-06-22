@@ -15,7 +15,7 @@ def test_lightweight_migration_up_down(tmp_path: Path):
     run("up")
     engine = create_engine(db_url, connect_args={"check_same_thread": False})
     inspector = inspect(engine)
-    assert {"order_bundles", "bundle_documents", "document_metadata", "reference_index", "audit_events"} <= set(inspector.get_table_names())
+    assert {"order_bundles", "bundle_documents", "document_metadata", "reference_index", "audit_events", "vendor_master"} <= set(inspector.get_table_names())
 
     run("down")
     inspector = inspect(engine)

@@ -8,6 +8,7 @@ from app.repositories.bundles import BundleRepository
 from app.repositories.documents import DocumentRepository
 from app.services.document_normalizer import normalize_document
 from app.services.order_bundle_verifier import verify_order_bundle
+from app.services.vendor_master_service import apply_vendor_master_checks
 
 
 VERIFICATION_READY_METADATA_STATUSES = {"EXTRACTED", "MANUAL_ENTRY"}
@@ -21,7 +22,8 @@ def build_verification_summary(db: Session, bundle_id: str) -> dict:
         if document.metadata_record
         and document.metadata_record.status in VERIFICATION_READY_METADATA_STATUSES
     ]
-    return verify_order_bundle(normalized)
+    summary = verify_order_bundle(normalized)
+    return apply_vendor_master_checks(db, normalized, summary)
 
 
 def sync_bundle_status_from_verification(db: Session, bundle_id: str, summary: dict | None = None) -> dict:
