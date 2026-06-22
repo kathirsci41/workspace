@@ -42,6 +42,11 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Migration command failed with exit code $LASTEXITCODE."
     }
+    # Stamp alembic_version without re-running migrations (tables already created above).
+    alembic stamp head
+    if ($LASTEXITCODE -ne 0) {
+        throw "Alembic stamp failed with exit code $LASTEXITCODE."
+    }
 }
 finally {
     Pop-Location
