@@ -156,6 +156,24 @@ def test_vendor_bill_is_not_counted_without_matching_po_reference():
     )
 
 
+def test_vendor_name_match_normalizes_legal_suffix_variants():
+    summary = verify_order_bundle(
+        [
+            doc("vpo", "VENDOR_PO", vendor_po_no="PO-1", vendor_name="Supreme Computers India P LTD", grand_total=1000),
+            doc(
+                "bill",
+                "VENDOR_INVOICE",
+                vendor_invoice_no="BILL-1",
+                po_reference="PO-1",
+                vendor_name="Supreme Computers India Private Limited",
+                invoice_total=1000,
+            ),
+        ]
+    )
+
+    assert any(check["check_id"] == "VENDOR_NAME_MATCH" and check["result"] == "PASS" for check in summary["checks"])
+
+
 def test_partial_vendor_billing_with_not_allowed_is_review_required():
     summary = verify_order_bundle(
         [
