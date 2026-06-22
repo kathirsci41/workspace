@@ -65,6 +65,30 @@ def test_amount_check_includes_diff_pct_and_uses_configurable_tolerance():
     assert check["diff_pct"] == 1.48
 
 
+def test_each_delivery_challan_reference_is_checked_independently():
+    summary = verify_order_bundle(
+        [
+            doc("po", "CUSTOMER_PO", customer_po_no="PO-1", grand_total=1000),
+            doc("inv", "CUSTOMER_INVOICE", invoice_no="INV-1", customer_order_no="PO-1", so_no="SO-1", customer_name="Acme", taxable_amount=1000, grand_total=1000),
+            doc("dc-1", "DELIVERY_CHALLAN", dc_no="DC-1", customer_order_no="PO-1", so_no="SO-1", customer_name="Acme", estimated_amount=500),
+            doc("dc-2", "DELIVERY_CHALLAN", dc_no="DC-2", customer_order_no="PO-2", so_no="SO-2", customer_name="Acme", estimated_amount=500),
+        ]
+    )
+
+    assert any(
+        check["check_id"] == "INVOICE_DC_SO_MATCH"
+        and check["right_document_id"] == "dc-2"
+        and check["result"] == "MISMATCH"
+        for check in summary["checks"]
+    )
+    assert any(
+        check["check_id"] == "CUSTOMER_PO_DC_ORDER_MATCH"
+        and check["right_document_id"] == "dc-2"
+        and check["result"] == "MISMATCH"
+        for check in summary["checks"]
+    )
+
+
 def test_gstin_checks_are_emitted_only_for_present_values():
     summary = verify_order_bundle(
         [

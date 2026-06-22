@@ -81,49 +81,50 @@ def _customer_delivery_status(customer_po, invoice, dcs, checks, issues) -> str:
         )
         return "MISSING_DOCUMENTS"
 
-    _add_compare_check(
-        checks,
-        "INVOICE_DC_CUSTOMER_ORDER_MATCH",
-        "Customer order number matches between invoice and DC",
-        invoice,
-        "customer_order_no",
-        primary_dc,
-        "customer_order_no",
-    )
-    so_dcs = [dc for dc in dc_list if _field(dc, "so_no") or _field(dc, "sales_order_no")]
-    if so_dcs:
+    for dc in dc_list:
         _add_compare_check(
             checks,
-            "INVOICE_DC_SO_MATCH",
-            "SO number matches between invoice and DC",
+            "INVOICE_DC_CUSTOMER_ORDER_MATCH",
+            "Customer order number matches between invoice and DC",
             invoice,
-            "so_no",
-            so_dcs[0],
-            "so_no",
-            right_fallback="sales_order_no",
+            "customer_order_no",
+            dc,
+            "customer_order_no",
         )
-    else:
-        checks.append(
-            _check(
+
+        if _field(dc, "so_no") or _field(dc, "sales_order_no"):
+            _add_compare_check(
+                checks,
                 "INVOICE_DC_SO_MATCH",
                 "SO number matches between invoice and DC",
-                "REVIEW_REQUIRED",
-                "BLOCKER",
                 invoice,
-                _field(invoice, "so_no"),
-                primary_dc,
-                None,
-                "SO number absent on DC; manual review is required.",
+                "so_no",
+                dc,
+                "so_no",
+                right_fallback="sales_order_no",
             )
-        )
-        issues.append(
-            {
-                "code": "DC_SO_NUMBER_MISSING",
-                "message": "SO number is absent on the delivery challan.",
-                "document_type": "COMPANY_DC",
-                "document_id": primary_dc.document_id if primary_dc else None,
-            }
-        )
+        else:
+            checks.append(
+                _check(
+                    "INVOICE_DC_SO_MATCH",
+                    "SO number matches between invoice and DC",
+                    "REVIEW_REQUIRED",
+                    "BLOCKER",
+                    invoice,
+                    _field(invoice, "so_no"),
+                    dc,
+                    None,
+                    "SO number absent on DC; manual review is required.",
+                )
+            )
+            issues.append(
+                {
+                    "code": "DC_SO_NUMBER_MISSING",
+                    "message": "SO number is absent on the delivery challan.",
+                    "document_type": "COMPANY_DC",
+                    "document_id": dc.document_id,
+                }
+            )
     _add_name_check(checks, invoice, primary_dc)
     _add_dc_amount_check(checks, invoice, dc_list)
 
@@ -137,15 +138,16 @@ def _customer_delivery_status(customer_po, invoice, dcs, checks, issues) -> str:
             invoice,
             "customer_order_no",
         )
-        _add_compare_check(
-            checks,
-            "CUSTOMER_PO_DC_ORDER_MATCH",
-            "Customer PO number matches DC order number",
-            customer_po,
-            "customer_po_no",
-            primary_dc,
-            "customer_order_no",
-        )
+        for dc in dc_list:
+            _add_compare_check(
+                checks,
+                "CUSTOMER_PO_DC_ORDER_MATCH",
+                "Customer PO number matches DC order number",
+                customer_po,
+                "customer_po_no",
+                dc,
+                "customer_order_no",
+            )
         _add_amount_check(checks, customer_po, invoice, "grand_total", "grand_total", "CUSTOMER_PO_INVOICE_AMOUNT_MATCH", fallback_right="net_amount")
     else:
         issues.append(
