@@ -7,6 +7,7 @@ from typing import Any
 from app.services.address_parser import validate_addresses
 from app.services.document_normalizer import NormalizedDocument
 from app.services.gstin_validator import normalize_gstin, validate_gstin
+from app.services.line_item_matcher import reconcile_line_items
 from app.services.tolerance_config import DEFAULT_TOLERANCE
 
 
@@ -32,6 +33,7 @@ def verify_order_bundle(documents: list[NormalizedDocument]) -> dict[str, Any]:
     vendor_status = _vendor_procurement_status(vendor_pos, vendor_invoices, checks, issues)
     additional_status = _add_gstin_checks(checks, issues, docs_by_type)
     additional_status = _max_status(additional_status, _add_gst_math_checks(checks, issues, docs_by_type))
+    additional_status = _max_status(additional_status, _add_line_item_checks(checks, issues, docs_by_type))
     bundle_status = _max_status(_bundle_status(customer_status, vendor_status, issues), additional_status)
     proven_vendor_invoices = _proven_vendor_invoices(vendor_pos, vendor_invoices)
 
@@ -427,6 +429,58 @@ def _add_gst_math_checks(checks, issues, docs_by_type) -> str:
     return status
 
 
+def _add_line_item_checks(checks, issues, docs_by_type) -> str:
+    vendor_docs = docs_by_type.get("VENDOR_INVOICE", [])
+    dc_docs = docs_by_type.get("DELIVERY_CHALLAN", [])
+    invoice_docs = docs_by_type.get("CUSTOMER_INVOICE", [])
+    vendor_items = _line_items_from(vendor_docs)
+    dc_items = _line_items_from(dc_docs)
+    invoice_items = _line_items_from(invoice_docs)
+    if not vendor_items or not dc_items or not invoice_items:
+        return "PASS"
+
+    status = "PASS"
+    left_doc = _first_with_line_items(vendor_docs)
+    right_doc = _first_with_line_items(invoice_docs) or _first_with_line_items(dc_docs)
+    for match in reconcile_line_items(vendor_items, dc_items, invoice_items):
+        status = _max_status(status, match.result)
+        check = _check(
+            f"LINE_ITEM_{_check_suffix(match.key)}",
+            "Line item reconciliation",
+            match.result,
+            "WARNING",
+            left_doc,
+            match.vendor_qty,
+            right_doc,
+            {"dc_qty": _clean_optional_number(match.dc_qty), "invoice_qty": _clean_optional_number(match.invoice_qty)},
+            "Line item quantities and unit prices compared across vendor invoice, delivery challans, and customer invoice.",
+        )
+        check.update(
+            {
+                "line_item_key": match.key,
+                "hsn_sac": match.hsn,
+                "description": match.description,
+                "qty_status": match.qty_status,
+                "price_status": match.price_status,
+                "vendor_unit_price": _clean_optional_number(match.vendor_unit_price),
+                "invoice_unit_price": _clean_optional_number(match.invoice_unit_price),
+                "line_item_issues": match.issues,
+            }
+        )
+        checks.append(check)
+        for issue in match.issues:
+            issues.append(
+                {
+                    "code": "LINE_ITEM_RECONCILIATION_REVIEW",
+                    "message": issue,
+                    "document_type": left_doc.document_type if left_doc else "VENDOR_INVOICE",
+                    "document_id": left_doc.document_id if left_doc else None,
+                    "line_item_key": match.key,
+                }
+            )
+    return status
+
+
 def _proven_vendor_invoices(vendor_pos, vendor_invoices) -> list[NormalizedDocument]:
     po_numbers = {_norm_ref(_field(vendor_po, "vendor_po_no")) for vendor_po in vendor_pos if _field(vendor_po, "vendor_po_no")}
     return [
@@ -519,6 +573,28 @@ def _field(document, key):
     return document.fields.get(key) if document else None
 
 
+def _line_items_from(documents) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for document in documents:
+        line_items = document.fields.get("line_items") if document else None
+        if isinstance(line_items, list):
+            items.extend(item for item in line_items if isinstance(item, dict))
+    return items
+
+
+def _first_with_line_items(documents):
+    for document in documents:
+        line_items = document.fields.get("line_items") if document else None
+        if isinstance(line_items, list) and line_items:
+            return document
+    return None
+
+
+def _check_suffix(value: str) -> str:
+    suffix = re.sub(r"[^A-Z0-9]+", "_", str(value or "").upper()).strip("_")
+    return suffix[:40] or "UNKNOWN"
+
+
 def _document_gstins(document) -> list[tuple[str, str]]:
     if not document:
         return []
@@ -597,6 +673,10 @@ def _numeric_field(document, *keys: str) -> float | int | None:
 def _clean_number(value: float | int) -> float | int:
     number = float(value)
     return int(number) if number.is_integer() else round(number, 2)
+
+
+def _clean_optional_number(value: float | int | None) -> float | int | None:
+    return _clean_number(value) if value is not None else None
 
 
 def _refs_match(left, right) -> bool:

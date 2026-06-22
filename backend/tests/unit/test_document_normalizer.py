@@ -63,3 +63,11 @@ def test_vendor_gstin_survives_vendor_invoice_normalization():
     assert normalized.document_type == "VENDOR_INVOICE"
     assert normalized.fields["vendor_gstin"] == "33AAGCS1406H1ZR"
     assert normalized.fields["gstin"] == "33AAGCS1406H1ZR"
+
+
+def test_line_items_survive_invoice_normalization():
+    document = DummyDocument("doc-vendor-invoice", DocumentType.VENDOR_INVOICE)
+    line_items = [{"description": "Firewall appliance", "hsn_sac": "8517", "qty": "3"}]
+    normalized = normalize_document(document, {"vendor_invoice_no": "INV-1", "line_items": line_items})
+
+    assert normalized.fields["line_items"] == line_items

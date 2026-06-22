@@ -62,6 +62,7 @@ FIELD_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
         "grand_total": ("grand_total", "total_amount", "net_amount"),
         "line_item_count": ("line_item_count",),
         "total_quantity": ("total_quantity",),
+        "line_items": ("line_items",),
     },
     "DELIVERY_CHALLAN": {
         "dc_no": ("dc_no", "dc_number"),
@@ -76,6 +77,7 @@ FIELD_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
         "billing_address": ("billing_address",),
         "total_quantity": ("total_quantity",),
         "estimated_amount": ("estimated_amount", "taxable_amount", "total_amount"),
+        "line_items": ("line_items",),
     },
     "VENDOR_PO": {
         "vendor_po_no": ("vendor_po_no", "po_number", "primary_ref_no"),
@@ -112,6 +114,7 @@ FIELD_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
         "invoice_total": ("invoice_total", "total_amount", "grand_total", "net_amount"),
         "line_item_count": ("line_item_count",),
         "total_quantity": ("total_quantity",),
+        "line_items": ("line_items",),
     },
 }
 

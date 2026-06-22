@@ -162,6 +162,74 @@ def test_gst_math_mismatch_flags_present_values():
     assert any(issue["code"] == "GST_MATH_MISMATCH" for issue in summary["issues"])
 
 
+def test_line_item_checks_are_emitted_only_when_counterparts_are_present():
+    summary = verify_order_bundle(
+        [
+            doc(
+                "bill",
+                "VENDOR_INVOICE",
+                vendor_invoice_no="BILL-1",
+                line_items=[{"description": "Firewall appliance", "hsn_sac": "8517", "qty": "3"}],
+            ),
+        ]
+    )
+
+    assert not any(check["check_id"].startswith("LINE_ITEM_") for check in summary["checks"])
+
+
+def test_line_item_checks_aggregate_delivery_challans():
+    summary = verify_order_bundle(
+        [
+            doc(
+                "inv",
+                "CUSTOMER_INVOICE",
+                invoice_no="INV-1",
+                customer_order_no="PO-1",
+                so_no="SO-1",
+                customer_name="Acme",
+                taxable_amount=3000,
+                line_items=[{"description": "Firewall appliance", "hsn_sac": "8517", "qty": "3", "unit_rate": "1000"}],
+            ),
+            doc(
+                "dc-1",
+                "DELIVERY_CHALLAN",
+                dc_no="DC-1",
+                customer_order_no="PO-1",
+                so_no="SO-1",
+                customer_name="Acme",
+                estimated_amount=1000,
+                line_items=[{"description": "Firewall appliance", "hsn_sac": "8517", "qty": "1"}],
+            ),
+            doc(
+                "dc-2",
+                "DELIVERY_CHALLAN",
+                dc_no="DC-2",
+                customer_order_no="PO-1",
+                so_no="SO-1",
+                customer_name="Acme",
+                estimated_amount=2000,
+                line_items=[{"description": "Firewall appliance", "hsn_sac": "8517", "qty": "2"}],
+            ),
+            doc("vpo", "VENDOR_PO", vendor_po_no="PO-1", vendor_name="Alpha Systems", grand_total=3000),
+            doc(
+                "bill",
+                "VENDOR_INVOICE",
+                vendor_invoice_no="BILL-1",
+                po_reference="PO-1",
+                vendor_name="Alpha Systems",
+                invoice_total=3000,
+                line_items=[{"description": "Firewall appliance", "hsn_sac": "8517", "qty": "3", "unit_rate": "1000"}],
+            ),
+        ]
+    )
+
+    check = next(check for check in summary["checks"] if check["check_id"] == "LINE_ITEM_8517")
+    assert check["result"] == "PASS"
+    assert check["qty_status"] == "PASS"
+    assert check["price_status"] == "PASS"
+    assert check["right_value"] == {"dc_qty": 3, "invoice_qty": 3}
+
+
 def test_vendor_bill_is_not_counted_without_matching_po_reference():
     summary = verify_order_bundle(
         [
