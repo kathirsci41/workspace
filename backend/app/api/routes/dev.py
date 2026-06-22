@@ -14,7 +14,8 @@ router = APIRouter(prefix="/dev", tags=["dev"])
 
 
 def _require_dev_tools() -> None:
-    if not (config.settings.enable_dev_tools or config.settings.app_env == "development"):
+    # Router only mounted in development — this is belt-and-suspenders
+    if config.settings.app_env != "development":
         raise HTTPException(status_code=403, detail="Development tools are disabled.")
 
 

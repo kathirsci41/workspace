@@ -42,4 +42,5 @@ app.include_router(health_router, prefix=settings.api_prefix)
 app.include_router(bundles_router, prefix=settings.api_prefix)
 app.include_router(documents_router, prefix=settings.api_prefix)
 app.include_router(extractions_router, prefix=settings.api_prefix)
-app.include_router(dev_router, prefix=settings.api_prefix)
+if settings.app_env == "development":
+    app.include_router(dev_router, prefix=settings.api_prefix)
