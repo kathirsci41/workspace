@@ -217,6 +217,7 @@ def _parse_customer_po(text: str) -> dict[str, Any]:
         "customer_po_no": customer_po_no,
         "customer_po_date": _date_near_value(text, customer_po_no) or _label_value(text, ("PO Date", "Order Date", "Date"), value_pattern=_DATE_PATTERN),
         "customer_name": _customer_po_customer_name(text) or _label_value(text, ("Customer Name", "Buyer Name", "Bill To", "Invoice To"), value_pattern=r"[A-Z][A-Z0-9 &().,'/-]{4,}"),
+        "gstin": _first_match(text, _GSTIN_PATTERN),
         "billing_address": _address_after_label(text, ("Billing Address", "Bill To", "Buyer Address")),
         "delivery_address": _address_after_label(text, ("Delivery Address", "Ship To", "Consignee", "Shipping Address")),
         "subtotal_amount": _amount_after_label(text, ("Subtotal", "Sub Total", "Taxable Value", "Basic Amount", "Taxable Amount")),
@@ -318,7 +319,7 @@ def _parse_vendor_invoice(text: str, *, filename: str | None = None) -> tuple[di
         "invoice_total": invoice_total,
         "bill_to_name": bill_to_name,
         "ship_to_name": ship_to_name,
-        "vendor_gstin": _first_match(text, r"\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]\b"),
+        "vendor_gstin": _first_match(text, _GSTIN_PATTERN),
         "irn": _label_value(text, ("IRN",), value_pattern=r"[A-Z0-9]{8,}"),
         "ack_no": _label_value(text, ("Ack No", "Acknowledgement No"), value_pattern=r"\d{6,}"),
     }
@@ -436,6 +437,7 @@ def _with_aliases(doc_type: str, fields: dict[str, Any]) -> dict[str, Any]:
 
 
 _DATE_PATTERN = r"\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4}"
+_GSTIN_PATTERN = r"\b[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]\b"
 
 
 def _looks_like_code(value: str | None) -> str | None:
@@ -918,7 +920,7 @@ def _money_values(text: str) -> list[float | int]:
 # ---------------------------------------------------------------------------
 
 _CI_DATE_RE = re.compile(r"\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\b")
-_CI_GSTIN_RE = re.compile(r"\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[A-Z\d]{2}\b", re.I)
+_CI_GSTIN_RE = re.compile(_GSTIN_PATTERN, re.I)
 _CI_PAN_RE = re.compile(r"^[A-Z]{5}\d{4}[A-Z]$", re.I)
 _CI_CODE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9/\-]{4,}")
 _CI_AMOUNT_RE = re.compile(r"[0-9][0-9,]*(?:\.\d+)?")
@@ -1127,6 +1129,7 @@ def _parse_customer_invoice_ocr(text: str, filename: str | None = None) -> dict[
     invoice_date = _ci_invoice_date(lines)
     customer_name = _ci_customer_name(lines)
     total, taxable, tax = _ci_amounts(lines)
+    gstin_match = _CI_GSTIN_RE.search(text)
 
     if invoice_no:
         fields["invoice_number"] = invoice_no
@@ -1136,6 +1139,8 @@ def _parse_customer_invoice_ocr(text: str, filename: str | None = None) -> dict[
         fields["invoice_date"] = invoice_date
     if customer_name:
         fields["customer_name"] = customer_name
+    if gstin_match:
+        fields["gstin"] = _clean_scalar(gstin_match.group(0))
     if total is not None:
         fields["total_amount"] = total
         fields["net_amount"] = total

@@ -65,6 +65,44 @@ def test_amount_check_includes_diff_pct_and_uses_configurable_tolerance():
     assert check["diff_pct"] == 1.48
 
 
+def test_gstin_checks_are_emitted_only_for_present_values():
+    summary = verify_order_bundle(
+        [
+            doc("vpo", "VENDOR_PO", vendor_po_no="PO-1", vendor_name="Alpha Systems", grand_total=1000),
+            doc("bill", "VENDOR_INVOICE", vendor_invoice_no="BILL-1", po_reference="PO-1", vendor_name="Alpha Systems", invoice_total=1000),
+        ]
+    )
+
+    assert not any("GSTIN" in check["check_id"] for check in summary["checks"])
+
+
+def test_gstin_checks_validate_and_compare_present_vendor_values():
+    summary = verify_order_bundle(
+        [
+            doc(
+                "vpo",
+                "VENDOR_PO",
+                vendor_po_no="PO-1",
+                vendor_name="Alpha Systems",
+                vendor_gstin="33AAGCS1406H1ZR",
+                grand_total=1000,
+            ),
+            doc(
+                "bill",
+                "VENDOR_INVOICE",
+                vendor_invoice_no="BILL-1",
+                po_reference="PO-1",
+                vendor_name="Alpha Systems",
+                vendor_gstin="33AAGCS1406H1ZR",
+                invoice_total=1000,
+            ),
+        ]
+    )
+
+    assert any(check["check_id"] == "VENDOR_INVOICE_VENDOR_GSTIN_FORMAT" and check["result"] == "PASS" for check in summary["checks"])
+    assert any(check["check_id"] == "VENDOR_GSTIN_MATCH" and check["result"] == "PASS" for check in summary["checks"])
+
+
 def test_vendor_bill_is_not_counted_without_matching_po_reference():
     summary = verify_order_bundle(
         [

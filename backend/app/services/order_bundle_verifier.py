@@ -6,6 +6,7 @@ from typing import Any
 
 from app.services.address_parser import validate_addresses
 from app.services.document_normalizer import NormalizedDocument
+from app.services.gstin_validator import normalize_gstin, validate_gstin
 from app.services.tolerance_config import DEFAULT_TOLERANCE
 
 
@@ -29,7 +30,8 @@ def verify_order_bundle(documents: list[NormalizedDocument]) -> dict[str, Any]:
 
     customer_status = _customer_delivery_status(customer_po, invoice, dcs, checks, issues)
     vendor_status = _vendor_procurement_status(vendor_pos, vendor_invoices, checks, issues)
-    bundle_status = _bundle_status(customer_status, vendor_status, issues)
+    additional_status = _add_gstin_checks(checks, issues, docs_by_type)
+    bundle_status = _max_status(_bundle_status(customer_status, vendor_status, issues), additional_status)
     proven_vendor_invoices = _proven_vendor_invoices(vendor_pos, vendor_invoices)
 
     extracted_summary = {
@@ -306,6 +308,79 @@ def _vendor_procurement_status(vendor_pos, vendor_invoices, checks, issues) -> s
     return status
 
 
+def _add_gstin_checks(checks, issues, docs_by_type) -> str:
+    status = "PASS"
+    for documents in docs_by_type.values():
+        for document in documents:
+            for field_name, gstin in _document_gstins(document):
+                valid, reason = validate_gstin(gstin)
+                result = "PASS" if valid else "REVIEW_REQUIRED"
+                if not valid:
+                    status = _max_status(status, result)
+                    issues.append(
+                        {
+                            "code": "GSTIN_FORMAT_REVIEW_REQUIRED",
+                            "message": reason,
+                            "document_type": document.document_type,
+                            "document_id": document.document_id,
+                            "field_name": field_name,
+                            "gstin": normalize_gstin(gstin),
+                        }
+                    )
+                checks.append(
+                    _check(
+                        f"{document.document_type}_{field_name.upper()}_FORMAT",
+                        "GSTIN format",
+                        result,
+                        "WARNING",
+                        document,
+                        normalize_gstin(gstin),
+                        None,
+                        None,
+                        reason or f"GSTIN {normalize_gstin(gstin)} is valid.",
+                    )
+                )
+
+    vendor_po_gstins = _gstins_for(docs_by_type.get("VENDOR_PO", []), "vendor_gstin", "gstin")
+    vendor_invoice_gstins = _gstins_for(docs_by_type.get("VENDOR_INVOICE", []), "vendor_gstin", "gstin")
+    if vendor_po_gstins and vendor_invoice_gstins:
+        po_values = {value for _, _, value in vendor_po_gstins}
+        invoice_values = {value for _, _, value in vendor_invoice_gstins}
+        left_doc, _, left_value = vendor_invoice_gstins[0]
+        right_doc, _, right_value = vendor_po_gstins[0]
+        if po_values & invoice_values:
+            result = "PASS"
+            message = "Vendor GSTIN matches between vendor invoice and Vendor PO."
+        else:
+            result = "MISMATCH"
+            status = _max_status(status, result)
+            message = f"Vendor invoice GSTIN {left_value} does not match Vendor PO GSTIN {right_value}."
+            issues.append(
+                {
+                    "code": "VENDOR_GSTIN_MISMATCH",
+                    "message": message,
+                    "document_type": left_doc.document_type,
+                    "document_id": left_doc.document_id,
+                    "vendor_invoice_gstin": left_value,
+                    "vendor_po_gstin": right_value,
+                }
+            )
+        checks.append(
+            _check(
+                "VENDOR_GSTIN_MATCH",
+                "Vendor GSTIN match",
+                result,
+                "WARNING",
+                left_doc,
+                left_value,
+                right_doc,
+                right_value,
+                message,
+            )
+        )
+    return status
+
+
 def _proven_vendor_invoices(vendor_pos, vendor_invoices) -> list[NormalizedDocument]:
     po_numbers = {_norm_ref(_field(vendor_po, "vendor_po_no")) for vendor_po in vendor_pos if _field(vendor_po, "vendor_po_no")}
     return [
@@ -396,6 +471,36 @@ def _first(docs_by_type, doc_type):
 
 def _field(document, key):
     return document.fields.get(key) if document else None
+
+
+def _document_gstins(document) -> list[tuple[str, str]]:
+    if not document:
+        return []
+    values: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for field_name in ("vendor_gstin", "seller_gstin", "customer_gstin", "buyer_gstin", "gstin"):
+        value = normalize_gstin(document.fields.get(field_name))
+        if not value or value in seen:
+            continue
+        values.append((field_name, value))
+        seen.add(value)
+    return values
+
+
+def _gstins_for(documents, *field_names: str) -> list[tuple[NormalizedDocument, str, str]]:
+    values: list[tuple[NormalizedDocument, str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for document in documents:
+        for field_name in field_names:
+            value = normalize_gstin(document.fields.get(field_name))
+            if not value:
+                continue
+            dedupe_key = (document.document_id, value)
+            if dedupe_key in seen:
+                continue
+            values.append((document, field_name, value))
+            seen.add(dedupe_key)
+    return values
 
 
 def _amount(document, *keys):

@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 _SO_PATTERN = r"\b(?:[0-9][A-Z]{2,3}|[A-Z]{2,4})\d{10}\b"
 _SO_FAMILY = r"^(?:[0-9]OTM|SOSC)"
+_GSTIN_PATTERN = r"\b[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]\b"
 
 
 def extract_pdf_text_pages(pdf_path: str, max_pages: int = 10) -> list[str]:
@@ -71,6 +72,7 @@ def _extract_company_invoice(lines: list[str]) -> dict[str, Any]:
         ),
         "invoice_date": _value_after_label(lines, "Invoice Date", date=True),
         "customer_name": _line_after_label(lines, "Customer Name & Detail"),
+        "gstin": _gstin_from_lines(lines),
     }
     fields["customer_address"] = _join_after_anchor(lines, fields.get("customer_name"), max_lines=8)
     total, tax, taxable = _invoice_footer_amounts(lines)
@@ -97,6 +99,7 @@ def _extract_company_dc(lines: list[str]) -> dict[str, Any]:
         ),
         "customer_name": _line_after_label(lines, "Delivery To"),
         "dc_date": _date_before_or_after_label(lines, "DC Date"),
+        "gstin": _gstin_from_lines(lines),
     }
     fields["delivery_address"] = _join_after_anchor(lines, fields.get("customer_name"), max_lines=2)
     total_amount, total_quantity = _dc_amount_and_quantity_before_total(lines)
@@ -114,6 +117,7 @@ def _extract_company_po(lines: list[str]) -> dict[str, Any]:
         "mode_of_bill": _find_exact(lines, "ON FULL DELIVERY"),
         "part_shipment_allowed": _find_exact(lines, "NOT ALLOWED"),
         "vendor_name": _vendor_name(lines),
+        "gstin": _gstin_from_lines(lines),
     }
     net_idx = _last_index(lines, "Net Amount")
     if net_idx is not None:
@@ -141,6 +145,10 @@ def _first_match(lines: list[str], pattern: str) -> str | None:
         if match:
             return match.group(0).strip()
     return None
+
+
+def _gstin_from_lines(lines: list[str]) -> str | None:
+    return _first_match(lines, _GSTIN_PATTERN)
 
 
 def _invoice_number_from_lines(lines: list[str]) -> str | None:

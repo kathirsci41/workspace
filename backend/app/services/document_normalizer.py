@@ -32,6 +32,7 @@ FIELD_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
         "customer_po_no": ("customer_po_no", "po_number", "customer_order_no", "primary_ref_no"),
         "customer_po_date": ("customer_po_date", "po_date", "order_date"),
         "customer_name": ("customer_name", "buyer_name"),
+        "customer_gstin": ("customer_gstin", "buyer_gstin", "bill_to_gstin", "gstin"),
         "billing_address": ("billing_address", "bill_to_address"),
         "delivery_address": ("delivery_address", "shipping_address", "ship_to_address"),
         "subtotal_amount": ("subtotal_amount", "taxable_amount", "basic_amount"),
@@ -65,6 +66,7 @@ FIELD_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
         "so_no": ("so_no", "so_number", "sales_order_no"),
         "customer_order_no": ("customer_order_no", "po_reference", "customer_po_no"),
         "customer_name": ("customer_name", "delivery_to_name"),
+        "customer_gstin": ("customer_gstin", "buyer_gstin", "bill_to_gstin", "gstin"),
         "delivery_to_name": ("delivery_to_name", "customer_name"),
         "delivery_address": ("delivery_address", "customer_address"),
         "billing_address": ("billing_address",),
@@ -75,6 +77,7 @@ FIELD_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
         "vendor_po_no": ("vendor_po_no", "po_number", "primary_ref_no"),
         "vendor_po_date": ("vendor_po_date", "po_date"),
         "vendor_name": ("vendor_name",),
+        "vendor_gstin": ("vendor_gstin", "seller_gstin", "supplier_gstin", "gstin"),
         "part_shipment_allowed": ("part_shipment_allowed",),
         "mode_of_bill": ("mode_of_bill",),
         "subtotal_amount": ("subtotal_amount", "taxable_amount"),
@@ -87,6 +90,9 @@ FIELD_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
         "vendor_invoice_no": ("vendor_invoice_no", "invoice_number", "invoice_no"),
         "vendor_invoice_date": ("vendor_invoice_date", "invoice_date"),
         "vendor_name": ("vendor_name", "supplier_name"),
+        "vendor_gstin": ("vendor_gstin", "seller_gstin", "supplier_gstin", "gstin"),
+        "buyer_gstin": ("buyer_gstin", "customer_gstin", "bill_to_gstin"),
+        "gstin": ("gstin", "vendor_gstin"),
         "bill_to_name": ("bill_to_name",),
         "ship_to_name": ("ship_to_name",),
         "po_reference": ("po_reference", "customer_ref_no", "external_doc_no"),
@@ -156,6 +162,8 @@ def _add_canonical_aliases(document_type: str, fields: dict[str, Any]) -> None:
         fields.setdefault("invoice_number", fields["vendor_invoice_no"])
         if fields.get("invoice_total") is not None:
             fields.setdefault("total_amount", fields["invoice_total"])
+    if document_type in {"VENDOR_INVOICE", "VENDOR_PO"} and fields.get("vendor_gstin"):
+        fields.setdefault("gstin", fields["vendor_gstin"])
     if document_type == "VENDOR_PO" and fields.get("vendor_po_no"):
         fields.setdefault("po_number", fields["vendor_po_no"])
         if fields.get("grand_total") is not None:

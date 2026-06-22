@@ -46,3 +46,20 @@ def test_customer_po_aliases_are_available_after_normalization():
     assert normalized.fields["customer_order_no"] == "PMCH&RI/024/2025-2026"
     assert normalized.fields["primary_ref_no"] == "PMCH&RI/024/2025-2026"
     assert normalized.fields["grand_total"] == 874439
+
+
+def test_vendor_gstin_survives_vendor_invoice_normalization():
+    document = DummyDocument("doc-vendor-invoice", DocumentType.VENDOR_INVOICE)
+    normalized = normalize_document(
+        document,
+        {
+            "vendor_invoice_no": "INV-1",
+            "po_reference": "PO-1",
+            "vendor_gstin": "33AAGCS1406H1ZR",
+            "invoice_total": "1000",
+        },
+    )
+
+    assert normalized.document_type == "VENDOR_INVOICE"
+    assert normalized.fields["vendor_gstin"] == "33AAGCS1406H1ZR"
+    assert normalized.fields["gstin"] == "33AAGCS1406H1ZR"
