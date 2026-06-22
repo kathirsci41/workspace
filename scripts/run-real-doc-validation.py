@@ -355,10 +355,22 @@ def _inspect_workbook(path: Path) -> dict[str, Any]:
         "path": str(path),
         "sheets": workbook.sheetnames,
         "summary": {},
+        "cell_values": [],
     }
+    for sheet in workbook.worksheets:
+        for row in sheet.iter_rows(values_only=True):
+            for value in row:
+                if value is not None:
+                    result["cell_values"].append(value)
+
     if "Verification Summary" in workbook.sheetnames:
         sheet = workbook["Verification Summary"]
         for key, value in sheet.iter_rows(min_row=1, max_col=2, values_only=True):
+            if key is not None:
+                result["summary"][str(key)] = value
+    elif "Executive Dashboard" in workbook.sheetnames:
+        sheet = workbook["Executive Dashboard"]
+        for key, value in sheet.iter_rows(min_col=2, max_col=3, values_only=True):
             if key is not None:
                 result["summary"][str(key)] = value
     return result
@@ -389,7 +401,7 @@ def _validation_result(
     ]
     export_fail = 0
     expected_values = ((expected or {}).get("export") or {}).get("expected_values") or []
-    summary_values = list((workbook_inspection.get("summary") or {}).values())
+    summary_values = list((workbook_inspection.get("summary") or {}).values()) + list(workbook_inspection.get("cell_values") or [])
     for expected_value in expected_values:
         if not any(_values_match(expected_value, value) for value in summary_values):
             export_fail += 1

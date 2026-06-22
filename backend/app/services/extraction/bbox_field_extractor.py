@@ -25,6 +25,24 @@ ROW_TOLERANCE = 5
 BELOW_MAX_Y   = 25
 RIGHT_MAX_X   = 300
 
+_REFERENCE_FIELDS = {
+    "po_reference",
+    "so_no",
+    "customer_po_no",
+    "vendor_invoice_no",
+    "dc_number",
+    "irn_number",
+}
+_DATE_VALUE_RE = re.compile(
+    r"^\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}$|^\d{4}[/.\-]\d{1,2}[/.\-]\d{1,2}$",
+    re.I,
+)
+_LABEL_LIKE_VALUE_RE = re.compile(
+    r"^(invoice|bill|tax\s*invoice|ship\s*to|bill\s*to|purchase\s*order|order|reference|"
+    r"ref|customer|po|date|dated)\s*(no\.?|number|date)?\.?$",
+    re.I,
+)
+
 # ── Label → field_name mapping (canonical, document-type-agnostic) ───────────
 # Multiple label variants per field — first match wins.
 LABEL_MAP: dict[str, list[str]] = {
@@ -94,24 +112,39 @@ def _clean_value(text: str) -> str:
     return re.sub(r"^[:\-–•|\s]+", "", text.strip())
 
 
-def _find_value(label_bbox: dict, all_bboxes: list[dict]) -> str:
+def _is_valid_field_value(field_name: str, value: str) -> bool:
+    value = _clean_value(value)
+    if not value:
+        return False
+    if field_name in _REFERENCE_FIELDS:
+        if _LABEL_LIKE_VALUE_RE.match(value):
+            return False
+        if _DATE_VALUE_RE.match(value):
+            return False
+        if not re.search(r"\d", value):
+            return False
+    return True
+
+
+def _find_value(label_bbox: dict, all_bboxes: list[dict], field_name: str) -> str:
     """Find value bbox for a given label bbox. Right-of wins over below."""
     same_row_right = [
         b for b in all_bboxes
         if _same_row(label_bbox, b) and _right_of(label_bbox, b) and _is_value_candidate(b["text"])
     ]
-    if same_row_right:
-        # Nearest right
-        nearest = min(same_row_right, key=lambda b: b["x"])
-        return _clean_value(nearest["text"])
+    for candidate in sorted(same_row_right, key=lambda b: b["x"]):
+        value = _clean_value(candidate["text"])
+        if _is_valid_field_value(field_name, value):
+            return value
 
     below_bboxes = [
         b for b in all_bboxes
         if _below(label_bbox, b) and _is_value_candidate(b["text"])
     ]
-    if below_bboxes:
-        nearest = min(below_bboxes, key=lambda b: b["y"])
-        return _clean_value(nearest["text"])
+    for candidate in sorted(below_bboxes, key=lambda b: b["y"]):
+        value = _clean_value(candidate["text"])
+        if _is_valid_field_value(field_name, value):
+            return value
 
     return ""
 
@@ -142,7 +175,7 @@ def extract_header_fields(bboxes: list[dict]) -> dict[str, Any]:
             label_norm = variant.lower().strip()
             # Exact match first
             if label_norm in label_bbox_map:
-                value = _find_value(label_bbox_map[label_norm], bboxes)
+                value = _find_value(label_bbox_map[label_norm], bboxes, field_name)
                 if value:
                     result[field_name] = value
                     break
@@ -158,7 +191,7 @@ def extract_header_fields(bboxes: list[dict]) -> dict[str, Any]:
                 if len(norm_text.split()) > 5:
                     continue
                 if norm_text.startswith(label_norm) or label_norm in norm_text:
-                    value = _find_value(bbox, bboxes)
+                    value = _find_value(bbox, bboxes, field_name)
                     if value:
                         result[field_name] = value
                         break
