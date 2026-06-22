@@ -45,7 +45,28 @@
       "Bash(PATH=/c/Users/kathi/AppData/Local/Programs/Python/Python312:__TRACKED_VAR__ python -m pytest tests -q --no-header)",
       "Bash(git tag *)",
       "Bash(curl -s http://127.0.0.1:5180/)",
-      "Bash(curl -s http://127.0.0.1:5173/)"
+      "Bash(curl -s http://127.0.0.1:5173/)",
+      "PowerShell(docker run *)",
+      "PowerShell(Start-Sleep -Seconds 3; $env:Path = \"C:\\\\Users\\\\kathi\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312;\" + $env:Path; python --version)",
+      "PowerShell($env:Path = \"C:\\\\Users\\\\kathi\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312;\" + $env:Path; python -c \"import psycopg; conn = psycopg.connect\\('host=localhost port=5432 dbname=postgres user=postgres password=postgres'\\); print\\('PG OK:', conn.server_version\\); conn.close\\(\\)\" 2>&1)",
+      "PowerShell($env:Path = \"C:\\\\Users\\\\kathi\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312;\" + $env:Path; python -c \"import redis; r = redis.Redis\\(\\); print\\('Redis OK:', r.ping\\(\\)\\)\" 2>&1)",
+      "PowerShell($env:Path = \"C:\\\\Users\\\\kathi\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312;\" + $env:Path; python -c \"import psycopg; conn = psycopg.connect\\('host=localhost port=5432 dbname=postgres user=postgres password=postgres'\\); cur = conn.cursor\\(\\); cur.execute\\('SELECT version\\(\\)'\\); print\\('PG OK:', cur.fetchone\\(\\)[0][:30]\\); conn.close\\(\\)\")",
+      "PowerShell(pip install *)",
+      "PowerShell($env:Path = \"C:\\\\Users\\\\kathi\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312;\" + $env:Path; python -c \"import alembic; import celery; import redis; print\\('alembic', alembic.__version__\\); print\\('celery', celery.__version__\\); print\\('redis', redis.__version__\\)\")",
+      "PowerShell($env:Path = \"C:\\\\Users\\\\kathi\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312;\" + $env:Path; python -c \"import psycopg; conn = psycopg.connect\\('host=localhost port=5432 dbname=postgres user=postgres password=postgres', autocommit=True\\); conn.execute\\('CREATE DATABASE order_assurance'\\); conn.close\\(\\); print\\('DB created'\\)\" 2>&1)",
+      "PowerShell(alembic init *)",
+      "PowerShell(alembic revision *)",
+      "PowerShell(alembic upgrade *)",
+      "PowerShell(tail *)",
+      "PowerShell($env:Path = \"C:\\\\Users\\\\kathi\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312;\" + $env:Path; cd \"E:\\\\PROJECTS\\\\Experiments\\\\Logistic\\\\ODMP\\\\order-assurance\\\\backend\"; python -m pytest tests/integration/test_migrations.py -q --no-header 2>&1 | Select-Object -Last 5)",
+      "PowerShell(git *)",
+      "PowerShell($env:Path = \"C:\\\\Users\\\\kathi\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312;\" + $env:Path; cd \"E:\\\\PROJECTS\\\\Experiments\\\\Logistic\\\\ODMP\\\\order-assurance\\\\backend\"; python -m pytest tests -q --no-header 2>&1 | Select-Object -Last 3)",
+      "PowerShell(New-Item *)",
+      "PowerShell($env:Path = \"C:\\\\Users\\\\kathi\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312;\" + $env:Path; cd \"E:\\\\PROJECTS\\\\Experiments\\\\Logistic\\\\ODMP\\\\order-assurance\\\\backend\"; python -m pytest tests -q --no-header 2>&1 | Select-String \"FAILED\" | Select-Object -First 20)",
+      "PowerShell($env:Path = \"C:\\\\Users\\\\kathi\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312;\" + $env:Path; cd \"E:\\\\PROJECTS\\\\Experiments\\\\Logistic\\\\ODMP\\\\order-assurance\\\\backend\"; python -m pytest tests/integration/test_migrations.py -q --no-header 2>&1 | Select-Object -Last 20)",
+      "PowerShell($env:Path = \"C:\\\\Users\\\\kathi\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312;\" + $env:Path; cd \"E:\\\\PROJECTS\\\\Experiments\\\\Logistic\\\\ODMP\\\\order-assurance\\\\backend\"; python -m pytest tests/integration/test_migrations.py tests/integration/test_dev_tools_gate.py -v --no-header 2>&1 | Select-Object -Last 15)",
+      "PowerShell($env:Path = \"C:\\\\Users\\\\kathi\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312;\" + $env:Path; cd \"E:\\\\PROJECTS\\\\Experiments\\\\Logistic\\\\ODMP\\\\order-assurance\\\\backend\"; python -m pytest tests/integration/test_migrations.py -q --no-header 2>&1 | Select-Object -Last 3)",
+      "PowerShell($env:Path = \"C:\\\\Users\\\\kathi\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312;\" + $env:Path; Set-Location \"E:\\\\PROJECTS\\\\Experiments\\\\Logistic\\\\ODMP\\\\order-assurance\"; .\\\\scripts\\\\new-validation-run.ps1 -RunName sprint1-smoke 2>&1)"
     ]
   }
 }
