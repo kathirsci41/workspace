@@ -6,6 +6,7 @@ from typing import Any
 
 from app.services.address_parser import validate_addresses
 from app.services.document_normalizer import NormalizedDocument
+from app.services.tolerance_config import DEFAULT_TOLERANCE
 
 
 def verify_order_bundle(documents: list[NormalizedDocument]) -> dict[str, Any]:
@@ -168,14 +169,14 @@ def _add_dc_amount_check(checks, invoice, dc_list) -> None:
     if left_value is None or dc_total is None:
         result = "REVIEW_REQUIRED"
         message = "Amount comparison needs review because one amount is missing."
-    elif abs(left_value - dc_total) <= 2:
+    elif DEFAULT_TOLERANCE.passes(left_value, dc_total, "dc_invoice_amount"):
         result = "PASS"
         message = "Amounts match within rounding tolerance."
     else:
         result = "REVIEW_REQUIRED"
         message = "Amounts differ or tax inclusion is unclear."
     checks.append(
-        _check(
+        _amount_check(
             "INVOICE_DC_AMOUNT_MATCH",
             "Amount comparison",
             result,
@@ -265,6 +266,9 @@ def _vendor_procurement_status(vendor_pos, vendor_invoices, checks, issues) -> s
         invoice_total = sum(_amount(invoice, "invoice_total", "net_amount", "total_amount") or 0 for invoice in matching)
         if po_total is not None and invoice_total:
             difference = round(po_total - invoice_total, 2)
+            # ponytail: vendor coverage keeps exact +/-2, not DEFAULT_TOLERANCE's 2%.
+            # a percentage band here would mask near-full partial billing, which is
+            # an accepted Panimalar open-issue baseline. Widen only if a fixture needs it.
             if abs(difference) <= 2:
                 result = "PASS"
             elif invoice_total < po_total and _partial_billing_restricted(vendor_po):
@@ -334,13 +338,13 @@ def _add_amount_check(checks, left, right, left_key, right_key, check_id, fallba
     if left_value is None or right_value is None:
         result = "REVIEW_REQUIRED"
         message = "Amount comparison needs review because one amount is missing."
-    elif abs(left_value - right_value) <= 2:
+    elif DEFAULT_TOLERANCE.passes(left_value, right_value, check_id):
         result = "PASS"
         message = "Amounts match within rounding tolerance."
     else:
         result = "REVIEW_REQUIRED"
         message = "Amounts differ or tax inclusion is unclear."
-    checks.append(_check(check_id, "Amount comparison", result, "WARNING", left, left_value, right, right_value, message))
+    checks.append(_amount_check(check_id, "Amount comparison", result, "WARNING", left, left_value, right, right_value, message))
 
 
 def _add_name_check(checks, left, right):
@@ -375,6 +379,14 @@ def _check(check_id, name, result, severity, left_doc, left_value, right_doc, ri
         "right_value": right_value,
         "message": message,
     }
+
+
+def _amount_check(check_id, name, result, severity, left_doc, left_value, right_doc, right_value, message) -> dict[str, Any]:
+    check = _check(check_id, name, result, severity, left_doc, left_value, right_doc, right_value, message)
+    if left_value is not None and right_value is not None:
+        check["diff"] = round(abs(float(left_value) - float(right_value)), 2)
+        check["diff_pct"] = round(DEFAULT_TOLERANCE.diff_pct(float(left_value), float(right_value)), 2)
+    return check
 
 
 def _first(docs_by_type, doc_type):

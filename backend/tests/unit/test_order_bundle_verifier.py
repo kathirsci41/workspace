@@ -35,6 +35,36 @@ def test_customer_invoice_dc_so_and_customer_order_match_passes():
     assert any(check["check_id"] == "INVOICE_DC_CUSTOMER_ORDER_MATCH" and check["result"] == "PASS" for check in summary["checks"])
 
 
+def test_amount_check_includes_diff_pct_and_uses_configurable_tolerance():
+    summary = verify_order_bundle(
+        [
+            doc(
+                "inv",
+                "CUSTOMER_INVOICE",
+                invoice_no="INV-1",
+                customer_order_no="PO-1",
+                so_no="SO-1",
+                customer_name="Acme",
+                taxable_amount=1000,
+            ),
+            doc(
+                "dc",
+                "DELIVERY_CHALLAN",
+                dc_no="DC-1",
+                customer_order_no="PO-1",
+                so_no="SO-1",
+                customer_name="Acme",
+                estimated_amount=1015,
+            ),
+        ]
+    )
+
+    check = next(check for check in summary["checks"] if check["check_id"] == "INVOICE_DC_AMOUNT_MATCH")
+    assert check["result"] == "PASS"
+    assert check["diff"] == 15
+    assert check["diff_pct"] == 1.48
+
+
 def test_vendor_bill_is_not_counted_without_matching_po_reference():
     summary = verify_order_bundle(
         [
