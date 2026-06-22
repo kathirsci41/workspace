@@ -16,19 +16,26 @@ class Base(DeclarativeBase):
 
 _SQLITE_CONNECT_ARGS = {"check_same_thread": False, "timeout": 60}
 
-_engine = create_engine(
-    settings.database_url,
-    connect_args=_SQLITE_CONNECT_ARGS if settings.database_url.startswith("sqlite") else {},
-)
+
+def _make_engine(database_url: str):
+    if database_url.startswith("sqlite"):
+        return create_engine(database_url, connect_args=_SQLITE_CONNECT_ARGS)
+    return create_engine(
+        database_url,
+        pool_size=10,
+        max_overflow=20,
+        pool_pre_ping=True,
+        pool_recycle=300,
+    )
+
+
+_engine = _make_engine(settings.database_url)
 SessionLocal = sessionmaker(bind=_engine, autoflush=False, autocommit=False)
 
 
 def configure_database(database_url: str) -> None:
     global _engine, SessionLocal
-    _engine = create_engine(
-        database_url,
-        connect_args=_SQLITE_CONNECT_ARGS if database_url.startswith("sqlite") else {},
-    )
+    _engine = _make_engine(database_url)
     SessionLocal.configure(bind=_engine)
 
 
