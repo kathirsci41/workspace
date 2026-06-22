@@ -20,6 +20,7 @@ class DocumentMetadataRecord(Base):
     diagnostics: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     primary_ref_no: Mapped[str | None] = mapped_column(String(150), nullable=True)
     po_ref_no: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False, default="default", index=True)
     last_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 

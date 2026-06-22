@@ -21,5 +21,6 @@ class ReferenceIndexRecord(Base):
     document_type: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     field_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), nullable=False, default="default", index=True)
     evidence_text: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))

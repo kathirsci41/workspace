@@ -13,6 +13,7 @@ from app.api.routes.health import router as health_router
 from app.config import settings, validate_ocr_runtime_settings
 from app.database import init_db, wait_for_database
 from app.logging_config import configure_logging, request_logging_middleware
+from app.middleware.tenant import TenantMiddleware
 
 
 @asynccontextmanager
@@ -36,6 +37,7 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Content-Disposition"],
 )
+app.add_middleware(TenantMiddleware)
 app.include_router(health_router, prefix=settings.api_prefix)
 app.include_router(bundles_router, prefix=settings.api_prefix)
 app.include_router(documents_router, prefix=settings.api_prefix)
