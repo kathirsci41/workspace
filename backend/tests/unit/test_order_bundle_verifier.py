@@ -127,6 +127,41 @@ def test_gstin_checks_validate_and_compare_present_vendor_values():
     assert any(check["check_id"] == "VENDOR_GSTIN_MATCH" and check["result"] == "PASS" for check in summary["checks"])
 
 
+def test_gst_math_checks_are_emitted_only_when_tax_data_is_present():
+    summary = verify_order_bundle(
+        [
+            doc("inv", "CUSTOMER_INVOICE", invoice_no="INV-1", customer_order_no="PO-1", taxable_amount=1000),
+        ]
+    )
+
+    assert not any(check["check_id"].endswith("_GST_MATH") for check in summary["checks"])
+
+
+def test_gst_math_passes_when_expected_tax_matches_component_tax():
+    summary = verify_order_bundle(
+        [
+            doc("inv", "CUSTOMER_INVOICE", invoice_no="INV-1", customer_order_no="PO-1", taxable_amount=1000, gst_rate=18, igst_amount=180),
+        ]
+    )
+
+    check = next(check for check in summary["checks"] if check["check_id"] == "CUSTOMER_INVOICE_GST_MATH")
+    assert check["result"] == "PASS"
+    assert check["left_value"] == 180
+    assert check["right_value"] == 180
+
+
+def test_gst_math_mismatch_flags_present_values():
+    summary = verify_order_bundle(
+        [
+            doc("bill", "VENDOR_INVOICE", vendor_invoice_no="BILL-1", taxable_amount=1000, gst_rate=18, cgst_amount=70, sgst_amount=70),
+        ]
+    )
+
+    check = next(check for check in summary["checks"] if check["check_id"] == "VENDOR_INVOICE_GST_MATH")
+    assert check["result"] == "MISMATCH"
+    assert any(issue["code"] == "GST_MATH_MISMATCH" for issue in summary["issues"])
+
+
 def test_vendor_bill_is_not_counted_without_matching_po_reference():
     summary = verify_order_bundle(
         [

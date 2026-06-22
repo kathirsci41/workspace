@@ -31,6 +31,7 @@ def verify_order_bundle(documents: list[NormalizedDocument]) -> dict[str, Any]:
     customer_status = _customer_delivery_status(customer_po, invoice, dcs, checks, issues)
     vendor_status = _vendor_procurement_status(vendor_pos, vendor_invoices, checks, issues)
     additional_status = _add_gstin_checks(checks, issues, docs_by_type)
+    additional_status = _max_status(additional_status, _add_gst_math_checks(checks, issues, docs_by_type))
     bundle_status = _max_status(_bundle_status(customer_status, vendor_status, issues), additional_status)
     proven_vendor_invoices = _proven_vendor_invoices(vendor_pos, vendor_invoices)
 
@@ -383,6 +384,49 @@ def _add_gstin_checks(checks, issues, docs_by_type) -> str:
     return status
 
 
+def _add_gst_math_checks(checks, issues, docs_by_type) -> str:
+    status = "PASS"
+    for doc_type in ("VENDOR_INVOICE", "CUSTOMER_INVOICE"):
+        for document in docs_by_type.get(doc_type, []):
+            taxable = _numeric_field(document, "taxable_amount", "subtotal_amount")
+            gst_rate = _numeric_field(document, "gst_rate", "tax_rate")
+            if taxable is None or gst_rate is None:
+                continue
+
+            actual_tax = _actual_gst_tax(document)
+            if actual_tax is None:
+                continue
+
+            expected_tax = round(taxable * gst_rate / 100, 2)
+            result = "PASS" if DEFAULT_TOLERANCE.passes(expected_tax, actual_tax, "gst_tax") else "MISMATCH"
+            if result != "PASS":
+                status = _max_status(status, result)
+                issues.append(
+                    {
+                        "code": "GST_MATH_MISMATCH",
+                        "message": f"GST math mismatch: {taxable:g} * {gst_rate:g}% = {expected_tax:g}, found {actual_tax:g}.",
+                        "document_type": document.document_type,
+                        "document_id": document.document_id,
+                        "expected_tax": expected_tax,
+                        "actual_tax": actual_tax,
+                    }
+                )
+            checks.append(
+                _amount_check(
+                    f"{doc_type}_GST_MATH",
+                    "GST math",
+                    result,
+                    "WARNING",
+                    document,
+                    _clean_number(expected_tax),
+                    document,
+                    _clean_number(actual_tax),
+                    f"{taxable:g} * {gst_rate:g}% = {expected_tax:g}; extracted tax is {actual_tax:g}.",
+                )
+            )
+    return status
+
+
 def _proven_vendor_invoices(vendor_pos, vendor_invoices) -> list[NormalizedDocument]:
     po_numbers = {_norm_ref(_field(vendor_po, "vendor_po_no")) for vendor_po in vendor_pos if _field(vendor_po, "vendor_po_no")}
     return [
@@ -518,6 +562,41 @@ def _amount(document, *keys):
             continue
         return int(number) if number.is_integer() else number
     return None
+
+
+def _actual_gst_tax(document) -> float | int | None:
+    igst = _numeric_field(document, "igst_amount", "igst")
+    if igst is not None:
+        return _clean_number(igst)
+
+    cgst = _numeric_field(document, "cgst_amount", "cgst")
+    sgst = _numeric_field(document, "sgst_amount", "sgst")
+    if cgst is not None and sgst is not None:
+        return _clean_number(cgst + sgst)
+
+    return _numeric_field(document, "tax_amount", "gst_amount")
+
+
+def _numeric_field(document, *keys: str) -> float | int | None:
+    if not document:
+        return None
+    for key in keys:
+        value = document.fields.get(key)
+        if value in (None, ""):
+            continue
+        if isinstance(value, int | float):
+            return _clean_number(float(value))
+        text = str(value).replace(",", "").replace(chr(8377), "").replace("Rs.", "").replace("INR", "").replace("%", "").strip()
+        try:
+            return _clean_number(float(text))
+        except ValueError:
+            continue
+    return None
+
+
+def _clean_number(value: float | int) -> float | int:
+    number = float(value)
+    return int(number) if number.is_integer() else round(number, 2)
 
 
 def _refs_match(left, right) -> bool:
