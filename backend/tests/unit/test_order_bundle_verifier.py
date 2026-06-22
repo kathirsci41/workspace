@@ -127,6 +127,34 @@ def test_gstin_checks_validate_and_compare_present_vendor_values():
     assert any(check["check_id"] == "VENDOR_GSTIN_MATCH" and check["result"] == "PASS" for check in summary["checks"])
 
 
+def test_generic_vendor_po_gstin_is_validated_but_not_cross_compared():
+    summary = verify_order_bundle(
+        [
+            doc(
+                "vpo",
+                "VENDOR_PO",
+                vendor_po_no="PO-1",
+                vendor_name="Alpha Systems",
+                gstin="33AACCS3213Q1ZB",
+                grand_total=1000,
+            ),
+            doc(
+                "bill",
+                "VENDOR_INVOICE",
+                vendor_invoice_no="BILL-1",
+                po_reference="PO-1",
+                vendor_name="Alpha Systems",
+                vendor_gstin="33AAGCS1406H1ZR",
+                invoice_total=1000,
+            ),
+        ]
+    )
+
+    assert any(check["check_id"] == "VENDOR_PO_GSTIN_FORMAT" and check["result"] == "PASS" for check in summary["checks"])
+    assert not any(check["check_id"] == "VENDOR_GSTIN_MATCH" for check in summary["checks"])
+    assert not any(issue["code"] == "VENDOR_GSTIN_MISMATCH" for issue in summary["issues"])
+
+
 def test_gst_math_checks_are_emitted_only_when_tax_data_is_present():
     summary = verify_order_bundle(
         [

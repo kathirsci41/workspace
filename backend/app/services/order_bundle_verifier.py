@@ -346,7 +346,7 @@ def _add_gstin_checks(checks, issues, docs_by_type) -> str:
                     )
                 )
 
-    vendor_po_gstins = _gstins_for(docs_by_type.get("VENDOR_PO", []), "vendor_gstin", "gstin")
+    vendor_po_gstins = _gstins_for(docs_by_type.get("VENDOR_PO", []), "vendor_gstin")
     vendor_invoice_gstins = _gstins_for(docs_by_type.get("VENDOR_INVOICE", []), "vendor_gstin", "gstin")
     if vendor_po_gstins and vendor_invoice_gstins:
         po_values = {value for _, _, value in vendor_po_gstins}

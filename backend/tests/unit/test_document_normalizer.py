@@ -65,6 +65,22 @@ def test_vendor_gstin_survives_vendor_invoice_normalization():
     assert normalized.fields["gstin"] == "33AAGCS1406H1ZR"
 
 
+def test_vendor_po_generic_gstin_is_not_promoted_to_vendor_identity():
+    document = DummyDocument("doc-vendor-po", DocumentType.VENDOR_PO)
+    normalized = normalize_document(
+        document,
+        {
+            "vendor_po_no": "PO-1",
+            "vendor_name": "Alpha Systems",
+            "gstin": "33AACCS3213Q1ZB",
+        },
+    )
+
+    assert normalized.document_type == "VENDOR_PO"
+    assert normalized.fields["gstin"] == "33AACCS3213Q1ZB"
+    assert "vendor_gstin" not in normalized.fields
+
+
 def test_line_items_survive_invoice_normalization():
     document = DummyDocument("doc-vendor-invoice", DocumentType.VENDOR_INVOICE)
     line_items = [{"description": "Firewall appliance", "hsn_sac": "8517", "qty": "3"}]
