@@ -20,6 +20,7 @@ class DocumentRecord(Base):
     storage_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="UPLOADED")
     last_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    celery_task_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 

@@ -52,7 +52,8 @@ def sync_bundle_status_from_verification(db: Session, bundle_id: str, summary: d
             setattr(bundle, field, str(value))
             changed = True
 
+    bundle.last_verified_at = datetime.now(timezone.utc)
     if changed:
         bundle.updated_at = datetime.now(timezone.utc)
-        db.flush()
+    db.flush()
     return summary

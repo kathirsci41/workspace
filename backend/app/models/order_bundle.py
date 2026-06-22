@@ -20,6 +20,7 @@ class OrderBundleRecord(Base):
     status: Mapped[str] = mapped_column(String(50), default="REVIEW_REQUIRED")
     customer_delivery_status: Mapped[str] = mapped_column(String(50), default="REVIEW_REQUIRED")
     vendor_procurement_status: Mapped[str] = mapped_column(String(50), default="REVIEW_REQUIRED")
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
