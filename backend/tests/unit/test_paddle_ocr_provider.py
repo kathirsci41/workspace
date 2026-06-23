@@ -661,6 +661,7 @@ class TestPaddleRuntimeInfo:
             "paddleocr_version",
             "paddlepaddle_version",
             "paddle_init_args",
+            "ocr_version",
         }
 
     def test_paddle_runtime_info_reflects_availability(self):
@@ -669,10 +670,16 @@ class TestPaddleRuntimeInfo:
             info = paddle_runtime_info()
         assert info["paddleocr_available"] is False
 
-    def test_paddle_runtime_info_init_args_contains_lang_en(self):
+    def test_paddle_runtime_info_init_args_contains_lang_en_and_ocr_version(self):
         from app.services.extraction.ocr_providers.paddle_provider import paddle_runtime_info
         info = paddle_runtime_info()
-        assert info["paddle_init_args"] == {"lang": "en"}
+        assert info["paddle_init_args"]["lang"] == "en"
+        assert "ocr_version" in info["paddle_init_args"]
+
+    def test_paddle_runtime_info_ocr_version_key_present(self):
+        from app.services.extraction.ocr_providers.paddle_provider import paddle_runtime_info
+        info = paddle_runtime_info()
+        assert "ocr_version" in info
 
     def test_paddle_runtime_info_version_unknown_when_metadata_lookup_fails(self):
         from app.services.extraction.ocr_providers.paddle_provider import paddle_runtime_info
@@ -771,3 +778,38 @@ class TestRunFullPageDiagnostics:
                 "f.pdf", max_pages=1, dpi=150, timeout_seconds=45
             )
         assert result.text_blocks == [{"text": "HELLO", "page": 1}]
+
+
+# ---------------------------------------------------------------------------
+# Sprint 2 -- PP-OCRv5 upgrade
+# ---------------------------------------------------------------------------
+
+
+class TestSprint2PPOCRv5:
+    """Sprint 2: PADDLE_INIT_ARGS includes ocr_version='PP-OCRv5' by default."""
+
+    def test_paddle_init_args_includes_ocr_version(self):
+        from app.services.extraction.ocr_providers.paddle_provider import PADDLE_INIT_ARGS
+        assert "ocr_version" in PADDLE_INIT_ARGS
+
+    def test_paddle_init_args_ocr_version_matches_ocr_version_constant(self):
+        from app.services.extraction.ocr_providers.paddle_provider import PADDLE_INIT_ARGS, _OCR_VERSION
+        assert PADDLE_INIT_ARGS["ocr_version"] == _OCR_VERSION
+
+    def test_ocr_version_passed_to_paddle_constructor(self):
+        """PaddleOCR is instantiated with PADDLE_INIT_ARGS including ocr_version."""
+        from app.services.extraction.ocr_providers.paddle_provider import PADDLE_INIT_ARGS
+        mock_module, mock_ocr_instance = _make_mock_paddle_module()
+        with patch("app.services.extraction.ocr_providers.paddle_provider._paddle_available", return_value=True), \
+             patch.dict(sys.modules, {"paddleocr": mock_module}):
+            PaddleOcrProvider().run_full_page("f.pdf", max_pages=1, dpi=150, timeout_seconds=60)
+        mock_module.PaddleOCR.assert_called_once_with(**PADDLE_INIT_ARGS)
+
+    def test_runtime_info_reports_ocr_version(self):
+        from app.services.extraction.ocr_providers.paddle_provider import paddle_runtime_info, _OCR_VERSION
+        info = paddle_runtime_info()
+        assert info["ocr_version"] == _OCR_VERSION
+
+    def test_paddle_init_args_still_has_lang_en(self):
+        from app.services.extraction.ocr_providers.paddle_provider import PADDLE_INIT_ARGS
+        assert PADDLE_INIT_ARGS["lang"] == "en"

@@ -28,12 +28,20 @@ Phase 1xB — process-level timeout enforcement:
   OcrProviderResult with provider_name preserved (e.g. "paddleocr_gpu").
 - The child worker (_paddle_ocr_worker) is a module-level function so it can
   be pickled by the spawn start method on Windows.
+
+Sprint 2 — PP-OCRv5 upgrade:
+- PADDLE_INIT_ARGS now includes ocr_version="PP-OCRv5" to select the PP-OCRv5
+  recognition model (higher accuracy on dense/small text vs PP-OCRv4 default).
+- use_gpu is NOT passed here — GPU is selected via paddle.device.set_device()
+  in _set_paddle_device() and the device= kwarg on PaddleOcrProvider.
+- Env override: set PADDLE_OCR_VERSION=PP-OCRv4 to revert to previous model.
 """
 from __future__ import annotations
 
 import importlib.metadata
 import importlib.util
 import multiprocessing
+import os
 import queue as queue_module
 import time
 from typing import Any
@@ -43,7 +51,11 @@ from app.services.extraction.ocr_providers.base import OcrProviderBase, OcrProvi
 _UNAVAILABLE_ERROR = "PaddleOCR is not installed"
 _TERMINATE_GRACE_SECONDS = 5
 
-PADDLE_INIT_ARGS: dict[str, Any] = {"lang": "en"}
+# PP-OCRv5: higher accuracy on Indian invoice dense text, small fonts, rotated text.
+# Env override: PADDLE_OCR_VERSION=PP-OCRv4 to revert.
+_OCR_VERSION = os.environ.get("PADDLE_OCR_VERSION", "PP-OCRv5")
+
+PADDLE_INIT_ARGS: dict[str, Any] = {"lang": "en", "ocr_version": _OCR_VERSION}
 
 
 def _paddle_available() -> bool:
@@ -61,6 +73,7 @@ def paddle_runtime_info() -> dict[str, Any]:
         "paddleocr_version": "unknown",
         "paddlepaddle_version": "unknown",
         "paddle_init_args": dict(PADDLE_INIT_ARGS),
+        "ocr_version": _OCR_VERSION,
     }
     for package, key in (("paddleocr", "paddleocr_version"), ("paddlepaddle", "paddlepaddle_version")):
         try:
