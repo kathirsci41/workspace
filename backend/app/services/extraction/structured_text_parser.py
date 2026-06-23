@@ -436,7 +436,13 @@ def _with_aliases(doc_type: str, fields: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-_DATE_PATTERN = r"\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4}"
+_MONTH_NAMES = (
+    r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?"
+    r"|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+)
+# Second alternative restricted to real month names so product codes like
+# "DL 380 GEN 11" are never matched as dates.
+_DATE_PATTERN = rf"\d{{1,2}}[/.\-]\d{{1,2}}[/.\-]\d{{2,4}}|\d{{1,2}}\s+{_MONTH_NAMES}\s+\d{{2,4}}"
 _GSTIN_PATTERN = r"\b[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]\b"
 
 
