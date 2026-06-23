@@ -38,6 +38,10 @@ class Settings:
     ocr_paddle_device: str = os.getenv("OCR_PADDLE_DEVICE", "gpu:0")
     ocr_paddle_timeout_seconds: int = int(os.getenv("OCR_PADDLE_TIMEOUT_SECONDS", "60"))
     ocr_paddle_fallback_to_glm: bool = os.getenv("OCR_PADDLE_FALLBACK_TO_GLM", "true").lower() in {"1", "true", "yes", "on"}
+    # Sprint 2: PaddleOCR-VL-1.6 VLM fallback when PaddleOCR GPU route fails.
+    # Tried BEFORE glm fallback.  Requires transformers + torch + GPU >=4 GB.
+    # Disabled by default; set true on GPU machines.
+    ocr_paddle_vl_fallback: bool = os.getenv("OCR_PADDLE_VL_FALLBACK", "false").lower() in {"1", "true", "yes", "on"}
     # Comma-separated allowlist of document types that may use PaddleOCR when
     # OCR_PROVIDER=paddleocr_gpu. Conservative default keeps only VENDOR_INVOICE
     # so unset-env behavior is unchanged; local validation can widen it.

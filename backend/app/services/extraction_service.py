@@ -813,6 +813,26 @@ def _run_paddleocr_route(
         error=(error or "PaddleOCR returned no text")[:500],
     )
 
+    # Sprint 2: try PaddleOCR-VL-1.6 (local VLM) before falling back to GLM.
+    if settings.ocr_paddle_vl_fallback:
+        try:
+            from app.services.paddleocr_vl_service import extract_text_vl, _transformers_available  # noqa: PLC0415
+            if _transformers_available():
+                vl_text = extract_text_vl(document.storage_path or "")
+                if vl_text and len(vl_text.strip()) >= settings.ocr_min_text_length:
+                    diagnostics["fallback_used"] = True
+                    diagnostics["fallback_provider"] = "paddleocr_vl"
+                    diagnostics["ocr_route"] = "paddleocr_gpu_then_vl_fallback"
+                    diagnostics["ocr_available"] = True
+                    diagnostics["ocr_status"] = "text_acquired"
+                    diagnostics["ocr_text_length"] = len(vl_text.strip())
+                    text_for_parse = normalize_ocr_text(vl_text)
+                    return vl_text, text_for_parse, "ocr_paddleocr_vl"
+                diagnostics["vl_fallback_result"] = "empty_or_too_short"
+        except Exception as _vl_exc:
+            logger.warning("PaddleOCR-VL-1.6 fallback error: %s", _vl_exc)
+            diagnostics["vl_fallback_error"] = str(_vl_exc)[:200]
+
     if settings.ocr_paddle_fallback_to_glm:
         diagnostics["fallback_used"] = True
         diagnostics["fallback_provider"] = "glm_ocr"
