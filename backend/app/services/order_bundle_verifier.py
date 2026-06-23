@@ -84,10 +84,11 @@ def _customer_delivery_status(customer_po, invoice, dcs, checks, issues) -> str:
         )
         return "MISSING_DOCUMENTS"
 
-    for dc in dc_list:
+    for i, dc in enumerate(dc_list):
+        dc_suffix = f"_{i+1}" if len(dc_list) > 1 else ""
         _add_compare_check(
             checks,
-            "INVOICE_DC_CUSTOMER_ORDER_MATCH",
+            f"INVOICE_DC_CUSTOMER_ORDER_MATCH{dc_suffix}",
             "Customer order number matches between invoice and DC",
             invoice,
             "customer_order_no",
@@ -98,7 +99,7 @@ def _customer_delivery_status(customer_po, invoice, dcs, checks, issues) -> str:
         if _field(dc, "so_no") or _field(dc, "sales_order_no"):
             _add_compare_check(
                 checks,
-                "INVOICE_DC_SO_MATCH",
+                f"INVOICE_DC_SO_MATCH{dc_suffix}",
                 "SO number matches between invoice and DC",
                 invoice,
                 "so_no",
@@ -109,7 +110,7 @@ def _customer_delivery_status(customer_po, invoice, dcs, checks, issues) -> str:
         else:
             checks.append(
                 _check(
-                    "INVOICE_DC_SO_MATCH",
+                    f"INVOICE_DC_SO_MATCH{dc_suffix}",
                     "SO number matches between invoice and DC",
                     "REVIEW_REQUIRED",
                     "BLOCKER",
@@ -680,7 +681,11 @@ def _clean_optional_number(value: float | int | None) -> float | int | None:
 
 
 def _refs_match(left, right) -> bool:
-    return _norm_ref(left) == _norm_ref(right) if left and right else False
+    left_norm = _norm_ref(left)
+    right_norm = _norm_ref(right)
+    if not left_norm or not right_norm or len(left_norm) < 3:
+        return False
+    return left_norm == right_norm
 
 
 def _norm_ref(value) -> str:
