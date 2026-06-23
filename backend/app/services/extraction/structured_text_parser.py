@@ -215,7 +215,7 @@ def _parse_customer_po(text: str) -> dict[str, Any]:
     )
     return {
         "customer_po_no": customer_po_no,
-        "customer_po_date": _date_near_value(text, customer_po_no) or _label_value(text, ("PO Date", "Order Date", "Date"), value_pattern=_DATE_PATTERN),
+        "customer_po_date": _label_value(text, ("PO Date", "Order Date", "Date"), value_pattern=_DATE_PATTERN) or _date_near_value(text, customer_po_no),
         "customer_name": _customer_po_customer_name(text) or _label_value(text, ("Customer Name", "Buyer Name", "Bill To", "Invoice To"), value_pattern=r"[A-Z][A-Z0-9 &().,'/-]{4,}"),
         "gstin": _first_match(text, _GSTIN_PATTERN),
         "billing_address": _address_after_label(text, ("Billing Address", "Bill To", "Buyer Address")),
