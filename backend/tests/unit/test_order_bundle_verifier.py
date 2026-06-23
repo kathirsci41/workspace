@@ -82,7 +82,7 @@ def test_each_delivery_challan_reference_is_checked_independently():
         for check in summary["checks"]
     )
     assert any(
-        check["check_id"] == "CUSTOMER_PO_DC_ORDER_MATCH"
+        check["check_id"] == "CUSTOMER_PO_DC_ORDER_MATCH_2"
         and check["right_document_id"] == "dc-2"
         and check["result"] == "MISMATCH"
         for check in summary["checks"]

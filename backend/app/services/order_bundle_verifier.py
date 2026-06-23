@@ -142,10 +142,11 @@ def _customer_delivery_status(customer_po, invoice, dcs, checks, issues) -> str:
             invoice,
             "customer_order_no",
         )
-        for dc in dc_list:
+        for i, dc in enumerate(dc_list):
+            dc_suffix = f"_{i+1}" if len(dc_list) > 1 else ""
             _add_compare_check(
                 checks,
-                "CUSTOMER_PO_DC_ORDER_MATCH",
+                f"CUSTOMER_PO_DC_ORDER_MATCH{dc_suffix}",
                 "Customer PO number matches DC order number",
                 customer_po,
                 "customer_po_no",
