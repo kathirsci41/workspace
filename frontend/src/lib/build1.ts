@@ -49,6 +49,8 @@ export const REQUIRED_DOCUMENT_SLOTS: RequiredDocumentSlot[] = [
 ];
 
 const STATUS_LABELS: Record<string, string> = {
+  APPROVED: 'Approved',
+  CLOSED: 'Closed',
   OK: 'Verification Passed',
   PASS: 'Verification Passed',
   PARTIAL_PASS: 'Partially Matched',
@@ -98,7 +100,7 @@ export function statusLabel(status: string | null | undefined): string {
 
 export function statusTone(status: string | null | undefined): StatusTone {
   if (!status) return 'neutral';
-  if (['OK', 'PASS', 'VERIFIED', 'EXTRACTED'].includes(status)) return 'success';
+  if (['OK', 'PASS', 'VERIFIED', 'EXTRACTED', 'APPROVED', 'CLOSED'].includes(status)) return 'success';
   if (['REVIEW_REQUIRED', 'PARTIAL_PASS', 'PENDING_REVIEW', 'PENDING', 'UPLOADED', 'EXTRACTING', 'MANUAL_ENTRY'].includes(status)) return 'warning';
   if (['MISMATCH', 'MISSING_DOCUMENTS', 'BLOCKED', 'EXTRACTION_FAILED', 'FAILED', 'REJECTED'].includes(status)) return 'danger';
   return 'neutral';
@@ -153,7 +155,7 @@ export function bundleQueueMetrics(bundles: OrderBundle[]) {
   return {
     total: bundles.length,
     needsReview: bundles.filter((bundle) => bundleStatus(bundle) === 'REVIEW_REQUIRED').length,
-    verified: bundles.filter((bundle) => ['OK', 'PASS', 'VERIFIED'].includes(bundleStatus(bundle))).length,
+    verified: bundles.filter((bundle) => ['OK', 'PASS', 'VERIFIED', 'APPROVED', 'CLOSED'].includes(bundleStatus(bundle))).length,
     mismatches: bundles.filter((bundle) => bundleStatus(bundle) === 'MISMATCH').length,
     missingDocuments: bundles.filter((bundle) => bundleStatus(bundle) === 'MISSING_DOCUMENTS').length,
   };

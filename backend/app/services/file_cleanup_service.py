@@ -14,7 +14,13 @@ def delete_document_file(document: Any) -> dict[str, Any]:
         return {"deleted": False, "reason": "missing", "path": str(path)}
     if path.is_dir():
         return {"deleted": False, "reason": "not_file", "path": str(path)}
-    path.unlink()
+    try:
+        path.unlink()
+    except OSError as exc:
+        # On CIFS/network mounts unlink may raise PermissionError even when the
+        # file is successfully removed.  Treat it as a soft failure so that
+        # DELETE /bundles/:id returns 204 instead of 500.
+        return {"deleted": False, "reason": "unlink_failed", "error": str(exc), "path": str(path)}
     return {"deleted": True, "path": str(path)}
 
 

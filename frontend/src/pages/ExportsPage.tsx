@@ -5,6 +5,7 @@ import { listBundleDocuments } from '../api/documents';
 import { exportVerificationReport } from '../api/export';
 import { getVerificationSummary } from '../api/verification';
 import { ErrorState } from '../components/common/ErrorState';
+import { KpiCard } from '../components/common/KpiCard';
 import { LoadingState } from '../components/common/LoadingState';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { AppShell } from '../components/layout/AppShell';
@@ -88,7 +89,7 @@ function ExportsContent({ bundleId }: { bundleId: string }) {
       title="Export"
       subtitle={bund?.bundle_number ?? bundleId}
       breadcrumbs={[
-        { label: 'Bundles', href: '/bundles' },
+        { label: 'Orders', href: '/bundles' },
         { label: bund?.bundle_number ?? bundleId, href: `/bundles/${bundleId}/overview` },
         { label: 'Export' },
       ]}
@@ -102,7 +103,7 @@ function ExportsContent({ bundleId }: { bundleId: string }) {
         <section className="panel export-header">
           <div className="export-header__meta">
             <div>
-              <span className="export-header__label">Bundle</span>
+              <span className="export-header__label">Order</span>
               <span className="export-header__value">{bund.bundle_number}</span>
             </div>
             {bund.customer_name && (
@@ -253,15 +254,6 @@ function ExportsContent({ bundleId }: { bundleId: string }) {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-
-function KpiCard({ label, value, tone }: { label: string; value: number; tone: string }) {
-  return (
-    <div className={`kpi-card kpi-card--${tone}`}>
-      <span className="kpi-card__label">{label}</span>
-      <span className="kpi-card__value">{value}</span>
-    </div>
-  );
-}
 
 function FinancialRow({
   label, value, field, highlight = false,

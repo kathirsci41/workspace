@@ -1,4 +1,4 @@
-export type BundleStatus = 'OK' | 'REVIEW_REQUIRED' | 'MISMATCH' | 'MISSING_DOCUMENTS' | 'BLOCKED';
+export type BundleStatus = 'OK' | 'REVIEW_REQUIRED' | 'MISMATCH' | 'MISSING_DOCUMENTS' | 'BLOCKED' | 'APPROVED' | 'CLOSED';
 export type SectionStatus = 'PASS' | 'PARTIAL_PASS' | BundleStatus;
 export type DocumentStatus = 'UPLOADED' | 'EXTRACTING' | 'PENDING_REVIEW' | 'VERIFIED' | 'EXTRACTION_FAILED' | 'REJECTED';
 export type DocumentType = 'CUSTOMER_PO' | 'COMPANY_INVOICE' | 'COMPANY_DC' | 'COMPANY_PO' | 'VENDOR_INVOICE';
@@ -27,6 +27,7 @@ export interface OrderBundle {
   computed_customer_status?: SectionStatus | string | null;
   computed_vendor_status?: SectionStatus | string | null;
   status_computed_at?: string | null;
+  dismissed_check_ids?: string[];
   created_at: string;
   updated_at: string;
 }

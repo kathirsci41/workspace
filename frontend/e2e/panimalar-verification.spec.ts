@@ -49,7 +49,7 @@ test('Build 1 Panimalar verification workflow surfaces backend data', async ({ p
   fs.writeFileSync(path.join(artifactRoot, 'api', 'verification-summary.json'), JSON.stringify(await verification.json(), null, 2));
 
   await page.goto('/bundles');
-  await expect(page.getByRole('heading', { name: 'Bundles' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
   await expect(page.getByRole('link', { name: new RegExp(bundleNumber) })).toHaveCount(0);
   await page.screenshot({ path: path.join(screenshotDir, 'build1-bundles.png'), fullPage: true });
 
@@ -61,8 +61,8 @@ test('Build 1 Panimalar verification workflow surfaces backend data', async ({ p
 
   await page.goto(`/bundles/${bundleId}/documents`);
   await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible();
-  await expect(page.getByText('Customer PO')).toBeVisible();
-  await expect(page.getByText('Vendor Invoice')).toBeVisible();
+  await expect(page.getByText('Customer PO', { exact: true })).toBeVisible();
+  await expect(page.getByText('Vendor Invoice', { exact: true })).toBeVisible();
 
   const firstDocumentId = documentPayload[0]?.id;
   expect(firstDocumentId).toBeTruthy();
@@ -84,7 +84,7 @@ test('Build 1 Panimalar verification workflow surfaces backend data', async ({ p
   await expect(page.getByRole('heading', { name: 'Manual Correction History' })).toBeVisible();
 
   await page.goto(`/bundles/${bundleId}/exports`);
-  await expect(page.getByRole('heading', { name: 'Exports' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Export', exact: true })).toBeVisible();
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download Excel Report' }).click();
   const download = await downloadPromise;

@@ -27,6 +27,7 @@ export function BundlesPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingBundleId, setDeletingBundleId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
   const queueBundles = useMemo(() => (bundles.data ?? []).filter((bundle) => !isAutomatedTestBundle(bundle)), [bundles.data]);
@@ -75,12 +76,12 @@ export function BundlesPage() {
     }
   }
 
-  async function handleDelete(bundle: OrderBundle) {
-    const confirmed = window.confirm(
-      `Delete bundle ${bundle.bundle_number}? This removes the bundle and all uploaded documents. This cannot be undone.`,
-    );
-    if (!confirmed) return;
+  function handleDelete(bundle: OrderBundle) {
+    setConfirmDeleteId(bundle.id);
+  }
 
+  async function confirmDelete(bundle: OrderBundle) {
+    setConfirmDeleteId(null);
     setDeleteError(null);
     setDeletingBundleId(bundle.id);
     try {
@@ -95,13 +96,13 @@ export function BundlesPage() {
 
   return (
     <AppShell
-      title="Bundles"
+      title="Orders"
       subtitle="Work queue for document-based order verification cases."
-      breadcrumbs={[{ label: 'Bundles' }]}
-      actions={<button type="button" className="button button--primary" onClick={() => setIsCreateOpen(true)}>Create Bundle</button>}
+      breadcrumbs={[{ label: 'Orders' }]}
+      actions={<button type="button" className="button button--primary" onClick={() => setIsCreateOpen(true)}>Create Order</button>}
     >
-      <section className="kpi-grid" aria-label="Bundle KPIs">
-        <KpiCard label="Total Bundles" value={metrics.total} tone="info" />
+      <section className="kpi-grid" aria-label="Order KPIs">
+        <KpiCard label="Total Orders" value={metrics.total} tone="info" />
         <KpiCard label="Needs Review" value={metrics.needsReview} tone="warning" />
         <KpiCard label="Verified" value={metrics.verified} tone="success" />
         <KpiCard label="Mismatches" value={metrics.mismatches} tone="danger" />
@@ -111,8 +112,8 @@ export function BundlesPage() {
       <section className="panel">
         <div className="controls-row">
           <label>
-            Search bundles
-            <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Bundle, customer, PO, SO" />
+            Search orders
+            <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Order, customer, PO, SO" />
           </label>
           <label>
             Filter
@@ -134,18 +135,18 @@ export function BundlesPage() {
           </label>
         </div>
 
-        {bundles.isLoading ? <LoadingState label="Loading bundles..." /> : null}
+        {bundles.isLoading ? <LoadingState label="Loading orders..." /> : null}
         <ErrorState message={bundles.error ?? deleteError} />
         {!bundles.isLoading && !bundles.error && visibleBundles.length === 0 ? (
-          <EmptyState title="No bundles found" action={<button type="button" className="button button--primary" onClick={() => setIsCreateOpen(true)}>Create Bundle</button>}>
+          <EmptyState title="No orders found" action={<button type="button" className="button button--primary" onClick={() => setIsCreateOpen(true)}>Create Order</button>}>
             Create a bundle to upload the five required documents and start verification.
           </EmptyState>
         ) : null}
         {visibleBundles.length > 0 ? (
           <>
-            <BundleTable bundles={pagedBundles} deletingBundleId={deletingBundleId} onDelete={handleDelete} />
-            <div className="pagination" aria-label="Bundle pagination">
-              <span>Showing {pageStart + 1}-{Math.min(pageStart + PAGE_SIZE, visibleBundles.length)} of {visibleBundles.length} bundles</span>
+            <BundleTable bundles={pagedBundles} deletingBundleId={deletingBundleId} confirmDeleteId={confirmDeleteId} onDelete={handleDelete} onConfirmDelete={confirmDelete} onCancelDelete={() => setConfirmDeleteId(null)} />
+            <div className="pagination" aria-label="Order pagination">
+              <span>Showing {pageStart + 1}-{Math.min(pageStart + PAGE_SIZE, visibleBundles.length)} of {visibleBundles.length} orders</span>
               <div className="button-row">
                 <button className="button button--ghost" type="button" aria-label="Previous page" disabled={currentPage === 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Previous</button>
                 <span>Page {currentPage} of {pageCount}</span>

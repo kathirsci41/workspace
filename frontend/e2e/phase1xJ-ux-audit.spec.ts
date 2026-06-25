@@ -45,11 +45,11 @@ async function findDocumentOfType(
 }
 
 test.describe('Phase 1xJ UX audit screenshots', () => {
-  test('01 – Bundles page', async ({ page }) => {
+  test('01 – Orders page', async ({ page }) => {
     await page.goto('/bundles');
     await page.waitForLoadState('networkidle');
     await shot(page, '01_bundles_page');
-    await expect(page.getByRole('heading', { name: 'Bundles' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
   });
 
   test('02 – Bundle Overview page', async ({ page, request }) => {
@@ -194,7 +194,7 @@ test.describe('Phase 1xJ UX audit screenshots', () => {
     await page.goto(`/bundles/${bundle.id}/exports`);
     await page.waitForLoadState('networkidle');
     await shot(page, '09_exports_page');
-    await expect(page.getByRole('heading', { name: 'Exports' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Export', exact: true })).toBeVisible();
     // Verify the gratuitous "no export history" section is gone
     const emptyHistoryText = page.getByText('No export history available');
     expect(await emptyHistoryText.count()).toBe(0);

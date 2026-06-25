@@ -8,21 +8,29 @@ import type { OrderBundle } from '../../types/api';
 export function BundleTable({
   bundles,
   deletingBundleId = null,
+  confirmDeleteId = null,
   onDelete,
+  onConfirmDelete,
+  onCancelDelete,
 }: {
   bundles: OrderBundle[];
   deletingBundleId?: string | null;
+  confirmDeleteId?: string | null;
   onDelete?: (bundle: OrderBundle) => void;
+  onConfirmDelete?: (bundle: OrderBundle) => void;
+  onCancelDelete?: () => void;
 }) {
   return (
-    <DataTable label="Bundles table" className="bundles-table">
+    <DataTable label="Orders table" className="bundles-table">
       <thead>
         <tr>
-          <th>Bundle</th>
+          <th>Order</th>
           <th>Customer</th>
           <th>Customer PO</th>
           <th>SO No</th>
           <th>Status</th>
+          <th>Customer</th>
+          <th>Vendor</th>
           <th>Updated</th>
           <th>Action</th>
         </tr>
@@ -37,13 +45,23 @@ export function BundleTable({
             <td>{bundle.customer_po_no || '-'}</td>
             <td>{bundle.so_no || '-'}</td>
             <td><StatusBadge status={bundleStatus(bundle)} /></td>
+            <td><StatusBadge status={bundle.customer_delivery_status} /></td>
+            <td><StatusBadge status={bundle.vendor_procurement_status} /></td>
             <td>{formatDateTime(bundle.updated_at)}</td>
             <td>
               <div className="button-row">
-                <Link className="button button--ghost" to={`/bundles/${bundle.id}/overview`} aria-label={`Open Bundle ${bundle.bundle_number}`}>
+                <Link className="button button--ghost" to={`/bundles/${bundle.id}/overview`} aria-label={`Open Order ${bundle.bundle_number}`}>
                   Open
                 </Link>
-                {onDelete ? (
+                {onDelete && confirmDeleteId === bundle.id ? (
+                  <span className="inline-confirm">
+                    <span className="inline-confirm__label">Delete {bundle.bundle_number}?</span>
+                    <button className="button button--danger button--small" type="button" disabled={deletingBundleId === bundle.id} onClick={() => onConfirmDelete?.(bundle)}>
+                      {deletingBundleId === bundle.id ? 'Deleting…' : 'Yes, delete'}
+                    </button>
+                    <button className="button button--ghost button--small" type="button" onClick={() => onCancelDelete?.()}>Cancel</button>
+                  </span>
+                ) : onDelete ? (
                   <button
                     className="button button--danger"
                     type="button"
@@ -51,7 +69,7 @@ export function BundleTable({
                     disabled={deletingBundleId === bundle.id}
                     onClick={() => onDelete(bundle)}
                   >
-                    {deletingBundleId === bundle.id ? 'Deleting...' : 'Delete'}
+                    Delete
                   </button>
                 ) : null}
               </div>

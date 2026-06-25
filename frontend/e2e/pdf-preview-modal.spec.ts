@@ -140,34 +140,36 @@ test.describe('PDF preview modal & toolbar controls', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(600);
 
-    // Use title-based locator — it always contains "Rotate clockwise" regardless of current angle
-    const rotateBtn = page.locator('button[title*="Rotate clockwise"]');
+    // Actual title: "Rotate right (clockwise)" — button text is always ↻, never changes
+    // Rotation angle is shown in a SEPARATE <span class="pdf-rotation-label">
+    const rotateBtn = page.locator('button[title="Rotate right (clockwise)"]');
     await expect(rotateBtn).toBeVisible();
 
-    // Initially at 0° — button text is "↻ Rotate"
-    await expect(rotateBtn).toContainText('Rotate');
+    const rotLabel = page.locator('.pdf-rotation-label');
+
+    // Initially at 0° — label shows "0°"
+    await expect(rotLabel).toHaveText('0°');
     await shot(page, '05a_rotate_0deg');
 
     await rotateBtn.click();
     await page.waitForTimeout(300);
-    await expect(rotateBtn).toContainText('90°');
+    await expect(rotLabel).toHaveText('90°');
     await shot(page, '05b_rotate_90deg');
 
     await rotateBtn.click();
     await page.waitForTimeout(300);
-    await expect(rotateBtn).toContainText('180°');
+    await expect(rotLabel).toHaveText('180°');
     await shot(page, '05c_rotate_180deg');
 
     await rotateBtn.click();
     await page.waitForTimeout(300);
-    await expect(rotateBtn).toContainText('270°');
+    await expect(rotLabel).toHaveText('270°');
     await shot(page, '05d_rotate_270deg');
 
     await rotateBtn.click();
     await page.waitForTimeout(300);
-    // Back to 0° — button shows "↻ Rotate" again (no angle suffix)
-    await expect(rotateBtn).toContainText('Rotate');
-    expect(await rotateBtn.textContent()).not.toContain('°');
+    // Back to 0°
+    await expect(rotLabel).toHaveText('0°');
     await shot(page, '05e_rotate_back_0deg');
 
     console.log('Rotate cycle 0→90→180→270→0 ✓');
@@ -200,7 +202,7 @@ test.describe('PDF preview modal & toolbar controls', () => {
     await expect(zoomLabel).toContainText('150%');
 
     // Click zoom out → 125%
-    await page.getByRole('button', { name: '−' }).click();
+    await page.locator('button[title="Zoom out"]').click();
     await expect(zoomLabel).toContainText('125%');
 
     // Re-enable fit-width

@@ -27,8 +27,8 @@ export function CreateBundleModal({
     <div className="modal-backdrop" role="presentation">
       <section className="modal" role="dialog" aria-modal="true" aria-labelledby="create-bundle-title">
         <div className="modal__header">
-          <h2 id="create-bundle-title">Create Bundle</h2>
-          <button className="icon-button" type="button" aria-label="Close create bundle modal" onClick={onClose}>x</button>
+          <h2 id="create-bundle-title">Create Order</h2>
+          <button className="icon-button" type="button" aria-label="Close create order modal" onClick={onClose}>x</button>
         </div>
         <form className="form-grid" onSubmit={submit}>
           <label>

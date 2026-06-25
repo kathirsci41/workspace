@@ -22,6 +22,8 @@ class BundleStatus(str, Enum):
     MISMATCH = "MISMATCH"
     MISSING_DOCUMENTS = "MISSING_DOCUMENTS"
     BLOCKED = "BLOCKED"
+    APPROVED = "APPROVED"
+    CLOSED = "CLOSED"
 
 
 class SectionStatus(str, Enum):

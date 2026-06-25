@@ -2029,3 +2029,135 @@ button.button {
   align-items: center;
   flex-shrink: 0;
 }
+
+/* ── Banner ───────────────────────────────────────────────────────────────── */
+
+.banner {
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: 1px solid;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.banner--success {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.banner--warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.banner--danger {
+  background: #fff1f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+/* ── Inline confirm (delete row) ─────────────────────────────────────────── */
+
+.inline-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.inline-confirm__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #7f1d1d;
+}
+
+/* ── Toast / Toaster ─────────────────────────────────────────────────────── */
+
+.toaster {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+  max-width: 360px;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  animation: toast-in 0.2s ease;
+}
+
+.toast--success {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.toast--error {
+  background: #fff1f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.toast--info {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+
+.toast__dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.6;
+  padding: 0 0 0 8px;
+  color: inherit;
+}
+
+.toast__dismiss:hover {
+  opacity: 1;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Dismissed issue card ─────────────────────────────────────────────────── */
+
+.issue-card.is-dismissed {
+  opacity: 0.55;
+}
+
+.issue-card__dismissed-tag {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.issue-detail__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}

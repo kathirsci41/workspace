@@ -102,10 +102,10 @@ test('Build 1 full UI acceptance workflow', async ({ page, request }) => {
   const bundleNumber = `PANIMALAR-ORDER-${Date.now()}`;
 
   await page.goto('/bundles');
-  await expect(page.getByRole('heading', { name: 'Bundles' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Create Bundle' }).click();
-  const createDialog = page.getByRole('dialog', { name: 'Create Bundle' });
+  await page.getByRole('button', { name: 'Create Order' }).click();
+  const createDialog = page.getByRole('dialog', { name: 'Create Order' });
   await createDialog.getByLabel('Bundle name').fill(bundleNumber);
   await createDialog.getByRole('button', { name: 'Create verification bundle' }).click();
   await page.waitForURL(/\/bundles\/[^/]+\/overview$/);
@@ -115,7 +115,7 @@ test('Build 1 full UI acceptance workflow', async ({ page, request }) => {
   await expect(page.getByRole('heading', { name: bundleNumber })).toBeVisible();
 
   await page
-    .getByRole('navigation', { name: 'Bundle workflow' })
+    .getByRole('navigation', { name: 'Order workflow' })
     .getByRole('link', { name: 'Documents', exact: true })
     .click();
   await expect(page.getByRole('heading', { name: 'Documents', exact: true })).toBeVisible();
@@ -208,7 +208,7 @@ test('Build 1 full UI acceptance workflow', async ({ page, request }) => {
   await page.screenshot({ path: screenshotPath('07-audit.png'), fullPage: true });
 
   await page.goto(`/bundles/${bundleId}/exports`);
-  await expect(page.getByRole('heading', { name: 'Exports' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Export' })).toBeVisible();
   await page.screenshot({ path: screenshotPath('08-exports.png'), fullPage: true });
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download Excel Report' }).click();
@@ -222,8 +222,8 @@ test('Build 1 full UI acceptance workflow', async ({ page, request }) => {
   await page.screenshot({ path: screenshotPath('02-overview.png'), fullPage: true });
 
   await page.goto('/bundles');
-  await expect(page.getByRole('table', { name: 'Bundles table' })).toBeVisible();
-  await expect(page.getByRole('link', { name: `Open Bundle ${bundleNumber}` })).toHaveCount(0);
+  await expect(page.getByRole('table', { name: 'Orders table' })).toBeVisible();
+  await expect(page.getByRole('link', { name: `Open Order ${bundleNumber}` })).toHaveCount(0);
   await page.screenshot({ path: screenshotPath('01-bundles.png'), fullPage: true });
 });
 

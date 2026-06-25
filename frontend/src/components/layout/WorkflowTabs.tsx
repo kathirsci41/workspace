@@ -7,22 +7,17 @@ const tabs = [
   ['Review Results', 'verification'],
   ['Open Issues', 'issues'],
   ['Export', 'exports'],
+  ['Audit', 'audit'],
 ] as const;
 
 export function WorkflowTabs({ bundleId }: { bundleId: string }) {
   return (
-    <nav className="workflow-tabs" aria-label="Bundle workflow">
+    <nav className="workflow-tabs" aria-label="Order workflow">
       {tabs.map(([label, path]) => (
         <NavLink key={label} to={`/bundles/${bundleId}/${path}`} end>
           {label}
         </NavLink>
       ))}
-      <details className="workflow-tabs__more">
-        <summary>More</summary>
-        <div>
-          <NavLink to={`/bundles/${bundleId}/audit`}>Manual Correction History</NavLink>
-        </div>
-      </details>
     </nav>
   );
 }

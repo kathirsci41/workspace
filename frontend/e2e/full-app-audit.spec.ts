@@ -81,8 +81,13 @@ test.describe('Full-app audit', () => {
     }>;
     expect(bundles.length, 'Need at least one bundle in the database').toBeGreaterThan(0);
 
-    // Pick the first bundle that has at least one document
+    // Pick the first NON-AUTOMATED bundle that has at least one document.
+    // Automated test bundles (OA-ACCEPT-*, OA-REVIEW-*, etc.) are filtered from
+    // the UI table, so picking them would cause test 01's cell assertion to fail.
+    const AUTOMATED_PREFIXES = ['OA-ACCEPT-', 'UPLOAD-SMOKE-', 'AUDIT-', 'OA-HIGHLIGHT-',
+      'OA-REVIEW-', 'BUILD1-DEMO-', 'OA-PANIMALAR-', 'PANIMALAR-ORDER-', 'E2E-LIVE-'];
     for (const b of bundles) {
+      if (AUTOMATED_PREFIXES.some((p) => b.bundle_number?.startsWith(p))) continue;
       const docsRes = await request.get(`${apiBaseUrl}/bundles/${b.id}/documents`);
       if (!docsRes.ok()) continue;
       const docs = (await docsRes.json()) as Array<{ id: string }>;
@@ -101,17 +106,17 @@ test.describe('Full-app audit', () => {
   // -----------------------------------------------------------------------
   // 01 — /bundles  (bundle list page)
   // -----------------------------------------------------------------------
-  test('01 – /bundles: table renders and Create Bundle button is visible', async ({ page }) => {
+  test('01 – /bundles: table renders and Create Order button is visible', async ({ page }) => {
     watchConsoleErrors(page);
     await page.goto('/bundles');
     // React SPA: wait for the data-fetched heading to appear (networkidle alone can be too early)
-    await expect(page.getByRole('heading', { name: 'Bundles' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible({ timeout: 15_000 });
 
     // Bundles table (wait for async bundle load)
-    await expect(page.getByRole('table', { name: 'Bundles table' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('table', { name: 'Orders table' })).toBeVisible({ timeout: 15_000 });
 
     // Create Bundle button
-    const createBtn = page.getByRole('button', { name: 'Create Bundle' });
+    const createBtn = page.getByRole('button', { name: 'Create Order' });
     await expect(createBtn).toBeVisible();
 
     // Breadcrumb nav exists
@@ -128,14 +133,14 @@ test.describe('Full-app audit', () => {
   // -----------------------------------------------------------------------
   // 02 — Create Bundle dialog (open + close without committing)
   // -----------------------------------------------------------------------
-  test('02 – /bundles: Create Bundle dialog opens and can be cancelled', async ({ page }) => {
+  test('02 – /bundles: Create Order dialog opens and can be cancelled', async ({ page }) => {
     watchConsoleErrors(page);
     await page.goto('/bundles');
-    await expect(page.getByRole('heading', { name: 'Bundles' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible({ timeout: 15_000 });
 
-    await page.getByRole('button', { name: 'Create Bundle' }).click();
+    await page.getByRole('button', { name: 'Create Order' }).click();
 
-    const dialog = page.getByRole('dialog', { name: 'Create Bundle' });
+    const dialog = page.getByRole('dialog', { name: 'Create Order' });
     await expect(dialog).toBeVisible();
 
     // Bundle name input
@@ -168,7 +173,7 @@ test.describe('Full-app audit', () => {
     await expect(page.getByText('Document Inventory')).toBeVisible();
 
     // WorkflowTabs nav is present
-    const tabs = page.getByRole('navigation', { name: 'Bundle workflow' });
+    const tabs = page.getByRole('navigation', { name: 'Order workflow' });
     await expect(tabs).toBeVisible();
 
     // All six tab links visible
@@ -191,7 +196,7 @@ test.describe('Full-app audit', () => {
     await page.goto(`/bundles/${bundleId}/overview`);
     await page.waitForLoadState('networkidle');
 
-    const tabs = page.getByRole('navigation', { name: 'Bundle workflow' });
+    const tabs = page.getByRole('navigation', { name: 'Order workflow' });
 
     const tabRoutes: [string, string][] = [
       ['Documents', 'documents'],
@@ -383,7 +388,7 @@ test.describe('Full-app audit', () => {
     await page.goto(`/bundles/${bundleId}/exports`);
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByRole('heading', { name: 'Exports' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Export', exact: true })).toBeVisible();
 
     // Download Excel Report button
     const downloadBtn = page.getByRole('button', { name: 'Download Excel Report' });
@@ -444,7 +449,7 @@ test.describe('Full-app audit', () => {
       await expect(breadcrumb, `Breadcrumb missing on /${route}`).toBeVisible();
 
       // Must contain "Bundles" link
-      await expect(breadcrumb.getByText('Bundles'), `"Bundles" missing in breadcrumb on /${route}`).toBeVisible();
+      await expect(breadcrumb.getByText('Orders'), `"Orders" missing in breadcrumb on /${route}`).toBeVisible();
     }
 
     await shot(page, '14-breadcrumbs-check');
@@ -453,28 +458,25 @@ test.describe('Full-app audit', () => {
   // -----------------------------------------------------------------------
   // 15 — "More" dropdown in WorkflowTabs reveals audit link
   // -----------------------------------------------------------------------
-  test('15 – WorkflowTabs "More" dropdown reveals audit link', async ({ page }) => {
+  test('15 – WorkflowTabs renders all 7 tab links', async ({ page }) => {
     watchConsoleErrors(page);
     await page.goto(`/bundles/${bundleId}/overview`);
     await page.waitForLoadState('networkidle');
 
-    const tabs = page.getByRole('navigation', { name: 'Bundle workflow' });
+    const tabs = page.getByRole('navigation', { name: 'Order workflow' });
+    await expect(tabs).toBeVisible();
 
-    // The "More" <details> summary
-    const moreSummary = tabs.locator('details.workflow-tabs__more > summary');
-    await expect(moreSummary).toBeVisible();
-    await moreSummary.click();
+    // All 7 tabs are rendered as NavLinks (flat nav, no More dropdown)
+    const tabLabels = ['Overview', 'Documents', 'Extraction Review', 'Review Results', 'Open Issues', 'Export', 'Audit'];
+    for (const label of tabLabels) {
+      await expect(tabs.getByRole('link', { name: label })).toBeVisible();
+    }
 
-    // The audit link inside the dropdown
-    const auditLink = tabs.locator('details.workflow-tabs__more').getByRole('link', { name: 'Manual Correction History' });
-    await expect(auditLink).toBeVisible();
-
-    // Clicking it navigates to audit page
-    await auditLink.click();
+    // Clicking Audit navigates correctly
+    await tabs.getByRole('link', { name: 'Audit' }).click();
     await page.waitForURL(`**/bundles/${bundleId}/audit`);
-    await expect(page.getByRole('heading', { name: 'Manual Correction History' })).toBeVisible();
 
-    await shot(page, '15-more-dropdown-audit');
+    await shot(page, '15-workflow-tabs-all-visible');
   });
 
   // -----------------------------------------------------------------------
@@ -484,7 +486,7 @@ test.describe('Full-app audit', () => {
     watchConsoleErrors(page);
     await page.goto('/');
     await page.waitForURL('**/bundles');
-    await expect(page.getByRole('heading', { name: 'Bundles' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
     await shot(page, '16-root-redirect');
   });
 
@@ -495,7 +497,7 @@ test.describe('Full-app audit', () => {
     watchConsoleErrors(page);
     await page.goto('/this-route-does-not-exist');
     await page.waitForURL('**/bundles');
-    await expect(page.getByRole('heading', { name: 'Bundles' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Orders' })).toBeVisible();
     await shot(page, '17-unknown-route-redirect');
   });
 

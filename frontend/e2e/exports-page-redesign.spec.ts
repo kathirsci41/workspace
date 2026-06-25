@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const BASE = 'http://localhost:5173';
+const BASE = 'http://localhost:5181';
 
 test.describe('Export Page — Redesign (Phase 1xK-A)', () => {
   let bundleId: string;
@@ -8,7 +8,7 @@ test.describe('Export Page — Redesign (Phase 1xK-A)', () => {
   test.beforeAll(async ({ request }) => {
     // Create a minimal test bundle
     const resp = await request.post(`${BASE.replace('5173', '8100')}/api/bundles`, {
-      data: { bundle_number: 'EXPORT-TEST-1xK', customer_name: 'Export Test Co' },
+      data: { bundle_number: `EXPORT-TEST-1xK-${Date.now()}` },
     });
     expect(resp.ok()).toBeTruthy();
     bundleId = (await resp.json()).id;

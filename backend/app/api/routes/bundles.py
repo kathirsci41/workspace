@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
+from pydantic import BaseModel
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -29,6 +31,12 @@ from app.services.verification_summary_service import build_verification_summary
 
 
 router = APIRouter(prefix="/bundles", tags=["bundles"])
+
+_ALLOWED_STATUS_TRANSITIONS = {"APPROVED", "CLOSED", "REVIEW_REQUIRED", "OK", "MISMATCH", "MISSING_DOCUMENTS", "BLOCKED"}
+
+
+class BundleStatusUpdate(BaseModel):
+    status: str
 
 
 @router.post("", response_model=BundleRead, status_code=status.HTTP_201_CREATED)
@@ -74,6 +82,7 @@ def list_bundles(db: Session = Depends(get_db)):
                 "computed_customer_status": summary.get("customer_delivery_status"),
                 "computed_vendor_status": summary.get("vendor_procurement_status"),
                 "status_computed_at": bundle.updated_at,
+                "dismissed_check_ids": json.loads(bundle.dismissed_check_ids or "[]"),
                 "created_at": bundle.created_at,
                 "updated_at": bundle.updated_at,
             }
@@ -86,6 +95,72 @@ def get_bundle(bundle_id: str, db: Session = Depends(get_db)):
     bundle = BundleRepository(db).get(bundle_id)
     if not bundle:
         raise HTTPException(status_code=404, detail="Bundle not found")
+    return bundle
+
+
+@router.patch("/{bundle_id}/status", response_model=BundleRead)
+def update_bundle_status(bundle_id: str, payload: BundleStatusUpdate, db: Session = Depends(get_db)):
+    if payload.status not in _ALLOWED_STATUS_TRANSITIONS:
+        raise HTTPException(status_code=422, detail=f"Invalid status '{payload.status}'.")
+    repo = BundleRepository(db)
+    bundle = repo.get(bundle_id)
+    if not bundle:
+        raise HTTPException(status_code=404, detail="Bundle not found")
+    old_status = bundle.status
+    repo.update_status(bundle, payload.status)
+    AuditService(db).record_event(
+        AuditEventCreate(
+            event_type="bundle_status_updated",
+            actor="user",
+            order_bundle_id=bundle_id,
+            payload={"old_status": old_status, "new_status": payload.status},
+        )
+    )
+    db.commit()
+    db.refresh(bundle)
+    log_event("bundle_status_updated", bundle_id=bundle_id, old_status=old_status, new_status=payload.status)
+    return bundle
+
+
+@router.post("/{bundle_id}/dismiss-check/{check_id}", response_model=BundleRead)
+def dismiss_check(bundle_id: str, check_id: str, db: Session = Depends(get_db)):
+    repo = BundleRepository(db)
+    bundle = repo.get(bundle_id)
+    if not bundle:
+        raise HTTPException(status_code=404, detail="Bundle not found")
+    repo.add_dismissed_check(bundle, check_id)
+    AuditService(db).record_event(
+        AuditEventCreate(
+            event_type="check_dismissed",
+            actor="user",
+            order_bundle_id=bundle_id,
+            payload={"check_id": check_id},
+        )
+    )
+    db.commit()
+    db.refresh(bundle)
+    log_event("check_dismissed", bundle_id=bundle_id, check_id=check_id)
+    return bundle
+
+
+@router.delete("/{bundle_id}/dismiss-check/{check_id}", response_model=BundleRead)
+def undismiss_check(bundle_id: str, check_id: str, db: Session = Depends(get_db)):
+    repo = BundleRepository(db)
+    bundle = repo.get(bundle_id)
+    if not bundle:
+        raise HTTPException(status_code=404, detail="Bundle not found")
+    repo.remove_dismissed_check(bundle, check_id)
+    AuditService(db).record_event(
+        AuditEventCreate(
+            event_type="check_undismissed",
+            actor="user",
+            order_bundle_id=bundle_id,
+            payload={"check_id": check_id},
+        )
+    )
+    db.commit()
+    db.refresh(bundle)
+    log_event("check_undismissed", bundle_id=bundle_id, check_id=check_id)
     return bundle
 
 

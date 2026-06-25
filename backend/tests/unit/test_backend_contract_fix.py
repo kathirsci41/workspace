@@ -44,6 +44,7 @@ def test_bundle_list_attaches_authoritative_computed_statuses(monkeypatch):
         status="OK",
         customer_delivery_status="PASS",
         vendor_procurement_status="PASS",
+        dismissed_check_ids="[]",
         created_at=updated_at,
         updated_at=updated_at,
     )

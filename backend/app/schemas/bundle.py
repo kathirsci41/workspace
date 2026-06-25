@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class BundleCreate(BaseModel):
@@ -29,5 +30,18 @@ class BundleRead(BaseModel):
     computed_customer_status: str | None = None
     computed_vendor_status: str | None = None
     status_computed_at: datetime | None = None
+    dismissed_check_ids: list[str] = []
     created_at: datetime
     updated_at: datetime
+
+    @field_validator("dismissed_check_ids", mode="before")
+    @classmethod
+    def parse_dismissed_check_ids(cls, v: object) -> list[str]:
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except Exception:
+                return []
+        if isinstance(v, list):
+            return v
+        return []

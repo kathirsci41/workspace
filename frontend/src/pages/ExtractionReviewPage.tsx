@@ -1,5 +1,5 @@
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { listAuditEvents } from '../api/audit';
 import { getBundle } from '../api/bundles';
 import { getDocument, listBundleDocuments, patchExtractedData, reextractDocument } from '../api/documents';
@@ -37,7 +37,17 @@ function ExtractionReviewContent({ bundleId, documentId }: { bundleId: string; d
   const [isSaving, setIsSaving] = useState(false);
   const [isReextracting, setIsReextracting] = useState(false);
   const [mutationError, setMutationError] = useState<string | null>(null);
-  const [ocrRotationPreferences, setOcrRotationPreferences] = useState<Record<string, OcrRotationPreference>>({});
+  const [saveSuccessField, setSaveSuccessField] = useState<string | null>(null);
+  const [ocrRotationPreferences, setOcrRotationPreferencesState] = useState<Record<string, OcrRotationPreference>>(() => {
+    try { return JSON.parse(localStorage.getItem('ocr_rotation_prefs') ?? '{}'); } catch { return {}; }
+  });
+  const setOcrRotationPreferences = useCallback((updater: (prev: Record<string, OcrRotationPreference>) => Record<string, OcrRotationPreference>) => {
+    setOcrRotationPreferencesState((prev) => {
+      const next = updater(prev);
+      try { localStorage.setItem('ocr_rotation_prefs', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
   const extractionActivity = useExtractionActivity();
   const activeDocument = selectedDocument.data;
   const fieldLocations = activeDocument?.metadata?.field_locations ?? {};
@@ -66,6 +76,8 @@ function ExtractionReviewContent({ bundleId, documentId }: { bundleId: string; d
     try {
       await patchExtractedData(activeDocument.id, { [field]: value }, reason);
       setEditingField(null);
+      setSaveSuccessField(field);
+      setTimeout(() => setSaveSuccessField(null), 5000);
       await refreshAll();
     } catch (err) {
       setMutationError(err instanceof Error ? err.message : String(err));
@@ -96,7 +108,7 @@ function ExtractionReviewContent({ bundleId, documentId }: { bundleId: string; d
       bundleId={bundleId}
       title="Extraction Review"
       subtitle={bundle.data?.bundle_number ?? 'Review extracted values against PDF evidence.'}
-      breadcrumbs={[{ label: 'Bundles', href: '/bundles' }, { label: bundle.data?.bundle_number ?? bundleId, href: `/bundles/${bundleId}/overview` }, { label: 'Extraction Review' }]}
+      breadcrumbs={[{ label: 'Orders', href: '/bundles' }, { label: bundle.data?.bundle_number ?? bundleId, href: `/bundles/${bundleId}/overview` }, { label: 'Extraction Review' }]}
       actions={(
         <div className="extraction-actions">
           <span className="extraction-actions__rotation">OCR Rotation: {ocrRotationLabel(ocrRotationPreference)}</span>
@@ -113,11 +125,16 @@ function ExtractionReviewContent({ bundleId, documentId }: { bundleId: string; d
     >
       <WorkflowTabs bundleId={bundleId} />
       <ErrorState message={documents.error ?? selectedDocument.error ?? summary.error ?? audit.error ?? mutationError} />
+      {saveSuccessField && (
+        <div className="banner banner--success" role="status">
+          Field <strong>{saveSuccessField}</strong> saved. Verification results updated.
+        </div>
+      )}
       {documents.isLoading || selectedDocument.isLoading ? <LoadingState label="Loading extraction review..." /> : null}
 
       <div className="review-grid">
         <aside className="panel document-selector-panel">
-          <h2>Documents in Bundle</h2>
+          <h2>Documents in Order</h2>
           <label>
             Document selector
             <select

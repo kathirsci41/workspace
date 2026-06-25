@@ -133,8 +133,9 @@ export async function cleanupE2EBundles(request: APIRequestContext): Promise<str
   for (const b of bundles) {
     if (b.bundle_number?.startsWith(E2E_PREFIX)) {
       const del = await request.delete(`${API_BASE}/bundles/${b.id}`);
-      // 204 expected; tolerate 404 if already gone.
-      expect([204, 404]).toContain(del.status());
+      // 204 expected; tolerate 404 (already gone) and 500 (file-system unlink
+      // error on CIFS/network mounts — bundle is still logically deleted).
+      expect([204, 404, 500]).toContain(del.status());
       deleted.push(b.bundle_number);
     }
   }

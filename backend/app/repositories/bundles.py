@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -29,3 +32,22 @@ class BundleRepository:
 
     def delete(self, bundle: OrderBundleRecord) -> None:
         self.db.delete(bundle)
+
+    def update_status(self, bundle: OrderBundleRecord, new_status: str) -> None:
+        bundle.status = new_status
+        bundle.updated_at = datetime.now(timezone.utc)
+
+    def add_dismissed_check(self, bundle: OrderBundleRecord, check_id: str) -> list[str]:
+        ids: list[str] = json.loads(bundle.dismissed_check_ids or "[]")
+        if check_id not in ids:
+            ids.append(check_id)
+        bundle.dismissed_check_ids = json.dumps(ids)
+        bundle.updated_at = datetime.now(timezone.utc)
+        return ids
+
+    def remove_dismissed_check(self, bundle: OrderBundleRecord, check_id: str) -> list[str]:
+        ids: list[str] = json.loads(bundle.dismissed_check_ids or "[]")
+        ids = [i for i in ids if i != check_id]
+        bundle.dismissed_check_ids = json.dumps(ids)
+        bundle.updated_at = datetime.now(timezone.utc)
+        return ids

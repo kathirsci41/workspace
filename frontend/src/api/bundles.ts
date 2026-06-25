@@ -20,6 +20,21 @@ export function createBundle(payload: BundleCreatePayload): Promise<OrderBundle>
   return requestJson<OrderBundle>('/bundles', { method: 'POST', body: JSON.stringify(payload) });
 }
 
+export function patchBundleStatus(bundleId: string, newStatus: string): Promise<OrderBundle> {
+  return requestJson<OrderBundle>(`/bundles/${bundleId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: newStatus }),
+  });
+}
+
+export function dismissCheck(bundleId: string, checkId: string): Promise<OrderBundle> {
+  return requestJson<OrderBundle>(`/bundles/${bundleId}/dismiss-check/${encodeURIComponent(checkId)}`, { method: 'POST' });
+}
+
+export function undismissCheck(bundleId: string, checkId: string): Promise<OrderBundle> {
+  return requestJson<OrderBundle>(`/bundles/${bundleId}/dismiss-check/${encodeURIComponent(checkId)}`, { method: 'DELETE' });
+}
+
 export async function deleteBundle(bundleId: string): Promise<void> {
   const response = await fetch(apiUrl(`/bundles/${bundleId}`), { method: 'DELETE' });
   if (!response.ok) {

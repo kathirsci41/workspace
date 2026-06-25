@@ -1,7 +1,7 @@
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { useState } from 'react';
 import { listAuditEvents } from '../api/audit';
-import { getBundle } from '../api/bundles';
+import { getBundle, patchBundleStatus } from '../api/bundles';
 import { listBundleDocuments } from '../api/documents';
 import { exportVerificationReport } from '../api/export';
 import { getVerificationSummary } from '../api/verification';
@@ -30,6 +30,9 @@ function BundleOverviewContent({ bundleId }: { bundleId: string }) {
   const audit = useAsyncResource<AuditEvent[]>(() => listAuditEvents(bundleId), [bundleId]);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
+  const [approveError, setApproveError] = useState<string | null>(null);
+  const isApproved = bundle.data?.status === 'APPROVED';
 
   const docList = documents.data ?? [];
   const verification = verificationMetrics(summary.data);
@@ -37,6 +40,19 @@ function BundleOverviewContent({ bundleId }: { bundleId: string }) {
   const slots = buildDocumentSlots(docList);
   const nextAction = firstNextAction(summary.data, docList, bundleId);
   const outcome = outcomeSummary(summary.data, docList, bundleId);
+
+  async function handleApprove() {
+    setIsApproving(true);
+    setApproveError(null);
+    try {
+      await patchBundleStatus(bundleId, isApproved ? 'REVIEW_REQUIRED' : 'APPROVED');
+      await bundle.reload();
+    } catch (err) {
+      setApproveError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsApproving(false);
+    }
+  }
 
   async function exportReport() {
     setIsExporting(true);
@@ -59,12 +75,26 @@ function BundleOverviewContent({ bundleId }: { bundleId: string }) {
           <StatusBadge status={bundleStatus(bundle.data)} /> Created {formatDateTime(bundle.data.created_at)} Updated {formatDateTime(bundle.data.updated_at)}
         </span>
       ) : 'Loading bundle metadata...'}
-      breadcrumbs={[{ label: 'Bundles', href: '/bundles' }, { label: bundle.data?.bundle_number ?? bundleId }]}
-      actions={<button type="button" className="button button--primary" disabled={isExporting} onClick={exportReport}>{isExporting ? 'Exporting...' : 'Export Excel'}</button>}
+      breadcrumbs={[{ label: 'Orders', href: '/bundles' }, { label: bundle.data?.bundle_number ?? bundleId }]}
+      actions={(
+        <div className="button-row">
+          <button
+            type="button"
+            className={isApproved ? 'button button--ghost' : 'button button--primary'}
+            disabled={isApproving || !bundle.data}
+            onClick={handleApprove}
+          >
+            {isApproving ? 'Saving…' : isApproved ? 'Revoke Approval' : 'Approve Order'}
+          </button>
+          <button type="button" className="button button--ghost" disabled={isExporting} onClick={exportReport}>
+            {isExporting ? 'Exporting…' : 'Export Excel'}
+          </button>
+        </div>
+      )}
     >
       <WorkflowTabs bundleId={bundleId} />
-      <ErrorState message={bundle.error ?? documents.error ?? summary.error ?? audit.error ?? exportError} />
-      {bundle.isLoading || documents.isLoading || summary.isLoading ? <LoadingState label="Loading bundle workspace..." /> : null}
+      <ErrorState message={bundle.error ?? documents.error ?? summary.error ?? audit.error ?? exportError ?? approveError} />
+      {bundle.isLoading || documents.isLoading || summary.isLoading ? <LoadingState label="Loading order workspace..." /> : null}
 
       <section className="outcome-card" aria-label="Outcome summary">
         <div>
@@ -77,7 +107,7 @@ function BundleOverviewContent({ bundleId }: { bundleId: string }) {
         <Link className="button button--primary" to={outcome.actionPath}>{outcome.actionLabel}</Link>
       </section>
 
-      <section className="kpi-grid" aria-label="Bundle overview KPIs">
+      <section className="kpi-grid" aria-label="Order overview KPIs">
         <KpiCard label="Overall Status" value={<StatusBadge status={summary.data?.bundle_status ?? (bundle.data ? bundleStatus(bundle.data) : null)} />} tone="info" />
         <KpiCard label="Documents uploaded" value={`${docList.length}/5`} helper={`${slots.filter((slot) => !slot.document).length} missing`} />
         <KpiCard label="Extraction progress" value={`${extraction.extracted}/${Math.max(extraction.total, 5)}`} helper={extraction.pending ? 'Extraction Pending' : 'Extracted'} tone={extraction.pending ? 'warning' : 'success'} />

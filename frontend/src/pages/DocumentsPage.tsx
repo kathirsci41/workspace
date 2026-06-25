@@ -56,13 +56,50 @@ function DocumentsContent({ bundleId }: { bundleId: string }) {
     setIsUploadOpen(false);
   }
 
+  async function handleExtractAll() {
+    const pending = (documents.data ?? []).filter(
+      (doc) => !['EXTRACTED', 'MANUAL_ENTRY'].includes(doc.metadata?.status ?? '') && doc.status !== 'EXTRACTION_FAILED',
+    );
+    if (!pending.length) return;
+    setBusyAction('extract-all');
+    setMutationError(null);
+    try {
+      await Promise.allSettled(
+        pending.map((doc) => extractionActivity.runExtraction(doc, () => extractDocument(doc.id))),
+      );
+      await refresh();
+    } catch (err) {
+      setMutationError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusyAction(null);
+    }
+  }
+
+  const pendingCount = (documents.data ?? []).filter(
+    (doc) => !['EXTRACTED', 'MANUAL_ENTRY'].includes(doc.metadata?.status ?? '') && doc.status !== 'EXTRACTION_FAILED',
+  ).length;
+
   return (
     <AppShell
       bundleId={bundleId}
       title="Documents"
       subtitle={bundle.data?.bundle_number ?? 'Upload and manage the required PDFs.'}
-      breadcrumbs={[{ label: 'Bundles', href: '/bundles' }, { label: bundle.data?.bundle_number ?? bundleId, href: `/bundles/${bundleId}/overview` }, { label: 'Documents' }]}
-      actions={<button className="button button--primary" type="button" onClick={() => { setModalType(null); setIsUploadOpen(true); }}>Upload Document</button>}
+      breadcrumbs={[{ label: 'Orders', href: '/bundles' }, { label: bundle.data?.bundle_number ?? bundleId, href: `/bundles/${bundleId}/overview` }, { label: 'Documents' }]}
+      actions={(
+        <div className="button-row">
+          {pendingCount > 0 && (
+            <button
+              className="button button--ghost"
+              type="button"
+              disabled={busyAction === 'extract-all'}
+              onClick={handleExtractAll}
+            >
+              {busyAction === 'extract-all' ? 'Extracting…' : `Extract All (${pendingCount})`}
+            </button>
+          )}
+          <button className="button button--primary" type="button" onClick={() => { setModalType(null); setIsUploadOpen(true); }}>Upload Document</button>
+        </div>
+      )}
     >
       <WorkflowTabs bundleId={bundleId} />
       <ErrorState message={documents.error ?? summary.error ?? mutationError} />

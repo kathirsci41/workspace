@@ -38,7 +38,7 @@ function AuditTrailContent({ bundleId }: { bundleId: string }) {
       bundleId={bundleId}
       title="Manual Correction History"
       subtitle={bundle.data?.bundle_number ?? 'Field-level correction history.'}
-      breadcrumbs={[{ label: 'Bundles', href: '/bundles' }, { label: bundle.data?.bundle_number ?? bundleId, href: `/bundles/${bundleId}/overview` }, { label: 'Manual Correction History' }]}
+      breadcrumbs={[{ label: 'Orders', href: '/bundles' }, { label: bundle.data?.bundle_number ?? bundleId, href: `/bundles/${bundleId}/overview` }, { label: 'Manual Correction History' }]}
     >
       <WorkflowTabs bundleId={bundleId} />
       <ErrorState message={bundle.error ?? audit.error} />

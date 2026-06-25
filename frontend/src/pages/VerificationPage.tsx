@@ -52,7 +52,17 @@ function VerificationContent({ bundleId }: { bundleId: string }) {
       bundleId={bundleId}
       title="Review Results"
       subtitle={bundle.data?.bundle_number ?? 'Cross-document comparison results.'}
-      breadcrumbs={[{ label: 'Bundles', href: '/bundles' }, { label: bundle.data?.bundle_number ?? bundleId, href: `/bundles/${bundleId}/overview` }, { label: 'Review Results' }]}
+      breadcrumbs={[{ label: 'Orders', href: '/bundles' }, { label: bundle.data?.bundle_number ?? bundleId, href: `/bundles/${bundleId}/overview` }, { label: 'Review Results' }]}
+      actions={(
+        <button
+          className="button button--ghost"
+          type="button"
+          disabled={summary.isLoading}
+          onClick={() => { void summary.reload(); }}
+        >
+          {summary.isLoading ? 'Refreshing…' : 'Refresh Results'}
+        </button>
+      )}
     >
       <WorkflowTabs bundleId={bundleId} />
       <ErrorState message={bundle.error ?? summary.error} />

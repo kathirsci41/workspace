@@ -303,7 +303,7 @@ def _parse_vendor_invoice(text: str, *, filename: str | None = None) -> tuple[di
 
     fields = {
         "vendor_invoice_no": vendor_invoice_no,
-        "vendor_invoice_date": _label_value(text, ("Invoice Date", "Tax Invoice Date", "Invoice Dt", "Inv Date", "Bill Date", "Bill Dt", "Date of Invoice", "Date"), value_pattern=_DATE_PATTERN),
+        "vendor_invoice_date": _label_value(text, ("Invoice Date", "Tax Invoice Date", "Invoice Dt", "Inv Date", "Bill Date", "Bill Dt", "Date of Invoice", "Date of Supply", "Date"), value_pattern=_DATE_PATTERN),
         "vendor_name": vendor_name,
         "po_reference": _looks_like_code(
             _extract_po_from_other_references(text)
